@@ -36,6 +36,11 @@
       "types": "./lib/utilities/index.ts",
       "svelte": "./lib/utilities/index.ts",
       "default": "./lib/utilities/index.ts"
+    },
+    "./typed-idb": {
+      "types": "./lib/typed-idb/index.ts",
+      "svelte": "./lib/typed-idb/index.ts",
+      "default": "./lib/typed-idb/index.ts"
     }
   },
   "scripts": {

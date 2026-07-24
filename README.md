@@ -19,6 +19,7 @@ lib/
   runtime/
   menu/
   editor/
+  typed-idb/
   utilities/
 ```
 
@@ -61,6 +62,9 @@ singletons.
 
 Pure encoding, compact-response, date/week, and object-mapping helpers are exported from
 `@genix/ui/utilities`. They have no host configuration or Svelte runtime dependency.
+
+The vendored Typed-IDB adapter is exported separately from `@genix/ui/typed-idb`. Its
+upstream README and MIT license are retained beside the source.
 
 ## Development
 

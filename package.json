@@ -42,6 +42,16 @@
       "svelte": "./lib/cache/index.ts",
       "default": "./lib/cache/index.ts"
     },
+    "./service-worker": {
+      "types": "./lib/service-worker/index.ts",
+      "svelte": "./lib/service-worker/index.ts",
+      "default": "./lib/service-worker/index.ts"
+    },
+    "./workers/*": {
+      "types": "./lib/workers/*.ts",
+      "svelte": "./lib/workers/*.ts",
+      "default": "./lib/workers/*.ts"
+    },
     "./utilities": {
       "types": "./lib/utilities/index.ts",
       "svelte": "./lib/utilities/index.ts",
@@ -67,6 +77,7 @@
   },
   "dependencies": {
     "@humanspeak/svelte-virtual-list": "^0.3.5",
+    "@jsquash/avif": "^2.1.1",
     "date-fns": "^4.1.0",
     "dexie": "^4.2.0",
     "dompurify": "^3.4.2",

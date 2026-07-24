@@ -31,10 +31,12 @@ lib/
   navigation/
   popover2/
   runtime/
+  service-worker/
   svg/
   typed-idb/
   utilities/
   vTable/
+  workers/
 ```
 
 ## Runtime
@@ -89,6 +91,26 @@ configureCacheRuntime({
   getEnvironment: () => activeEnvironment,
   get: authenticatedGet,
   navigate,
+});
+```
+
+The service-worker entrypoint and browser RPC client are exported from
+`@genix/ui/service-worker`. Hosts compile
+`lib/service-worker/service-worker.ts` to their chosen public URL and inject application
+reporting separately:
+
+```ts
+import { configureServiceWorkerRuntime } from '@genix/ui/service-worker';
+
+configureServiceWorkerRuntime({
+  getWorkerUrl: () => '/sw.js',
+  getEnvironment: () => activeEnvironment,
+  getCompanyID: () => activeCompanyID,
+  makeRoute,
+  verifyRouteMemoryState: () => false,
+  reportFetch,
+  reportProgress,
+  notifyFailure,
 });
 ```
 

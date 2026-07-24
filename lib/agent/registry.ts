@@ -173,6 +173,7 @@ export const Agent: AgentRegistry & { getPageContent: () => Promise<{ Components
   async getPageContent() {
     const [{ default: DOMPurify }, { default: normalize }] = await Promise.all([
       import("dompurify"),
+      // @ts-expect-error This package has no declarations; the cast defines its one-function API.
       import("normalize-html-whitespace") as Promise<{ default: (html: string) => string }>,
     ]);
 

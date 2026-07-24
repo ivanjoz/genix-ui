@@ -19,6 +19,7 @@ lib/
   agent/
   assets/
   buttons/
+  cache/
   cards/
   charts/
   editor/
@@ -75,6 +76,21 @@ singletons.
 
 Pure encoding, compact-response, date/week, and object-mapping helpers are exported from
 `@genix/ui/utilities`. They have no host configuration or Svelte runtime dependency.
+
+Delta, record-by-ID, group, route, and IndexedDB caches are exported from
+`@genix/ui/cache`. The host injects tenant-aware IO once without coupling package source
+to application modules:
+
+```ts
+import { configureCacheRuntime } from '@genix/ui/cache';
+
+configureCacheRuntime({
+  getCompanyID: () => activeCompanyID,
+  getEnvironment: () => activeEnvironment,
+  get: authenticatedGet,
+  navigate,
+});
+```
 
 Canvas and compact cell charts are exported from `@genix/ui/charts`. The removed
 `Charts.svelte` billboard wrapper had no consumers and depended on an obsolete API, so it

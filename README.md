@@ -59,8 +59,8 @@ branding, and bindable open state as props. `MobileMenu` receives generic items 
 selection callback. Neither component imports host routing, security, services, or global
 singletons.
 
-Pure encoding and compact-response helpers are exported from `@genix/ui/utilities`.
-They have no host configuration or Svelte runtime dependency.
+Pure encoding, compact-response, date/week, and object-mapping helpers are exported from
+`@genix/ui/utilities`. They have no host configuration or Svelte runtime dependency.
 
 ## Development
 

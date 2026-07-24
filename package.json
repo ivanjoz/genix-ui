@@ -46,6 +46,7 @@
     "svelte": "^5.46.0"
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
     "esm-env": "^1.2.2",
     "roosterjs": "^9.41.0"
   },

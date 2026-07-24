@@ -1,3 +1,5 @@
+export { default as Renderer } from './Renderer.svelte';
+export type { ElementAST } from './Renderer.svelte';
 export * from './charts/index.js';
 export * from './runtime/index.js';
 export * from './menu/index.js';

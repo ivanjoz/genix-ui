@@ -32,6 +32,11 @@
       "svelte": "./lib/editor/index.ts",
       "default": "./lib/editor/index.ts"
     },
+    "./charts": {
+      "types": "./lib/charts/index.ts",
+      "svelte": "./lib/charts/index.ts",
+      "default": "./lib/charts/index.ts"
+    },
     "./utilities": {
       "types": "./lib/utilities/index.ts",
       "svelte": "./lib/utilities/index.ts",
@@ -53,6 +58,7 @@
   "dependencies": {
     "date-fns": "^4.1.0",
     "esm-env": "^1.2.2",
+    "leafer-ui": "^2.0.3",
     "roosterjs": "^9.41.0"
   },
   "devDependencies": {

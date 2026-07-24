@@ -16,6 +16,7 @@ The source is intentionally flat and has no `src/` wrapper:
 
 ```text
 lib/
+  charts/
   runtime/
   menu/
   editor/
@@ -62,6 +63,10 @@ singletons.
 
 Pure encoding, compact-response, date/week, and object-mapping helpers are exported from
 `@genix/ui/utilities`. They have no host configuration or Svelte runtime dependency.
+
+Canvas and compact cell charts are exported from `@genix/ui/charts`. The removed
+`Charts.svelte` billboard wrapper had no consumers and depended on an obsolete API, so it
+is intentionally not part of the package.
 
 The vendored Typed-IDB adapter is exported separately from `@genix/ui/typed-idb`. Its
 upstream README and MIT license are retained beside the source.

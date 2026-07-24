@@ -7,6 +7,9 @@ components require a `UiRuntime` to be created and provided once per Svelte comp
 tree. Business data, authentication, routing policy, and backend services remain in the
 host application.
 
+Package exports point directly to `lib/`, so consumers compile the source and editor
+navigation opens the implementation rather than generated declarations in `dist/`.
+
 ## Structure
 
 The source is intentionally flat and has no `src/` wrapper:
@@ -58,7 +61,7 @@ singletons.
 ## Development
 
 ```sh
-# Validate source and generated declarations.
+# Validate source. Packaging remains available for a future registry distribution.
 bun run check
 bun run package
 ```

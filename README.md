@@ -19,6 +19,7 @@ lib/
   runtime/
   menu/
   editor/
+  utilities/
 ```
 
 ## Runtime
@@ -57,6 +58,9 @@ component wrapper is more convenient than calling `setUiRuntime` directly.
 branding, and bindable open state as props. `MobileMenu` receives generic items and a
 selection callback. Neither component imports host routing, security, services, or global
 singletons.
+
+Pure encoding and compact-response helpers are exported from `@genix/ui/utilities`.
+They have no host configuration or Svelte runtime dependency.
 
 ## Development
 

@@ -31,6 +31,11 @@
       "types": "./lib/editor/index.ts",
       "svelte": "./lib/editor/index.ts",
       "default": "./lib/editor/index.ts"
+    },
+    "./utilities": {
+      "types": "./lib/utilities/index.ts",
+      "svelte": "./lib/utilities/index.ts",
+      "default": "./lib/utilities/index.ts"
     }
   },
   "scripts": {

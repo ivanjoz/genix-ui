@@ -1,7 +1,7 @@
 # Agentic Components
 
 This document describes how UI components expose themselves to the automation agent.
-The reusable registry lives in `genix-ui/lib/agent/`; the Genix
+The reusable registry lives in `genix-ui/agent/`; the Genix
 backend bridge stays in `frontend/core/agent/`.
 
 ## Core principle

@@ -7,15 +7,17 @@ components require a `UiRuntime` to be created and provided once per Svelte comp
 tree. Business data, authentication, routing policy, and backend services remain in the
 host application.
 
-Package exports point directly to `lib/`, so consumers compile the source and editor
+Package exports point directly to the package root, so consumers compile the source and editor
 navigation opens the implementation rather than generated declarations in `dist/`.
 
 ## Structure
 
-The source is intentionally flat and has no `src/` wrapper:
+The source is intentionally flat and has no `src/` or `lib/` wrapper:
 
 ```text
-lib/
+genix-ui/
+  package.json
+  index.ts
   agent/
   assets/
   buttons/
@@ -23,8 +25,10 @@ lib/
   cards/
   charts/
   editor/
+  excel/
   files/
   form/
+  http/
   layers/
   menu/
   misc/
@@ -32,7 +36,6 @@ lib/
   popover2/
   runtime/
   service-worker/
-  svg/
   typed-idb/
   utilities/
   vTable/
@@ -45,10 +48,9 @@ Create and set one runtime at the root of each Svelte render tree:
 
 ```svelte
 <script lang="ts">
-  import { createUiRuntime, setUiRuntime } from '@genix/ui';
+  import { createUiRuntime, provideUi } from '@genix/ui';
 
-  const ui = createUiRuntime();
-  setUiRuntime(ui);
+  const ui = provideUi(createUiRuntime());
 </script>
 ```
 
@@ -56,9 +58,9 @@ Descendants read and update the same package-owned UI state:
 
 ```svelte
 <script lang="ts">
-  import { getUiRuntime } from '@genix/ui';
+  import { useUI } from '@genix/ui';
 
-  const ui = getUiRuntime();
+  const ui = useUI();
 </script>
 
 <button onclick={() => { ui.state.mobileMenuOpen = true }}>
@@ -67,7 +69,7 @@ Descendants read and update the same package-owned UI state:
 ```
 
 Use a separate runtime for every fresh `mount()` tree. `UiProvider` is available when a
-component wrapper is more convenient than calling `setUiRuntime` directly.
+component wrapper is more convenient than calling `provideUi` directly.
 
 ## Host-owned policies
 
@@ -94,9 +96,39 @@ configureCacheRuntime({
 });
 ```
 
+Excel import/export is exported from `@genix/ui/excel`. Each host supplies its WASM asset
+URL, application name, and optional translator to an isolated runtime:
+
+```ts
+import { createExcelRuntime, ExcelBuilder } from '@genix/ui/excel';
+
+const excelRuntime = createExcelRuntime({
+  wasmUrl: '/vendor/excelize.wasm.bin',
+  applicationName: 'My application',
+  translate,
+});
+const builder = new ExcelBuilder<MyRecord>(excelRuntime);
+```
+
+The reusable GET/POST/PUT/upload transport is exported from `@genix/ui/http`. Authentication,
+routing, cache transport, request reporting, and notifications remain explicit host adapters:
+
+```ts
+import { createHttpClient } from '@genix/ui/http';
+
+const http = createHttpClient({
+  makeRoute,
+  getToken,
+  transformResponse,
+  notify,
+  fetchCached,
+  refreshRoutes,
+});
+```
+
 The service-worker entrypoint and browser RPC client are exported from
 `@genix/ui/service-worker`. Hosts compile
-`lib/service-worker/service-worker.ts` to their chosen public URL and inject application
+`service-worker/service-worker.ts` to their chosen public URL and inject application
 reporting separately:
 
 ```ts
@@ -124,7 +156,7 @@ component.
 
 All UI groups are available through source-first wildcard exports, for example
 `@genix/ui/form/Input.svelte` and `@genix/ui/vTable/TableGrid.svelte`. Genix retains
-`$components/*` as an alias directly to this same `lib/` directory.
+`$components/*` as an alias directly to the package root.
 
 The vendored Typed-IDB adapter is exported separately from `@genix/ui/typed-idb`. Its
 upstream README and MIT license are retained beside the source.
@@ -132,16 +164,19 @@ upstream README and MIT license are retained beside the source.
 ## Development
 
 ```sh
-# Validate source. Packaging remains available for a future registry distribution.
+# Validate the source-first workspace package.
 bun run check
-bun run package
 ```
+
+The package is private and distributed as a Git submodule. A future registry build should
+introduce a dedicated staging/source directory; `svelte-package --input .` is not used
+because it recursively scans package metadata, dependencies, and generated directories.
 
 Tailwind CSS v4 hosts must scan the package source and use the Genix spacing contract:
 
 ```css
 /* Package components use one Tailwind spacing unit as one pixel. */
-@source "../packages/genix-ui/lib/**/*.svelte";
+@source "../packages/genix-ui/{buttons,cards,charts,editor,files,form,layers,menu,misc,navigation,popover2,runtime,vTable}/**/*.svelte";
 
 @theme {
   --spacing: 1px;

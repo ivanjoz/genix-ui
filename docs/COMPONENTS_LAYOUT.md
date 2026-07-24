@@ -1,6 +1,6 @@
 # UI Components Layout
 
-This is the canonical classification for `genix-ui/lib/`. Every
+This is the canonical classification for the root-level folders in `genix-ui/`. Every
 component lives in exactly one subfolder, picked by **what the component is
 for**, not by who happens to use it. New components must be placed
 according to this scheme; if no bucket fits, propose a new one before

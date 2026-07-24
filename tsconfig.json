@@ -14,8 +14,14 @@
     "verbatimModuleSyntax": true
   },
   "include": [
-    "lib/**/*.d.ts",
-    "lib/**/*.ts",
-    "lib/**/*.svelte"
+    "*.d.ts",
+    "*.ts",
+    "**/*.ts",
+    "**/*.svelte"
+  ],
+  "exclude": [
+    ".svelte-kit",
+    "dist",
+    "node_modules"
   ]
 }

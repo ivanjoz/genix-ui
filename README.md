@@ -16,12 +16,24 @@ The source is intentionally flat and has no `src/` wrapper:
 
 ```text
 lib/
+  agent/
+  assets/
+  buttons/
+  cards/
   charts/
-  runtime/
-  menu/
   editor/
+  files/
+  form/
+  layers/
+  menu/
+  misc/
+  navigation/
+  popover2/
+  runtime/
+  svg/
   typed-idb/
   utilities/
+  vTable/
 ```
 
 ## Runtime
@@ -71,6 +83,10 @@ is intentionally not part of the package.
 The import-free `Renderer` and its `ElementAST` contract are exported from `@genix/ui`.
 AST callbacks are supplied by the host, keeping actions and business behavior outside the
 component.
+
+All UI groups are available through source-first wildcard exports, for example
+`@genix/ui/form/Input.svelte` and `@genix/ui/vTable/TableGrid.svelte`. Genix retains
+`$components/*` as an alias directly to this same `lib/` directory.
 
 The vendored Typed-IDB adapter is exported separately from `@genix/ui/typed-idb`. Its
 upstream README and MIT license are retained beside the source.

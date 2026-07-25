@@ -293,7 +293,7 @@ the access-packing contract, and refresh timings.
 ### One-off requests
 
 ```ts
-import { GET, POST } from '$libs/http.svelte';
+import { GET, POST } from '$libs/ui-runtime.svelte';
 
 const rows = await GET({ route: 'products?category-id=3' });
 await POST({ data: record, route: 'products', refreshRoutes: ['products'] });

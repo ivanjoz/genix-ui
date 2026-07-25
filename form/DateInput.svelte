@@ -31,7 +31,7 @@
     parseTypedDate,
     weekDaysNames,
   } from "./date-input.helpers";
-  import s1 from "../components.module.css";
+  import FieldShell from "./FieldShell.svelte";
   import { Agent } from "../agent/registry";
   import { useUI } from '../runtime/index.js';
   const ui = useUI()
@@ -216,7 +216,8 @@
     }
   })
 
-  let cN = $derived(`${s1.input} relative date-input-container` + (css ? " " + css : ""))
+  // useInlineStyle drops the chrome so the parent (a table cell) keeps owning the visuals.
+  const shellVariant = $derived(useInlineStyle ? "bare" : "field")
 
   // YYYY-MM-DD mirror of the selected day, exposed as data-value for the agent.
   const agentDataValue = $derived.by(() => {
@@ -346,123 +347,65 @@
   {/if}
 {/snippet}
 
-{#if label && !useInlineStyle}
-  <div data-id="DateInput:{componentID}" data-value={agentDataValue} data-label={agentDataLabel} data-type="other" class={cN}>
-    <div class={s1.input_lab_cell_left}><div></div></div>
-    <div class={s1.input_lab}><T text={label} /></div>
-    <div class={s1.input_lab_cell_right}><div></div></div>
-    <div class={s1.input_shadow_layer}>
-      <div></div>
-    </div>
-    <div class={`${s1.input_div} flex w-full`}>
-      <div class={s1.input_div_1}>
-        <div></div>
+<!-- One shell call for every mode. The labelled and bare variants used to be two
+     near-identical 45-line branches; the only real difference was the chrome, which
+     FieldShell now owns. -->
+<FieldShell
+  {label} {disabled} {css}
+  variant={shellVariant}
+  overlay={calendarBlock}
+  data-id="DateInput:{componentID}"
+  data-value={agentDataValue}
+  data-label={agentDataLabel}
+  data-type="other"
+>
+  {#snippet children({ controlId, controlClass })}
+    {#if !isMobile}
+      <input
+        id={controlId}
+        bind:this={inputElement}
+        type="text"
+        class={`${controlClass} ff-mono${inputCss ? " " + inputCss : ""}`}
+        value={inputValue}
+        placeholder={ui.translate(placeholder)}
+        disabled={disabled}
+        onfocus={handleFocus}
+        onblur={handleBlur}
+        onkeydown={handleKeyDown}
+        onkeyup={handleKeyUp}
+      />
+    {:else}
+      <!-- Mobile opens a Layer picker instead of typing, so the control is a button. -->
+      <div
+        id={controlId}
+        class={`${controlClass} flex items-center ff-mono ${inputCss || ""} ${disabled ? "opacity-60" : ""}`}
+        role="button"
+        tabindex={disabled ? -1 : 0}
+        aria-disabled={disabled}
+        onclick={(ev) => {
+          ev.stopPropagation()
+          openMobileLayer()
+        }}
+        onkeydown={(ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault()
+            openMobileLayer()
+          }
+        }}
+      >
+        <div class={`w-full ${inputValue ? "" : "_mobile-placeholder"}`}>
+          {inputValue || ui.translate(placeholder)}
+        </div>
       </div>
-      {#if !isMobile}
-        <input
-          bind:this={inputElement}
-          type="text"
-          class="w-full {s1.input_inp} ff-mono {inputCss || ""}"
-          value={inputValue}
-          placeholder={ui.translate(placeholder)}
-          disabled={disabled}
-          onfocus={handleFocus}
-          onblur={handleBlur}
-          onkeydown={handleKeyDown}
-          onkeyup={handleKeyUp}
-        />
-      {:else}
-        <div
-          class={`w-full flex items-center ${s1.input_inp} ff-mono ${inputCss || ""} ${disabled ? "opacity-60" : ""}`}
-          role="button"
-          tabindex={disabled ? -1 : 0}
-          aria-disabled={disabled}
-          onclick={(ev) => {
-            ev.stopPropagation()
-            openMobileLayer()
-          }}
-          onkeydown={(ev) => {
-            if (ev.key === 'Enter' || ev.key === ' ') {
-              ev.preventDefault()
-              openMobileLayer()
-            }
-          }}
-        >
-          <div class={`w-full ${inputValue ? "" : "_mobile-placeholder"}`}>
-            {inputValue || ui.translate(placeholder)}
-          </div>
-        </div>
-      {/if}
-    </div>
-
-    {@render calendarBlock()}
-  </div>
-{:else}
-  <!-- useInlineStyle swaps the chrome (s1.input/input_div/input_inp) for bare classes that fill the parent cell. -->
-  <div data-id="DateInput:{componentID}" data-value={agentDataValue} data-label={agentDataLabel} data-type="other"
-    class={(useInlineStyle ? "di-bare relative w-full h-full date-input-container" : `${s1.input} no-label relative date-input-container`) + (css ? " " + css : "")}>
-    <div class={useInlineStyle ? "flex w-full h-full" : `${s1.input_div} flex w-full`}>
-      {#if !isMobile}
-        <input
-          bind:this={inputElement}
-          type="text"
-          class={(useInlineStyle ? "di-bare-input ff-mono w-full h-full" : `w-full ${s1.input_inp} ff-mono`) + (inputCss ? " " + inputCss : "")}
-          value={inputValue}
-          placeholder={ui.translate(placeholder)}
-          disabled={disabled}
-          onfocus={handleFocus}
-          onblur={handleBlur}
-          onkeydown={handleKeyDown}
-          onkeyup={handleKeyUp}
-        />
-      {:else}
-        <div
-          class={`w-full flex items-center ${useInlineStyle ? "di-bare-input h-full" : s1.input_inp} ff-mono ${inputCss || ""} ${disabled ? "opacity-60" : ""}`}
-          role="button"
-          tabindex={disabled ? -1 : 0}
-          aria-disabled={disabled}
-          onclick={(ev) => {
-            ev.stopPropagation()
-            openMobileLayer()
-          }}
-          onkeydown={(ev) => {
-            if (ev.key === 'Enter' || ev.key === ' ') {
-              ev.preventDefault()
-              openMobileLayer()
-            }
-          }}
-        >
-          <div class={`w-full ${inputValue ? "" : "_mobile-placeholder"}`}>
-            {inputValue || ui.translate(placeholder)}
-          </div>
-        </div>
-      {/if}
-    </div>
-
-    {@render calendarBlock()}
-  </div>
-{/if}
+    {/if}
+  {/snippet}
+</FieldShell>
 
 <style>
-  .date-input-container {
-    position: relative;
-  }
-
+  /* The calendar anchors against FieldShell's root, which is already positioned; and the
+     bare variant's chrome-stripping now lives in field-shell.module.css. */
   ._mobile-placeholder {
     color: #6d5dad;
-  }
-
-  /* Bare/inline mode: strip chrome so the parent cell owns the visuals. */
-  .di-bare-input {
-    background: transparent;
-    border: 0;
-    outline: 0;
-    box-shadow: none;
-    padding: 0;
-  }
-  .di-bare-input:focus {
-    outline: 0;
-    box-shadow: none;
   }
 
   .date-picker-c {

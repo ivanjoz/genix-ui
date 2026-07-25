@@ -2,11 +2,18 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
     import { untrack } from "svelte";
-    import s1 from "../components.module.css";
-import type { ElementAST } from '../misc/Renderer.svelte';
+    import FieldShell from "./FieldShell.svelte";
+    import type { ElementAST } from '../misc/Renderer.svelte';
     import { Agent } from "../agent/registry";
-    import T from "../misc/T.svelte";
 
+    // All chrome (label, box, notch, focus ring) lives in FieldShell. This file owns only
+    // the value pipeline: parse → validate → transform → save → persist.
+    //
+    // Colours are therefore not set here either: every one is a custom property
+    // (--input-border-color, --input-shadow-color, --input-ring-color, …) listed at the top
+    // of field-shell.module.css. Retheme a whole app from `body` next to --input-height, a
+    // section from any ancestor, or one field by passing a `css` class that declares the
+    // tokens — `css` lands on the shell root, which is where they are read.
     export interface IInput<T> {
         id?: number;
         saveOn: T;
@@ -22,7 +29,6 @@ import type { ElementAST } from '../misc/Renderer.svelte';
         onChange?: () => void;
         postValue?: string | ElementAST[];
         baseDecimals?: number;
-        content?: string | any;
         transform?: (v: string | number) => string | number;
         useTextArea?: boolean;
         rows?: number;
@@ -44,36 +50,15 @@ import type { ElementAST } from '../misc/Renderer.svelte';
         onChange,
         postValue,
         baseDecimals,
-        content,
         transform,
         useTextArea,
         rows,
         dependencyValue,
     }: IInput<T> = $props();
 
-    /*
-  // Shared reactive state
-  let inputUpdater = $state(new Map<number, number>());
-
-  export function refreshInput(ids: number[]) {
-    const map = new Map(inputUpdater);
-    for (let id of ids) {
-      const currentValue = map.get(id) || 0;
-      map.set(id, currentValue + 1);
-    }
-    inputUpdater = map;
-  }
-  */
-
     const baseDecimalsValue = $derived(baseDecimals ? 10 ** baseDecimals : 0);
 
-    const makeValue = (value: number) => {
-        if (typeof value !== "number") {
-            return value || "";
-        }
-        return baseDecimals ? (value as number) / baseDecimals : value;
-    };
-
+    // 0 = nothing to say (not required, or disabled) · 1 = invalid · 2 = valid
     const checkIfInputIsValid = (): number => {
         if (!required || disabled) return 0;
         if (!saveOn || !save) return 1;
@@ -90,6 +75,10 @@ import type { ElementAST } from '../misc/Renderer.svelte';
 
     let inputValue = $state("" as string | number);
     let isInputValid = $state(checkIfInputIsValid());
+    // The red state only appears once the user has left the field, so a pristine form does
+    // not greet the user with a wall of errors. The green check is NOT gated this way: a
+    // check is reassurance, an error is an accusation.
+    let hasBeenBlurred = $state(false);
     let isChange = 0;
     let focusValue = null as string | number | null;
 
@@ -139,15 +128,6 @@ import type { ElementAST } from '../misc/Renderer.svelte';
         inputValue = value;
     };
 
-    const iconValid = () => {
-        if (!isInputValid) return null;
-        else if (isInputValid === 2)
-            return `<i class="v-icon icon-[fa--check] c-green"></i>`;
-        else if (isInputValid === 1)
-            return `<i class="v-icon icon-[fa--exclamation-triangle] text-red-500"></i>`;
-        return null;
-    };
-
     let lastSaveOn: T | undefined;
 
     const doSave = () => {
@@ -181,11 +161,28 @@ import type { ElementAST } from '../misc/Renderer.svelte';
         }
     });
 
-    let cN = $derived(
-        `${s1.input} p-rel${css ? ` ${css}` : ""}${!label ? " no-label" : ""}`,
-    );
+    const componentID = ui.nextComponentId();
 
-    const componentID = ui.nextComponentId()
+    const showInvalid = $derived(isInputValid === 1 && hasBeenBlurred);
+    const showValid = $derived(isInputValid === 2);
+    // Passing the snippet only when there is something in it keeps `has-suffix` — and the
+    // 34px of padding it reserves — off fields that need neither an icon nor a unit.
+    const hasSuffix = $derived(!!postValue || showInvalid || showValid);
+
+    // Shared blur handling for both the input and the textarea.
+    const onBlurControl = (ev: FocusEvent) => {
+        const hadChange = isChange === 1;
+        onKeyUp(ev, true);
+        hasBeenBlurred = true;
+        if (onChange && isChange) {
+            onChange();
+            isChange = 0;
+        }
+        if (hadChange && typeof id === "number" && id > 0) {
+            ui.persistFieldValue(id, (saveOn?.[save] ?? null) as number | string | null);
+        }
+        focusValue = null;
+    };
 
     $effect(() => {
         return Agent.register({
@@ -216,78 +213,53 @@ import type { ElementAST } from '../misc/Renderer.svelte';
     );
 </script>
 
-<div data-id="Input:{componentID}" data-value={agentDataValue} data-label={agentDataLabel} data-type={agentDataType} class={cN}>
-    {#if label}
-        <div class={s1.input_lab_cell_left}><div></div></div>
-        <div class={s1.input_lab}>
-            <T text={label} />{@html iconValid() || ""}
-        </div>
-        <div class={s1.input_lab_cell_right}><div></div></div>
-        <div class={s1.input_shadow_layer}><div></div></div>
+<!-- Unit text and validity glyph share the suffix slot, so neither can resize the notch
+     the way the old chrome did by putting the icon inside the label. -->
+{#snippet validityAndUnit()}
+    {#if postValue}<span class="text-sm">{postValue}</span>{/if}
+    {#if showInvalid}
+        <i class="v-icon icon-[fa--exclamation-triangle] text-red-500"></i>
+    {:else if showValid}
+        <i class="v-icon icon-[fa--check] c-green"></i>
     {/if}
-    <div class={`${s1.input_div} flex w-full`}>
-        {#if label}
-            <div class={s1.input_div_1}><div></div></div>
-        {/if}
+{/snippet}
+
+<FieldShell
+    {label} {css} {disabled}
+    invalid={showInvalid}
+    autoHeight={useTextArea}
+    suffix={hasSuffix ? validityAndUnit : undefined}
+    data-id="Input:{componentID}"
+    data-value={agentDataValue}
+    data-label={agentDataLabel}
+    data-type={agentDataType}
+>
+    {#snippet children({ controlId, controlClass })}
         {#if useTextArea}
             <textarea
-                class={`w-full ${s1.input_inp} ${inputCss || ""}`}
+                id={controlId}
+                class="{controlClass} {inputCss || ''}"
                 bind:value={inputValue}
                 placeholder={ui.translate(placeholder || "")}
                 {disabled}
                 {rows}
-                onkeyup={(ev) => {
-                    onKeyUp(ev);
-                }}
-                onblur={(ev) => {
-                    console.log("input saveon:", $state.snapshot(saveOn));
-                    const hadChange = isChange === 1;
-                    onKeyUp(ev, true);
-                    if (onChange && isChange) {
-                        onChange();
-                        isChange = 0;
-                    }
-                    if (hadChange && typeof id === "number" && id > 0) {
-                        ui.persistFieldValue(id, (saveOn?.[save] ?? null) as number | string | null);
-                    }
-                }}
+                onkeyup={(ev) => { onKeyUp(ev); }}
+                onblur={onBlurControl}
             ></textarea>
         {:else}
             <input
-                class="w-full {s1.input_inp} {inputCss || ''}"
+                id={controlId}
+                class="{controlClass} {inputCss || ''}"
                 bind:value={inputValue}
-                type={type || "search"}
+                type={type || "text"}
                 placeholder={ui.translate(placeholder || "")}
                 {disabled}
-                onkeyup={(ev) => {
-                    onKeyUp(ev);
-                }}
+                onkeyup={(ev) => { onKeyUp(ev); }}
                 onfocus={(ev) => {
-                    const target = ev.target as
-                        | HTMLInputElement
-                        | HTMLTextAreaElement;
-                    focusValue = target.value;
+                    focusValue = (ev.target as HTMLInputElement | HTMLTextAreaElement).value;
                 }}
-                onblur={(ev) => {
-                    const hadChange = isChange === 1;
-                    onKeyUp(ev, true);
-                    if (onChange && isChange) {
-                        onChange();
-                        isChange = 0;
-                    }
-                    if (hadChange && typeof id === "number" && id > 0) {
-                        ui.persistFieldValue(id, (saveOn?.[save] ?? null) as number | string | null);
-                    }
-                    focusValue = null;
-                }}
+                onblur={onBlurControl}
             />
         {/if}
-
-        {#if !label}
-            {@html iconValid() || ""}
-        {/if}
-        {#if postValue}
-            <div class={s1.input_post_value}>{postValue}</div>
-        {/if}
-    </div>
-</div>
+    {/snippet}
+</FieldShell>

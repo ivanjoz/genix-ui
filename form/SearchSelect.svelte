@@ -2,7 +2,7 @@
 import { highlString, throttle, wordInclude } from '../utilities/ui.js';
 import T from '../misc/T.svelte';
 import type { Snippet } from 'svelte';
-  import s1 from "../components.module.css";
+  import FieldShell from "./FieldShell.svelte";
   import SvelteVirtualList from "@humanspeak/svelte-virtual-list";
     import { Agent, type AgentOption } from "../agent/registry";
     import { useUI } from '../runtime/index.js';
@@ -282,21 +282,15 @@ import type { Snippet } from 'svelte';
     show = false
   }
 
-  let cN = $derived(
-    `${s1.input} p-rel${css ? ` ${css}` : ""}${!label ? " no-label" : ""}${noStyle ? " no-style" : ""}${useStyle ? ` use-style-${useStyle}` : ""}`,
-  )
+  // noStyle strips the chrome so `css`/`inputCss` can restyle from scratch; useStyle=1 is
+  // the rounded grey search pill. Everything else gets the standard notched field.
+  const shellVariant = $derived(noStyle ? "bare" : useStyle === 1 ? "pill" : "field")
 
   const arrowDirectionClass = $derived(show ? "arrow-up is-open" : "arrow-down");
 
-  function iconValid() {
-    if (!isValid) return null;
-    if (isValid === 2) {
-      return `<i class="v-icon icon-[fa--check] text-green-600"></i>`;
-    } else if (isValid === 1) {
-      return `<i class="v-icon icon-[fa--exclamation-triangle] text-red-600"></i>`;
-    }
-    return null;
-  }
+  // The arrow is always there unless disabled, so the suffix almost always reserves its
+  // 34px — which is what keeps a long option name from running under the arrow.
+  const hasSuffix = $derived(isValid > 0 || !isDisabled);
 
   // Watch for changes in props
   $effect(() => {
@@ -407,21 +401,35 @@ import type { Snippet } from 'svelte';
   const agentDataLabel = $derived(label || placeholder || "");
 </script>
 
-<div data-id="Select:{componentID}" data-value={agentDataValue} data-label={agentDataLabel} data-type="other" data-options-count={options.length} class={cN}>
-  {#if label}
-    <div class={s1.input_lab_cell_left}><div></div></div>
-    <div class={s1.input_lab}>
-      <T text={label} />{@html iconValid() || ""}
-    </div>
-    <div class={s1.input_lab_cell_right}><div></div></div>
-    <div class={s1.input_shadow_layer}><div></div></div>
+<!-- Validity glyph and arrow share the suffix row; the arrow no longer needs
+     `absolute bottom-11 right-8` to find its place. -->
+{#snippet validityAndArrow()}
+  {#if isValid === 2}
+    <i class="v-icon icon-[fa--check] text-green-600"></i>
+  {:else if isValid === 1}
+    <i class="v-icon icon-[fa--exclamation-triangle] text-red-600"></i>
   {/if}
-  <div class={`${s1.input_div} flex w-full`}>
-    {#if label}
-      <div class={s1.input_div_1}><div></div></div>
-    {/if}
+  {#if !isDisabled}
+    <i class="{icon || 'icon-[fa--angle-down]'} select-arrow {arrowDirectionClass}"
+      class:default-select-arrow={!icon}></i>
+  {/if}
+{/snippet}
+
+<FieldShell
+  {label} {css}
+  variant={shellVariant}
+  disabled={isDisabled}
+  suffix={hasSuffix ? validityAndArrow : undefined}
+  overlay={dropdown}
+  data-id="Select:{componentID}"
+  data-value={agentDataValue}
+  data-label={agentDataLabel}
+  data-type="other"
+  data-options-count={options.length}
+>
+  {#snippet children({ controlId, controlClass })}
     {#if !useLayerPicker}
-      <input class={`w-full ${s1.input_inp} ${inputCss}`}
+      <input id={controlId} class={`${controlClass} ${inputCss}`}
         bind:this={inputRef}
         onkeyup={onKeyUp}
         onpaste={onKeyUp as any}
@@ -461,7 +469,7 @@ import type { Snippet } from 'svelte';
         }}
       />
     {:else}
-      <div class={`w-full flex items-center ${s1.input_inp} ${inputCss}`}
+      <div id={controlId} class={`${controlClass} flex items-center ${inputCss}`}
         role="button" tabindex="0"
         onkeydown={(ev) => {
           if (ev.key === 'Enter' || ev.key === ' ') {
@@ -493,17 +501,13 @@ import type { Snippet } from 'svelte';
         </div>
       </div>
     {/if}
-    {#if !label}
-      {@html iconValid() || ""}
-    {/if}
-  </div>
+  {/snippet}
+</FieldShell>
+
+<!-- Anchored to the shell root, which is the positioned ancestor (`._1 { top: 100% }`). -->
+{#snippet dropdown()}
   {#if showLoading}
     <div><T text="Loading...|Cargando..." /></div>
-  {/if}
-  {#if !isDisabled}
-    <div class={`absolute bottom-11 right-8 pointer-events-none select-arrow ${arrowDirectionClass}`}>
-      <i class={icon || "icon-[fa--angle-down]"} class:default-select-arrow={!icon}></i>
-    </div>
   {/if}
   {#if show && !useLayerPicker}
     <div class="_1 p-4 left-0 z-320 {arrowSelected >= 0 ? ' on-arrow' : ''} {optionsCss || "w-full"}"
@@ -570,7 +574,7 @@ import type { Snippet } from 'svelte';
       {/if}
     </div>
   {/if}
-</div>
+{/snippet}
 
 <style>
   ._1 {

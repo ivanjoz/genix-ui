@@ -2,7 +2,7 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
 import ColorPicker from 'svelte-awesome-color-picker';
-import s1 from '../components.module.css';
+import FieldShell from './FieldShell.svelte';
 
     import { untrack } from 'svelte';
     import { Agent } from '../agent/registry';
@@ -11,19 +11,15 @@ import s1 from '../components.module.css';
 		saveOn = $bindable(),
 		save,
 		css,
-		contentClass = '',
 		onChange,
     label
 	}: {
     saveOn: T
 		save?: keyof T
 		css?: string
-		contentClass?: string
     label?: string
 		onChange?: (newValue: string | number) => void
   } = $props();
-
-  let cN = $derived(`${s1.input} p-rel` + (css ? " " + css : ""));
 
   // Initialize with white color
   let currentColor = $state('#FFFFFF')
@@ -65,35 +61,28 @@ import s1 from '../components.module.css';
   })
 </script>
 
-<div data-id="ColorPicker:{componentID}" data-value={currentColor} class={cN}>
-  {#if label}
-  <div class={s1.input_lab_cell_left}><div></div></div>
-    <div class={s1.input_lab}>
-      {ui.translate(label)}
-    </div>
-    <div class={s1.input_lab_cell_right}><div></div></div>
-  {/if}
-  <div class={s1.input_shadow_layer}>
-    <div></div>
-  </div>
-
-  <div class={`_1 ${s1.input_div} flex items-center justify-center w-full`}>
-    <div class={s1.input_div_1}>
-      <div></div>
-    </div>
-    <div class="w-full flex items-center justify-center">
+<!-- Standard centred row, not autoHeight: the swatch is 28px and fits the 38px row, which
+     keeps the picker on the same 51px footprint as every other field. -->
+<FieldShell
+  {label} {css}
+  data-id="ColorPicker:{componentID}"
+  data-value={currentColor}
+>
+  {#snippet children({ controlClass })}
+    <!-- _1 must sit on an element authored here: Svelte scopes styles by the component
+         that wrote the markup, not by where it lands in the DOM. -->
+    <div class="_1 {controlClass} flex items-center justify-center">
       <ColorPicker isAlpha={false} textInputModes={[]}
         position="responsive"
         hex={currentColor}
         onInput={color => {
           if(!hasInit){ return }
-          console.log("Setting color:", color.hex)
           setColor(color.hex as string)
         }}
       />
     </div>
-  </div>
-</div>
+  {/snippet}
+</FieldShell>
 
 <style>
   ._1 {
@@ -104,7 +93,8 @@ import s1 from '../components.module.css';
     height: calc(var(--input-height) - 16px);
     width: 54px;
     border: 2px solid rgba(0, 0, 0, 0.8);
-    margin-bottom: 4px;
+    /* No margin-bottom: it used to compensate for the old chrome's off-centre row, and
+       the shell's flex centring now does that job. */
   }
 
   ._1 :global(.color-picker label) {

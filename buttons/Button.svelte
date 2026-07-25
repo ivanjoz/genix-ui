@@ -8,6 +8,8 @@
 
   interface Props {
     icon?: string;
+    /** Icon rendered after the label (chevrons, external-link marks, counters). */
+    iconRight?: string;
     onClick?: (ev: MouseEvent) => void;
     name?: string;
     label?: string;
@@ -22,6 +24,7 @@
 
   let {
     icon,
+    iconRight,
     onClick,
     name,
     label,
@@ -59,6 +62,14 @@
   {disabled}
   onclick={triggerClick}
 >
-  {#if icon}<i class={icon}></i>{/if}
+  {#if icon}<i class="{icon}{name ? ' icon-lead' : ''}"></i>{/if}
   {#if name}<span class={hideNameOnMobile ? 'hidden md:block' : ''}><T text={name} /></span>{/if}
+  {#if iconRight}<i class="{iconRight}{name ? ' icon-trail' : ''}"></i>{/if}
 </button>
+
+<style>
+  /* Separate the icons from the label. The margin is conditional on a label existing,
+     so icon-only and round buttons keep their exact centered geometry. */
+  .icon-lead { margin-right: 5px; }
+  .icon-trail { margin-left: 5px; }
+</style>

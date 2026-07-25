@@ -27,7 +27,7 @@
 
 <div class="bl-wrapper">
   <button class="bx-purple {css}" type="button">
-    {#if icon}<i class={icon}></i>{/if}
+    {#if icon}<i class="{icon}{name ? ' bl-icon-lead' : ''}"></i>{/if}
     {#if name}<span><T text={name} /></span>{/if}
   </button>
 
@@ -49,6 +49,9 @@
     position: relative;
     display: inline-block;
   }
+
+  /* Match Button's icon/label spacing on this component's own trigger markup. */
+  .bl-icon-lead { margin-right: 7px; }
 
   .bl-dropdown {
     position: absolute;

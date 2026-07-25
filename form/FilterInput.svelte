@@ -2,7 +2,10 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
   // Reusable filter text input with leading icon and per-instance debounce.
+  // Chrome comes from FieldShell's `pill` variant, so filter boxes match the fields they
+  // sit next to instead of carrying their own border and focus colour.
   import { Agent } from '../agent/registry'
+  import FieldShell from './FieldShell.svelte'
 
   let {
     css = '',
@@ -16,6 +19,7 @@
     placeholder?: string
     throttle?: number
     icon?: string
+    /** Accessible name only — this control never draws a visible label. */
     label?: string
     value?: string
   } = $props()
@@ -56,31 +60,31 @@
   })
 </script>
 
-<div
+{#snippet filterIcon()}
+  <i class={`${icon} block leading-none`}></i>
+{/snippet}
+
+<!-- `label` is deliberately NOT passed to the shell: it is an accessible name, not a
+     visible one, and forwarding it would grow a notch label on every filter toolbar. -->
+<FieldShell
+  {css}
+  variant="pill"
+  prefix={filterIcon}
   data-id="FilterInput:{componentID}"
   data-value={inputValue}
   data-label={label || placeholder || ''}
   data-type="text"
-  class={`filter-input-wrap relative flex items-center bg-white border border-gray-300 rounded-md ${css}`.trim()}
 >
-  <div class="absolute inset-y-0 pl-8 flex items-center justify-center text-gray-400 pointer-events-none leading-none">
-    <i class={`${icon} block leading-none`}></i>
-  </div>
-  <input
-    class="w-full pl-34 pr-12 py-7 bg-transparent text-sm leading-none focus:outline-none placeholder:text-sm"
-    autocomplete="off"
-    type="text"
-    aria-label={ui.translate(label || placeholder || undefined)}
-    placeholder={ui.translate(placeholder)}
-    bind:value={inputValue}
-    onkeyup={handleKeyUp}
-  />
-</div>
-
-<style>
-  /* Scoped to this component by Svelte; copies the focus styling from .i-search */
-  .filter-input-wrap:focus-within {
-    border-color: #738dff;
-    box-shadow: #5a5e6330 0 1px 6px, #738dff 0 0 1px 1px;
-  }
-</style>
+  {#snippet children({ controlId, controlClass })}
+    <input
+      id={controlId}
+      class="{controlClass} text-sm leading-none placeholder:text-sm"
+      autocomplete="off"
+      type="text"
+      aria-label={ui.translate(label || placeholder || undefined)}
+      placeholder={ui.translate(placeholder)}
+      bind:value={inputValue}
+      onkeyup={handleKeyUp}
+    />
+  {/snippet}
+</FieldShell>

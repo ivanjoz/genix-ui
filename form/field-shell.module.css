@@ -1,0 +1,345 @@
+/* FieldShell chrome — the notched outline every labelled field shares, cut with a mask.
+
+   The chrome this replaced was six hand-positioned fragments (`input_lab_cell_left/right`,
+   `input_div_1`, `input_shadow_layer`, …), each with its own radius and shadow, and it was
+   copy-pasted into four components. That disagreement between fragments is where the seams
+   came from.
+
+   Here the box owns the fill, radius and shadow, and the border is a separate masked
+   layer. The mask punches a gap of --notch-w (set from the label's measured width) at
+   --notch-x in the top border row only. Nothing is inferred from browser behaviour:
+   the line's position and the gap's size are both stated explicitly.
+
+   The border and the focus ring are ONE masked layer, so their cuts are pixel-identical.
+   Neither is an outer box-shadow: an outer shadow is not cut by the mask and paints
+   straight across the notch. The resting drop shadow is offset downward with a negative
+   spread for the same reason — it never reaches the top edge.
+
+   Variant flags come from FieldShell as global classes on the root: no-label, is-bare,
+   is-pill, has-prefix, has-suffix, is-invalid, is-disabled.
+
+   No font-size / font-weight here: those come from Tailwind in the markup.
+
+   ── theming ───────────────────────────────────────────────────────────────────────
+   Every colour is a custom property read the same way as --input-height, i.e. inherited
+   from an ancestor (the app sets --input-height / --input-border-color on `body` in
+   routes/tailwind.css and webpage/routes/store.css). Each one carries its current value
+   as the var() fallback, so the package still renders correctly with nothing declared,
+   and an override can be dropped on `body`, on a section, or on one field via
+   `style="--input-border-color: …"`.
+
+   Declaring these on `.field` instead of using fallbacks would have BROKEN ancestor
+   overrides: a declaration on the element wins over an inherited value, so a `body`-level
+   token would never reach the field.
+
+     line (the 1px inset hairline)   --input-border-color            #d0d4e7
+                                     --input-border-color-hover      #b9bede
+                                     --input-border-color-focus      #8b87d6
+                                     --input-border-color-invalid    #dfa2a2
+                                     --input-border-color-invalid-focus  #cf6a63
+                                     --input-border-color-disabled   #e2e5ee
+     ring (the 3px focus halo)       --input-ring-color              rgb(139 135 214 / 40%)
+                                     --input-ring-color-invalid      rgb(207 106 99 / 35%)
+     drop shadow                     --input-shadow-color            rgb(74 70 86 / 15%)
+     fill                            --input-bg                      white gradient
+                                     --input-bg-disabled             #f3f4f8
+     text                            --input-label-color             #6d5dad
+                                     --input-label-color-focus       #5b4a9c
+                                     --input-label-color-disabled    #918cb5
+                                     --input-text-color              #1f2430
+                                     --input-text-color-disabled     #6b7280
+                                     --input-placeholder-color       #8a8fb0
+                                     --input-prefix-color            #7d82ad
+                                     --input-suffix-color            #585799
+     pill variant                    --input-pill-bg                 #f5f3fa
+                                     --input-pill-border-color       #47465521
+                                     --input-pill-border-color-hover #8d8ab630
+                                     --input-pill-shadow             full box-shadow value
+                                     --input-pill-shadow-hover       full box-shadow value
+                                     --input-pill-placeholder-color  #7f80a8
+
+   The drop shadow exposes its COLOUR only, not the whole box-shadow: its geometry
+   (+2px offset, -1px spread) is what keeps the shadow off the notched top edge, so it is
+   not a consumer's to change. The pill has no notch, so there both shadows are exposed
+   whole — rest and hover differ in blur and offset, not just in alpha. */
+
+.field {
+  position: relative;
+  /* 13px label row + a 38px content row = the 51px footprint every field shares. The
+     label row is shorter than the label itself (which is absolute, so it just overhangs):
+     that lifts the content row, landing the value 3px under the box's own centre. */
+  padding-top: 13px;
+  align-self: end;
+  /* Gap starts 2px before the label's text and ends 2px after it (--notch-w = w + 4). */
+  --notch-x: 12px;
+}
+
+.field:global(.no-label) {
+  padding-top: 0;
+}
+
+/* Fill + radius + shadow, unmasked. Top edge at 7px, where the border line sits. */
+.box {
+  position: absolute;
+  inset: 7px 0 0 0;
+  border-radius: 7px;
+  background: var(--input-bg, linear-gradient(#ffffff54 0%, #fff 100%));
+  /* Downward-only. The -1px spread plus the +2px offset keep the shadow's top edge
+     below the box's top edge, so no shadow line is drawn across the notch — which is why
+     only the colour is a token. */
+  box-shadow: 0 2px 3px -1px var(--input-shadow-color, rgb(74 70 86 / 15%));
+  transition: background 0.15s ease;
+  pointer-events: none; /* the control above owns all interaction */
+}
+
+.field:global(.no-label) .box {
+  inset: 0;
+}
+
+/* ONE masked layer draws BOTH the 1px border and the 3px focus ring, so the two edges
+   are cut by the same gradient from the same origin and cannot disagree by a device
+   pixel — which is what two separate layers (different insets, different radii, two
+   independent rasterisations) could never guarantee at fractional DPR.
+
+   The ring is this element's border. The line is an INSET shadow: inset shadows are
+   painted inside the padding box, so the mask cuts them; an outer shadow would escape
+   the mask and paint straight across the notch.
+
+   The two layers must not ABUT. They used to: a full-width layer covering everything
+   below the top 4px, unioned with a 4px layer carrying the notch. Each layer's rect is
+   rasterised and rounded independently, so at fractional DPR (browser zoom) the seam at
+   4px stopped being watertight — at 105/110/130% the lower layer's top rounded down past
+   the upper layer's bottom and left a 1-device-pixel row covered by NEITHER, which
+   punched a hole through both top corner arcs; at 115/120/140% the two roundings
+   overlapped instead and `add` (a1 + a2 - a1·a2) dimmed the line's antialiased row by up
+   to 41%, so the top edge read thinner than the other three. 100/125/150/200% were clean,
+   which is why it only showed up at some zoom levels.
+
+   So: ONE layer at 100% x 100% — no internal edge to round — MINUS a notch patch. The
+   patch is 8px tall where only the top 4px carry ink (3px ring + 1px line); the extra 4px
+   fall in dead space below the line, so the patch's own bottom edge has nothing to clip
+   and its rounding cannot show. The horizontal cut stays in the gradient's colour stops
+   rather than the layer rect, which is what keeps the notch's edges as crisp as before. */
+.box::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 3px solid transparent; /* the focus ring, transparent at rest */
+  border-radius: 10px; /* padding-box radius lands at 7px, matching .box */
+  box-shadow: inset 0 0 0 1px var(--input-border-color, #d0d4e7);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  mask-image:
+    linear-gradient(#000, #000),
+    linear-gradient(to right,
+      transparent 0 calc(var(--notch-x) + 3px),
+      #000 calc(var(--notch-x) + 3px) calc(var(--notch-x) + 3px + var(--notch-w, 0px)),
+      transparent calc(var(--notch-x) + 3px + var(--notch-w, 0px)) 100%);
+  mask-size: 100% 100%, 100% 8px;
+  mask-position: 0 0, 0 0;
+  mask-repeat: no-repeat;
+  /* Layers are listed top-first, and the operator composites a layer with everything
+     below it: `subtract` = full OUT patch. The bottom layer's operator is inert. */
+  mask-composite: subtract, add;
+}
+
+.field:hover .box::before {
+  box-shadow: inset 0 0 0 1px var(--input-border-color-hover, #b9bede);
+}
+
+.field:focus-within .box::before {
+  border-color: var(--input-ring-color, rgb(139 135 214 / 40%));
+  box-shadow: inset 0 0 0 1px var(--input-border-color-focus, #8b87d6);
+}
+
+.lab {
+  position: absolute;
+  /* Label runs -1..15 and the border line is at 7, so the line crosses the label at
+     half its height. Both numbers are ours now, so this is tunable to the pixel
+     without disturbing the notch. */
+  top: -1px;
+  left: 14px;
+  line-height: 16px;
+  color: var(--input-label-color, #6d5dad);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.field:focus-within .lab {
+  color: var(--input-label-color-focus, #5b4a9c);
+}
+
+/* Invalid tints the line and adds one trailing glyph in the suffix, so the notch never
+   resizes — unlike the old chrome, which put the icon inside the label. The label keeps
+   its purple. */
+.field:global(.is-invalid) .box::before {
+  box-shadow: inset 0 0 0 1px var(--input-border-color-invalid, #dfa2a2);
+}
+
+.field:global(.is-invalid):focus-within .box::before {
+  border-color: var(--input-ring-color-invalid, rgb(207 106 99 / 35%));
+  box-shadow: inset 0 0 0 1px var(--input-border-color-invalid-focus, #cf6a63);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  /* Flex centring, instead of the old `height: calc(100% + 3px); margin-top: -3px`.
+     Spans the box's interior (top edge at 7px) almost exactly, so centring the value
+     here centres it in the box the user sees. */
+  align-items: center;
+  height: calc(var(--input-height) - 6px);
+}
+
+.field:global(.no-label) .row {
+  height: calc(var(--input-height) - 4px);
+}
+
+/* Textarea grows with `rows` — the old fixed-height wrapper made that prop a no-op. */
+.row:global(.is-textarea) {
+  height: auto;
+  align-items: stretch;
+  /* The row starts at 13px and the first line is top-aligned, not centred, so the 4px
+     of top padding it would otherwise need is spent here: 13 + 8 = 21px. Much less
+     would run the first line into the label, which ends at 15px. */
+  padding: 8px 0 6px;
+}
+
+/* No label to clear, and no 13px row offset either — back to symmetric padding. */
+.field:global(.no-label) .row:global(.is-textarea) {
+  padding: 6px 0;
+}
+
+.inp {
+  width: 100%;
+  height: 100%;
+  padding: 0 9px;
+  border: none;
+  outline: none !important;
+  background: transparent;
+  color: var(--input-text-color, #1f2430);
+}
+
+.inp::placeholder {
+  color: var(--input-placeholder-color, #8a8fb0);
+}
+
+textarea.inp {
+  height: auto;
+  padding: 0 9px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.prefix,
+.suffix {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--input-suffix-color, #585799);
+  pointer-events: none;
+}
+
+.prefix {
+  left: 9px;
+  color: var(--input-prefix-color, #7d82ad);
+}
+
+.suffix {
+  right: 9px;
+}
+
+/* Disabled reads as disabled, and the grey follows the rounded border instead of the
+   square patch app.css `input:disabled` used to paint inside the old box. */
+.field:global(.is-disabled) .box {
+  background: var(--input-bg-disabled, #f3f4f8);
+  box-shadow: none;
+}
+
+.field:global(.is-disabled) .box::before {
+  box-shadow: inset 0 0 0 1px var(--input-border-color-disabled, #e2e5ee);
+}
+
+.field:global(.is-disabled) .lab {
+  color: var(--input-label-color-disabled, #918cb5);
+}
+
+.inp:disabled {
+  background: transparent;
+  color: var(--input-text-color-disabled, #6b7280);
+  cursor: not-allowed;
+}
+
+/* ── variant: bare ─────────────────────────────────────────────────────────────────
+   No chrome at all; the parent cell owns the visuals. Used inside table cells that
+   already draw their own borders. FieldShell renders no .box in this mode. */
+.field:global(.is-bare) {
+  padding-top: 0;
+  height: 100%;
+  align-self: stretch;
+}
+
+.field:global(.is-bare) .row {
+  height: 100%;
+}
+
+.field:global(.is-bare) .inp {
+  padding: 0;
+}
+
+/* ── variant: pill ─────────────────────────────────────────────────────────────────
+   The rounded grey search box: filter inputs and unlabelled selects. There is no label,
+   so there is no notch to cut and the border layer degrades to a plain hairline. */
+.field:global(.is-pill) {
+  padding-top: 0;
+}
+
+.field:global(.is-pill) .box {
+  inset: 0;
+  border-radius: 16px;
+  background: var(--input-pill-bg, #f5f3fa);
+  /* Whole value, not just the colour: with no notch to protect, geometry is a consumer's
+     to change, and rest vs hover differ in offset and blur anyway. */
+  box-shadow: var(--input-pill-shadow, rgb(50 50 93 / 13%) 0 1px 3px 0, rgb(0 0 0 / 30%) 0 1px 3px -1px);
+}
+
+.field:global(.is-pill) .box::before {
+  inset: 0;
+  border: 0;
+  border-radius: 16px;
+  mask-image: none; /* nothing to notch */
+  box-shadow: inset 0 0 0 1px var(--input-pill-border-color, #47465521);
+}
+
+.field:global(.is-pill):hover .box,
+.field:global(.is-pill):focus-within .box {
+  box-shadow: var(--input-pill-shadow-hover, rgb(50 50 93 / 16%) 0 2px 6px 0, rgb(0 0 0 / 22%) 0 1px 3px -1px);
+}
+
+.field:global(.is-pill):hover .box::before,
+.field:global(.is-pill):focus-within .box::before {
+  box-shadow: inset 0 0 0 1px var(--input-pill-border-color-hover, #8d8ab630);
+}
+
+.field:global(.is-pill) .row {
+  height: calc(var(--input-height) - 6px);
+}
+
+.field:global(.is-pill) .inp {
+  padding: 0 10px;
+}
+
+.field:global(.is-pill) .inp::placeholder {
+  color: var(--input-pill-placeholder-color, #7f80a8);
+}
+
+/* ── adornments ────────────────────────────────────────────────────────────────────
+   Last on purpose: these share specificity with the variant rules above and must win,
+   so the value can never run under a prefix icon or a suffix glyph. */
+.field:global(.has-prefix) .inp {
+  padding-left: 30px;
+}
+
+.field:global(.has-suffix) .inp {
+  padding-right: 34px;
+}

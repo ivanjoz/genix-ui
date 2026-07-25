@@ -443,7 +443,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Button` **(ui)** | Icon/text button with color variants | `icon`, `name`, `label`, `color`, `onClick`, `useCircle`, `hideNameOnMobile`, `disabled` |
+| `Button` **(ui)** | Icon/text button with color variants. `icon` renders before the label, `iconRight` after; both get a 7px gap only when `name` is set, so icon-only buttons keep their exact geometry | `icon`, `iconRight`, `name`, `label`, `color`, `onClick`, `useCircle`, `hideNameOnMobile`, `disabled` |
 | `ButtonLayer` **(ui)** | Button that toggles an anchored panel (filters, pickers) | `isOpen` (bindable), `buttonText`, `icon`, `iconOnShow`, `horizontalOffset`, `edgeMargin`, `onOpen`, `onClose`, `children`, `button` |
 | `ButtonList` | Button that opens a list of actions | `items: { id, name, icon, handler }[]`, `name`, `icon` |
 | `InlineButton` **(ui)** | Compact inline toggle/tag | `label`, `mode: 'default'\|'checked'`, `color` |

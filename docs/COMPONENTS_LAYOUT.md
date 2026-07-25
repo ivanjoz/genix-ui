@@ -46,9 +46,10 @@ Anything that captures user input into a typed value. The line between
 
 ### `layers/` — overlay surfaces (modals, popovers, drawers)
 Components whose job is to render *above* page content, with their own
-positioning + lifecycle. Note: `popover2/` and `vTable/` keep their own
-self-contained popover/table implementations; this bucket is for the
-shared overlay primitives the rest of the app composes.
+positioning + lifecycle. Note: `vTable/` keeps its own self-contained table
+implementation; this bucket is for the shared overlay primitives the rest of
+the app composes. The low-level `Popover`/`Portal` primitives these compose
+live in `misc/`.
 - `Layer.svelte`, `LayerStatic.svelte`
 - `Modal.svelte`, `MobileLayerVertical.svelte`
 - `TopLayerDatePicker.svelte`, `TopLayerSelector.svelte`
@@ -57,10 +58,6 @@ shared overlay primitives the rest of the app composes.
 Components whose job is to switch the current section / step / view.
 - `ArrowSteps.svelte` — horizontal stepper with chevron-shaped steps.
 - `OptionsStrip.svelte` — segmented options strip (tab-like selector).
-
-### `popover2/` — popover / portal primitive (self-contained package)
-Shared positioning + portal logic plus its own `README.md` and example.
-Treat as an internal package, not a single component.
 
 ### `svg/` — raw SVG assets
 Currently only icons used by tooling (`excel-icon.svg`, `pdf-icon.svg`).
@@ -84,6 +81,16 @@ that don't justify their own folder.
 - `RecordByIDText.svelte` — resolves a record by ID through the cache and
   renders its display text.
 - `SquareBarSized.svelte` — proportional square bar with label/value.
+- `Popover.svelte` — floating element positioned against a reference element,
+  rendered through `Portal` so it escapes clipped/`overflow:hidden` ancestors.
+  Used by `form/DateInput` and `vTable/CellSelect`.
+- `Portal.svelte` — teleports its children to `document.body` (or a given
+  target) after mount. Also used by `layers/Modal`.
+- `popover.positioning.ts` — `calculatePosition`/`detectOverflow` helpers and
+  the `Placement` type behind `Popover`.
+- `popover.css` — optional plain (non-module) `.popover-container` /
+  `.popover-content` skin. `Popover` itself renders unstyled, so consumers
+  import this only when they want the default bubble look.
 
 ## Files that stay at the package root
 
@@ -96,10 +103,13 @@ that don't justify their own folder.
 ## Rules for adding a new component
 
 1. Pick the most specific existing folder before considering `misc/`.
-2. If the component is a *self-contained sub-package* (multiple files +
-   its own README), give it a folder of its own (`popover2/`, `vTable/`).
-3. Helper `.ts` files live next to their consumer in the same folder
-   (e.g. `date-input.helpers.ts` in `form/`).
+2. Only give a component its own folder when it is a genuine sub-package with
+   several mutually dependent components and its own consumers (`vTable/`).
+   A couple of files plus a helper belongs in an existing folder — that is why
+   `Popover`/`Portal` live in `misc/` rather than a folder of their own.
+3. Helper `.ts` files live next to their consumer in the same folder, prefixed
+   with the consumer's name (e.g. `date-input.helpers.ts` in `form/`,
+   `popover.positioning.ts` in `misc/`).
 4. Component-specific styles inline into the component's `<style>` block.
    Only promote to a sibling `.module.css` when the styles are shared
    across multiple components in the same folder; promote to root only

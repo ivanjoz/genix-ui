@@ -24,10 +24,9 @@
     "menu",
     "misc",
     "navigation",
-    "popover2",
     "runtime",
+    "security",
     "service-worker",
-    "typed-idb",
     "utilities",
     "vTable",
     "workers"
@@ -76,6 +75,11 @@
       "svelte": "./cache/index.ts",
       "default": "./cache/index.ts"
     },
+    "./security": {
+      "types": "./security/index.ts",
+      "svelte": "./security/index.ts",
+      "default": "./security/index.ts"
+    },
     "./service-worker": {
       "types": "./service-worker/index.ts",
       "svelte": "./service-worker/index.ts",
@@ -90,11 +94,6 @@
       "types": "./utilities/index.ts",
       "svelte": "./utilities/index.ts",
       "default": "./utilities/index.ts"
-    },
-    "./typed-idb": {
-      "types": "./typed-idb/index.ts",
-      "svelte": "./typed-idb/index.ts",
-      "default": "./typed-idb/index.ts"
     },
     "./*": {
       "types": "./*",

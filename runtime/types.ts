@@ -1,3 +1,15 @@
+import type { CacheNavigateOptions } from '../cache/index.js';
+import type { ImageConverter } from '../files/image-converter.js';
+import type { GetHandlerRuntime, HttpClient } from '../http/index.js';
+import type { CreateSecurityOptions, SecurityRuntime } from '../security/index.js';
+import type { FieldPersistence } from './field-persistence.js';
+
+// The runtime already knows the tenant and how to notify, so hosts configure only policy.
+export type UiSecurityOptions = Omit<
+  CreateSecurityOptions,
+  'notify' | 'getCompanyID' | 'storageNamespace'
+> & { storageNamespace?: string };
+
 export type UiLanguage = 1 | 2;
 
 export interface UiPageOption {
@@ -63,6 +75,10 @@ export interface UiImageAdapter {
   isInFlight: (src: string) => boolean;
 }
 
+export interface UiImageStore extends UiImageAdapter {
+  get: (src: string) => UiInMemoryImage | undefined;
+}
+
 export interface UiUploadAdapter {
   get: (request: UiHttpRequest) => Promise<any>;
   post: (request: UiHttpRequest) => Promise<any>;
@@ -102,11 +118,16 @@ export interface UiState {
 
 export interface UiRuntime {
   state: UiState;
+  http: HttpClient;
+  getHandlerRuntime: GetHandlerRuntime;
+  security: SecurityRuntime<any>;
   translate: <Value>(value: Value, language?: UiLanguage) => Value;
   nextComponentId: () => number;
   makeCdnRoute: (...segments: string[]) => string;
   notify: UiNotificationAdapter;
-  images: UiImageAdapter;
+  images: UiImageStore;
+  imageConverter: ImageConverter;
+  fieldPersistence: FieldPersistence;
   uploads: UiUploadAdapter;
   searchReferences: WeakMap<object, UiSearchReference>;
   persistFieldValue: (
@@ -125,14 +146,35 @@ export interface UiRuntime {
 }
 
 export interface CreateUiRuntimeOptions {
+  applicationName?: string;
   defaultLanguage?: UiLanguage;
   translate?: UiRuntime['translate'];
+  makeRoute: (route: string) => string;
+  // Session and access control. Everything under `security` is host policy; the
+  // runtime creates the security instance and reads tokens and route access from it.
+  security?: UiSecurityOptions;
+  // Only needed when the host manages tokens outside the security runtime.
+  getToken?: () => string;
+  getCompanyID: () => number;
+  getEnvironment: () => string;
+  getWorkerUrl: () => string;
+  navigate: (
+    target: string,
+    options?: CacheNavigateOptions,
+  ) => void | Promise<void>;
+  verifyRouteMemoryState?: () => boolean;
+  onUnauthorized?: () => void;
+  startRequest?: (route: string) => number;
+  finishRequest?: (requestId: number) => void;
+  reportFetch?: (requestId: number, event: { url: string } | 0) => void;
+  reportProgress?: (bytesLength: number) => void;
+  // Defaults to the security runtime's check on the current path.
+  canAccessRoute?: (route: string) => boolean;
+  getPathname?: () => string;
+  storageNamespace?: string;
   nextComponentId?: UiRuntime['nextComponentId'];
   makeCdnRoute?: UiRuntime['makeCdnRoute'];
   notify?: Partial<UiNotificationAdapter>;
-  images?: Partial<UiImageAdapter>;
-  uploads?: Partial<UiUploadAdapter>;
-  persistFieldValue?: UiRuntime['persistFieldValue'];
-  readFieldValue?: UiRuntime['readFieldValue'];
-  resolveRecord?: UiRuntime['resolveRecord'];
+  addProcess?: UiUploadAdapter['addProcess'];
+  updateProcess?: UiUploadAdapter['updateProcess'];
 }

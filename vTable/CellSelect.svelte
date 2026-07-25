@@ -4,7 +4,7 @@
   import SvelteVirtualList from '@humanspeak/svelte-virtual-list';
   import { untrack } from "svelte";
 import { throttle } from '../utilities/ui.js';
-import Popover2 from '../popover2/Popover2.svelte';
+import Popover from '../misc/Popover.svelte';
 import { type AgentOption } from '../agent/registry';
 import { getVTableAgentContext } from '../vTable/agentContext';
 
@@ -244,7 +244,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
       }}
     />
   {/if}
-  <Popover2
+  <Popover
     referenceElement={inputRef || refElement}
     open={show}
     placement="bottom-start"
@@ -274,7 +274,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
         {/snippet}
       </SvelteVirtualList>
     </div>
-  </Popover2>
+  </Popover>
 </div>
 </div>
 

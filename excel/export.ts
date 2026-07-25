@@ -1,6 +1,7 @@
 import type { DataValidation } from 'excelize-wasm';
 import type { ExcelBuildOptions, ExcelDownloadOptions, ExcelTableColumn } from './types';
 import type { ExcelRuntime } from './runtime.js';
+import { getExcelRuntime } from './runtime.js';
 import {
   assertExcelCall,
   buildHeaderLayout,
@@ -15,15 +16,18 @@ import {
   toCellName,
 } from './helpers';
 
-export function toExcelColumns<T>(runtime: ExcelRuntime, columns: ExcelTableColumn<T>[]) {
+export function toExcelColumns<T>(
+  columns: ExcelTableColumn<T>[],
+  runtime: ExcelRuntime = getExcelRuntime(),
+) {
   const tree = buildResolvedTree(runtime, columns);
   const leaves = flattenLeafColumns(tree);
   return { tree, leaves };
 }
 
 export async function buildExcelBuffer<T>(
-  runtime: ExcelRuntime,
   options: ExcelBuildOptions<T>,
+  runtime: ExcelRuntime = getExcelRuntime(),
 ): Promise<Uint8Array> {
   const {
     creator = '',
@@ -50,7 +54,7 @@ export async function buildExcelBuffer<T>(
     assertExcelCall('DeleteSheet', deleteRes.error);
   }
 
-  const { tree } = toExcelColumns(runtime, sheet.columns);
+  const { tree } = toExcelColumns(sheet.columns, runtime);
   const { cells, depth: headerDepth, leafColumns } = buildHeaderLayout(tree, headerRowIndex, includeGroupedHeaders);
   if (leafColumns.length === 0) {
     throw new Error('[excel-builder] No exportable columns were found');
@@ -172,9 +176,9 @@ export async function buildExcelBuffer<T>(
 }
 
 export async function downloadExcel<T>(
-  runtime: ExcelRuntime,
   options: ExcelDownloadOptions<T>,
+  runtime: ExcelRuntime = getExcelRuntime(),
 ): Promise<void> {
-  const buffer = await buildExcelBuffer(runtime, options);
+  const buffer = await buildExcelBuffer(options, runtime);
   downloadBuffer(options.fileName, buffer);
 }

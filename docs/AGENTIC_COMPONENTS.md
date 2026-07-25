@@ -123,7 +123,7 @@ the agent doesn't learn a new verb per component.
 
 Pure-display, infrastructural, or trivially composed components don't register:
 `Virtualizer`, `LoginForm`, `Charts`, `ChartCanvas`, `Imagehash`, `charts/*`,
-`popover2/*`, `micro/*`, `files/*`, and `vTable/CardsList`.
+`misc/Popover`, `misc/Portal`, `micro/*`, `files/*`, and `vTable/CardsList`.
 
 ## Component spec
 

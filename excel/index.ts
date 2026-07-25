@@ -1,6 +1,6 @@
 import { buildExcelBuffer, downloadExcel } from './export';
 import { parseExcelFile } from './import';
-import type { ExcelRuntime } from './runtime.js';
+import { getExcelRuntime, type ExcelRuntime } from './runtime.js';
 import type { ExcelBuildOptions, ExcelImportOptions, ExcelImportResult, ExcelTableColumn } from './types';
 
 export * from './types';
@@ -33,7 +33,7 @@ export class ExcelBuilder<T> {
   private importHeaderRows: number[] = [2];
   private bodyRowIndex: number | undefined = undefined;
 
-  constructor(private readonly runtime: ExcelRuntime) {}
+  constructor(private readonly runtime: ExcelRuntime = getExcelRuntime()) {}
 
   setColumns(columns: ExcelTableColumn<T>[]): this {
     this.columns = columns;
@@ -122,14 +122,14 @@ export class ExcelBuilder<T> {
   }
 
   async export(overrides?: Partial<ExcelBuildOptions<T>>): Promise<Uint8Array> {
-    return buildExcelBuffer(this.runtime, this.resolveExportOptions(overrides));
+    return buildExcelBuffer(this.resolveExportOptions(overrides), this.runtime);
   }
 
   async download(fileName: string, overrides?: Partial<ExcelBuildOptions<T>>): Promise<void> {
-    await downloadExcel(this.runtime, {
+    await downloadExcel({
       ...this.resolveExportOptions(overrides),
       fileName,
-    });
+    }, this.runtime);
   }
 
   // Step 1: Parse and cache workbook rows so extractRecords can run handlers separately.
@@ -138,8 +138,8 @@ export class ExcelBuilder<T> {
     overrides?: Omit<Partial<ExcelImportOptions<T>>, 'source'>,
   ): Promise<this> {
     this.loadedImportResult = await parseExcelFile(
-      this.runtime,
       this.resolveImportOptions(source, overrides),
+      this.runtime,
     );
     return this;
   }

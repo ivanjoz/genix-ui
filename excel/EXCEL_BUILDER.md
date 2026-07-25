@@ -37,22 +37,18 @@ It covers:
 
 `ExcelBuilder<T>` is generic and designed for fluent setup.
 
-Package consumers create one runtime and pass it to each builder:
+The package owns and lazily loads `excelize.wasm.bin`. Svelte/Vite fingerprints and
+deploys that asset automatically. Applications configure presentation once in their
+UI runtime, then import Excel APIs directly:
 
 ```ts
-import { createExcelRuntime, ExcelBuilder } from '@genix/ui/excel';
+import { ExcelBuilder, downloadExcel } from '@genix/ui/excel';
 
-const excelRuntime = createExcelRuntime({
-  wasmUrl: '/vendor/excelize.wasm.bin',
-  applicationName: 'My application',
-  translate,
-});
-
-const builder = new ExcelBuilder<MyRecord>(excelRuntime);
+const builder = new ExcelBuilder<MyRecord>();
+await downloadExcel(options);
 ```
 
-Genix business modules import the thin `$libs/excel/excelBuilder` adapter, which supplies
-this runtime automatically; the remaining examples use that zero-configuration adapter.
+No static asset copy or application-specific Excel adapter is required.
 
 Main methods:
 - `setColumns(columns)`

@@ -1,5 +1,6 @@
 import type { ExcelImportOptions, ExcelImportResult } from './types';
 import type { ExcelRuntime } from './runtime.js';
+import { getExcelRuntime } from './runtime.js';
 import {
   assertExcelCall,
   buildResolvedTree,
@@ -67,8 +68,8 @@ function formatImportError(row: number, message: string): string {
 }
 
 export async function parseExcelFile<T>(
-  runtime: ExcelRuntime,
   options: ExcelImportOptions<T>,
+  runtime: ExcelRuntime = getExcelRuntime(),
 ): Promise<ExcelImportResult<T>> {
   const { columns, source, sheetName } = options;
   const headerRows = sanitizeHeaderRows(options.headerRows);

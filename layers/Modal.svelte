@@ -2,7 +2,7 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
 	import { untrack } from "svelte";
-	import Portal from "../popover2/Portal.svelte";
+	import Portal from "../misc/Portal.svelte";
 	import OptionsStrip from "../navigation/OptionsStrip.svelte";
 	import FileUploadSelector from "../files/FileUploadSelector.svelte";
 	import { Agent } from "../agent/registry";

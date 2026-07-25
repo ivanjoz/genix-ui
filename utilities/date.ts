@@ -35,6 +35,9 @@ export const dateToFechaUnix = (date: Date) => {
   return Math.floor(dateT)
 }
 
+// Today as a local-time Unix day, the storage format used across the project.
+export const getFechaUnix = () => dateToFechaUnix(new Date())
+
 export const semanaFromCode = (semanaCode: number): IFecSemana => {
   const sem = String(semanaCode)
   const yearString = sem.substring(0,4)

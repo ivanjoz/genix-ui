@@ -1,4 +1,5 @@
 export { createUiRuntime } from './create-ui-runtime.svelte.js';
+export { createFieldPersistence } from './field-persistence.js';
 export { useUI, provideUi } from './context.js';
 export { default as UiProvider } from './UiProvider.svelte';
 export type {
@@ -7,6 +8,7 @@ export type {
   UiDateLayer,
   UiHttpRequest,
   UiImageAdapter,
+  UiImageStore,
   UiInMemoryImage,
   UiInMemoryImageStatus,
   UiNotificationAdapter,
@@ -14,8 +16,13 @@ export type {
   UiRecordReference,
   UiRuntime,
   UiSearchLayer,
+  UiSecurityOptions,
   UiSearchReference,
   UiState,
   UiUploadAdapter,
   UiUploadProgress,
 } from './types.js';
+export type {
+  FieldPersistence,
+  FieldPersistenceOptions,
+} from './field-persistence.js';

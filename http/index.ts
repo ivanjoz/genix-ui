@@ -1,6 +1,12 @@
 import axios, { type AxiosProgressEvent } from 'axios';
 import type { CacheMode, serviceHttpProps } from '../cache/index.js';
+import {
+  createGroupCacheGetter,
+  type GroupCacheGetter,
+} from '../cache/group-cache.fetch.js';
+import { unmarshall } from '../utilities/unmarshall.js';
 
+export * from './get-handler.svelte.js';
 export type { AxiosProgressEvent };
 
 export interface IHttpStatus {
@@ -58,6 +64,7 @@ export interface HttpClientRuntime {
 export interface HttpClient {
   buildHeaders: (contentType?: string) => Record<string, string>;
   GET: (props: httpProps) => Promise<any>;
+  GETWithGroupCache: GroupCacheGetter;
   POST: (props: httpProps) => Promise<any>;
   PUT: (props: httpProps) => Promise<any>;
   POST_XMLHR: (props: httpProps) => Promise<any>;
@@ -107,7 +114,8 @@ const setResponseMetadata = (headers: Headers, status: IHttpStatus): void => {
 };
 
 export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
-  const transformResponse = runtime.transformResponse ?? ((response) => response);
+  // Genix compact responses are decoded by default; lower-level clients may override this.
+  const transformResponse = runtime.transformResponse ?? unmarshall;
   const notifyFailure = runtime.notify?.failure ?? ((message) => console.error(message));
   const notifySuccess = runtime.notify?.success ?? (() => {});
 
@@ -285,6 +293,9 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
   return {
     buildHeaders,
     GET,
+    GETWithGroupCache: createGroupCacheGetter({
+      get: (route) => GET({ route }),
+    }),
     POST: (props) => write(props, 'POST'),
     PUT: (props) => write(props, 'PUT'),
     POST_XMLHR,

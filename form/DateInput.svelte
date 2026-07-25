@@ -10,7 +10,7 @@
     disabled?: boolean
     onChange?: () => void
     type?: "unix" | "sunix"
-    // Render the calendar through Popover2 (Portal-to-body) so it can escape clipped/overflow ancestors like table cells.
+    // Render the calendar through Popover (Portal-to-body) so it can escape clipped/overflow ancestors like table cells.
     usePopover?: boolean
     // Strip chrome (background/border/outline/shadow); fills parent with w-full h-full. For table-cell embedding.
     useInlineStyle?: boolean
@@ -20,7 +20,7 @@
 <script lang="ts" generics="T">
   import { untrack } from "svelte";
   import T from '../misc/T.svelte';
-  import Popover2 from "../popover2/Popover2.svelte";
+  import Popover from "../misc/Popover.svelte";
   import {
     buildCalendarWeeks,
     createDateInputContext,
@@ -332,12 +332,12 @@
 {#snippet calendarBlock()}
   {#if showCalendar && !isMobile}
     {#if usePopover}
-      <!-- Portal-rendered: positioning handled by Popover2; .in-popover strips the inline-mode absolute positioning. -->
-      <Popover2 referenceElement={inputElement ?? null} open={showCalendar} placement="bottom-start" offset={4}>
+      <!-- Portal-rendered: positioning handled by Popover; .in-popover strips the inline-mode absolute positioning. -->
+      <Popover referenceElement={inputElement ?? null} open={showCalendar} placement="bottom-start" offset={4}>
         <div class="date-picker-c in-popover" role="presentation" onmouseleave={handleCalendarMouseLeave}>
           {@render calendarInner()}
         </div>
-      </Popover2>
+      </Popover>
     {:else}
       <div class="date-picker-c" role="presentation" onmouseleave={handleCalendarMouseLeave}>
         {@render calendarInner()}
@@ -479,7 +479,7 @@
     min-width: 280px;
   }
 
-  /* In popover mode the Popover2 wrapper handles absolute positioning; reset our inline-mode offsets. */
+  /* In popover mode the Popover wrapper handles absolute positioning; reset our inline-mode offsets. */
   .date-picker-c.in-popover {
     position: static;
     top: auto;

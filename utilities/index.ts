@@ -7,10 +7,12 @@ export {
 export {
   DateHelper,
   dateToFechaUnix,
+  getFechaUnix,
   semanaFromCode,
   weekdaysMap,
   zoneOffset,
 } from './date.js';
+export { decrypt } from './crypto.js';
 export type { IDayOfWeek, IFecSemana } from './date.js';
 export {
   recreateArray,
@@ -18,4 +20,5 @@ export {
   simplifyObject,
 } from './shared-objects.js';
 export { unmarshall } from './unmarshall.js';
+export { normalizeStringN } from './string.js';
 export * from './ui.js';

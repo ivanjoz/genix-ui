@@ -1,6 +1,6 @@
-/* Popover2 base styles */
+/* Popover base styles (opt-in: import "@genix/ui/misc/popover.css") */
 
-.popover2-container {
+.popover-container {
 	background: white;
 	border: 1px solid #e5e7eb;
 	border-radius: 8px;
@@ -9,7 +9,7 @@
 	max-width: 320px;
 }
 
-.popover2-content {
+.popover-content {
 	color: #374151;
 	font-size: 14px;
 	line-height: 1.5;
@@ -17,18 +17,18 @@
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
-	.popover2-container {
+	.popover-container {
 		background: #1f2937;
 		border-color: #374151;
 	}
 	
-	.popover2-content {
+	.popover-content {
 		color: #d1d5db;
 	}
 }
 
 /* Arrow indicators based on placement */
-.popover2-container[data-placement^="bottom"]::before {
+.popover-container[data-placement^="bottom"]::before {
 	content: '';
 	position: absolute;
 	top: -8px;
@@ -41,7 +41,7 @@
 	border-bottom: 8px solid #e5e7eb;
 }
 
-.popover2-container[data-placement^="bottom"]::after {
+.popover-container[data-placement^="bottom"]::after {
 	content: '';
 	position: absolute;
 	top: -7px;
@@ -54,7 +54,7 @@
 	border-bottom: 8px solid white;
 }
 
-.popover2-container[data-placement^="top"]::before {
+.popover-container[data-placement^="top"]::before {
 	content: '';
 	position: absolute;
 	bottom: -8px;
@@ -67,7 +67,7 @@
 	border-top: 8px solid #e5e7eb;
 }
 
-.popover2-container[data-placement^="top"]::after {
+.popover-container[data-placement^="top"]::after {
 	content: '';
 	position: absolute;
 	bottom: -7px;
@@ -82,19 +82,19 @@
 
 /* Dark mode arrows */
 @media (prefers-color-scheme: dark) {
-	.popover2-container[data-placement^="bottom"]::after,
-	.popover2-container[data-placement^="top"]::after {
+	.popover-container[data-placement^="bottom"]::after,
+	.popover-container[data-placement^="top"]::after {
 		border-bottom-color: #1f2937;
 		border-top-color: #1f2937;
 	}
 }
 
 /* Animation */
-.popover2-container {
-	animation: popover2-fade-in 0.15s ease-out;
+.popover-container {
+	animation: popover-fade-in 0.15s ease-out;
 }
 
-@keyframes popover2-fade-in {
+@keyframes popover-fade-in {
 	from {
 		opacity: 0;
 		transform: scale(0.95);

@@ -3,9 +3,8 @@
 Reusable Svelte 5 UI components and utilities shared by Genix applications.
 
 The package is consumed as a Git submodule and a Bun workspace package. Stateful
-components require a `UiRuntime` to be created and provided once per Svelte component
-tree. Business data, authentication, routing policy, and backend services remain in the
-host application.
+components require one configured `UiRuntime`; business data, authentication, routing
+policy, and backend services remain in the host application.
 
 Package exports point directly to the package root, so consumers compile the source and editor
 navigation opens the implementation rather than generated declarations in `dist/`.
@@ -33,10 +32,9 @@ genix-ui/
   menu/
   misc/
   navigation/
-  popover2/
   runtime/
+  security/
   service-worker/
-  typed-idb/
   utilities/
   vTable/
   workers/
@@ -44,32 +42,95 @@ genix-ui/
 
 ## Runtime
 
-Create and set one runtime at the root of each Svelte render tree:
+`createUiRuntime` is the only runtime factory and the single place a host configures the
+package. It configures HTTP, cache, service worker, Excel, images, persistence, session
+security, and component state, then returns one flat runtime:
+
+```ts
+import { createUiRuntime } from '@genix/ui';
+import { GetHandler as ReusableGetHandler } from '@genix/ui/http';
+
+export const ui = createUiRuntime({
+  applicationName: 'My application',
+  translate,
+  makeRoute,
+  security: { storageNamespace: 'myapp', onLogout },
+  getCompanyID: () => activeCompanyID,
+  getEnvironment: () => activeEnvironment,
+  getWorkerUrl: () => '/sw.js',
+  navigate,
+  verifyRouteMemoryState,
+  notify,
+  reportFetch,
+  reportProgress,
+  addProcess,
+  updateProcess,
+});
+
+export const { GET, GETWithGroupCache, POST, PUT, POST_XMLHR } = ui.http;
+export const { fileToImage, bitmapToImage } = ui.imageConverter;
+
+export class GetHandler<T extends { ID: number; ss?: number }>
+  extends ReusableGetHandler<T> {
+  constructor() {
+    super(ui.getHandlerRuntime);
+  }
+}
+```
+
+Provide that runtime at each Svelte mount root. Descendants read and update the same
+package-owned state:
 
 ```svelte
 <script lang="ts">
-  import { createUiRuntime, provideUi } from '@genix/ui';
+  import { provideUi } from '@genix/ui';
+  import { ui } from './ui-runtime';
 
-  const ui = provideUi(createUiRuntime());
+  provideUi(ui);
 </script>
 ```
 
-Descendants read and update the same package-owned UI state:
+`UiProvider` is available when a component wrapper is more convenient than
+`provideUi`. Server-rendered applications should create runtime instances at the
+appropriate request/app boundary because the runtime contains mutable Svelte state.
 
-```svelte
-<script lang="ts">
-  import { useUI } from '@genix/ui';
+## Security
 
-  const ui = useUI();
-</script>
+Session handling is part of the runtime: `createUiRuntime` builds the security instance from
+the `security` options block and exposes it as `runtime.security`. HTTP authorization
+(`getToken`), the cached-service route guard (`canAccessRoute`), and `onUnauthorized` default
+to that instance, so a host configures them only to override the defaults.
 
-<button onclick={() => { ui.state.mobileMenuOpen = true }}>
-  Open menu
-</button>
+```ts
+export const ui = createUiRuntime<IUser>({
+  applicationName: 'My application',
+  makeRoute,
+  getCompanyID,
+  getEnvironment,
+  getWorkerUrl,
+  getPathname,
+  navigate,
+  notify,
+  security: {
+    storageNamespace: 'myapp',
+    onLogout: () => navigate('/login'),
+    messages: { sessionExpired, sessionExpiresIn },
+    isPublicRoute,
+    resolveRouteAccessEntries: getAccessEntriesForRoute,
+    autoStartRefreshCheck: true,
+  },
+});
+
+export const security = ui.security;
+security.setSessionRefresher(reloadLogin);
 ```
 
-Use a separate runtime for every fresh `mount()` tree. `UiProvider` is available when a
-component wrapper is more convenient than calling `provideUi` directly.
+`createSecurity` from `@genix/ui/security` remains available for applications that need the
+session runtime without the UI runtime. When one runtime file is shared by an authenticated
+app and a public bundle, omit `resolveRouteAccessEntries` and register it from the
+authenticated app instead — `security.setRouteAccessResolver(getAccessEntriesForRoute)` —
+so the access catalog never reaches the public bundle. See `security/SECURITY.md` for the
+persisted keys, the access-packing contract, and the refresh timings.
 
 ## Host-owned policies
 
@@ -81,70 +142,31 @@ singletons.
 Pure encoding, compact-response, date/week, and object-mapping helpers are exported from
 `@genix/ui/utilities`. They have no host configuration or Svelte runtime dependency.
 
-Delta, record-by-ID, group, route, and IndexedDB caches are exported from
-`@genix/ui/cache`. The host injects tenant-aware IO once without coupling package source
-to application modules:
+`ui.images` is the runtime-wide reactive in-memory image queue. Its `get()`,
+`getBase64()`, and `isInFlight()` methods normalize CDN folders and `-xN` suffixes.
+`ui.imageConverter` lazily creates and pools the package-owned image worker on the
+first conversion, so consumers do not configure or initialize workers.
+`ui.fieldPersistence` stores component values by environment, company, and grouped
+component ID.
+
+Excel import/export is exported directly from `@genix/ui/excel`. The package owns the
+WASM asset and lazily initializes it on first use; `createUiRuntime` supplies application
+name and translation once:
 
 ```ts
-import { configureCacheRuntime } from '@genix/ui/cache';
+import { ExcelBuilder, downloadExcel } from '@genix/ui/excel';
 
-configureCacheRuntime({
-  getCompanyID: () => activeCompanyID,
-  getEnvironment: () => activeEnvironment,
-  get: authenticatedGet,
-  navigate,
-});
+const builder = new ExcelBuilder<MyRecord>();
+await downloadExcel(options);
 ```
 
-Excel import/export is exported from `@genix/ui/excel`. Each host supplies its WASM asset
-URL, application name, and optional translator to an isolated runtime:
+`GetHandler` treats `ss === 0` as a tombstone when `inferRemoveFromStatus` is enabled.
+By default, `post()` logs failures and returns `[]`; set
+`returnEmptyOnPostFailure = false` in a service when callers must receive the rejection.
+The class uses Svelte 5 runes and must be consumed through a Svelte-aware build.
 
-```ts
-import { createExcelRuntime, ExcelBuilder } from '@genix/ui/excel';
-
-const excelRuntime = createExcelRuntime({
-  wasmUrl: '/vendor/excelize.wasm.bin',
-  applicationName: 'My application',
-  translate,
-});
-const builder = new ExcelBuilder<MyRecord>(excelRuntime);
-```
-
-The reusable GET/POST/PUT/upload transport is exported from `@genix/ui/http`. Authentication,
-routing, cache transport, request reporting, and notifications remain explicit host adapters:
-
-```ts
-import { createHttpClient } from '@genix/ui/http';
-
-const http = createHttpClient({
-  makeRoute,
-  getToken,
-  transformResponse,
-  notify,
-  fetchCached,
-  refreshRoutes,
-});
-```
-
-The service-worker entrypoint and browser RPC client are exported from
-`@genix/ui/service-worker`. Hosts compile
-`service-worker/service-worker.ts` to their chosen public URL and inject application
-reporting separately:
-
-```ts
-import { configureServiceWorkerRuntime } from '@genix/ui/service-worker';
-
-configureServiceWorkerRuntime({
-  getWorkerUrl: () => '/sw.js',
-  getEnvironment: () => activeEnvironment,
-  getCompanyID: () => activeCompanyID,
-  makeRoute,
-  verifyRouteMemoryState: () => false,
-  reportFetch,
-  reportProgress,
-  notifyFailure,
-});
-```
+The lower-level HTTP, cache, and service-worker constructors remain available for
+specialized infrastructure, but applications normally configure only `createUiRuntime`.
 
 Canvas and compact cell charts are exported from `@genix/ui/charts`. The removed
 `Charts.svelte` billboard wrapper had no consumers and depended on an obsolete API, so it
@@ -157,9 +179,6 @@ component.
 All UI groups are available through source-first wildcard exports, for example
 `@genix/ui/form/Input.svelte` and `@genix/ui/vTable/TableGrid.svelte`. Genix retains
 `$components/*` as an alias directly to the package root.
-
-The vendored Typed-IDB adapter is exported separately from `@genix/ui/typed-idb`. Its
-upstream README and MIT license are retained beside the source.
 
 ## Development
 
@@ -176,7 +195,7 @@ Tailwind CSS v4 hosts must scan the package source and use the Genix spacing con
 
 ```css
 /* Package components use one Tailwind spacing unit as one pixel. */
-@source "../packages/genix-ui/{buttons,cards,charts,editor,files,form,layers,menu,misc,navigation,popover2,runtime,vTable}/**/*.svelte";
+@source "../packages/genix-ui/{buttons,cards,charts,editor,files,form,layers,menu,misc,navigation,runtime,vTable}/**/*.svelte";
 
 @theme {
   --spacing: 1px;

@@ -34,6 +34,25 @@ export const concatenateInts = (values: number[], sorted?: boolean): string => {
 		.map((s) => s.replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_")).join(".");
 };
 
+// concatenateInts buckets by magnitude, which reorders a mixed-width list. Anything that has to
+// stay positionally aligned with another array — cc-ver against cc-ids — needs one fixed width
+// instead, so the decoded order is exactly the order it was sent in.
+export const concatenateUint16s = (values: number[]): string => {
+	if (values.length === 0) return ""
+
+	const packed = new Uint16Array(values.length)
+	for (let index = 0; index < values.length; index++) {
+		packed[index] = values[index] & 0xffff
+	}
+
+	const bytes = new Uint8Array(packed.buffer, packed.byteOffset, packed.byteLength)
+	let binary = ""
+	for (let index = 0; index < bytes.byteLength; index++) {
+		binary += String.fromCharCode(bytes[index])
+	}
+	return btoa(binary).replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_")
+}
+
 export const checksum = (content: string): string => {
 	let rollingSeed = 888888
 

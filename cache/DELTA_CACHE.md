@@ -28,3 +28,29 @@ Rules:
 - The flag value must be an array of `string | number` IDs matching the configured cache key for that response key.
 - Keys ending in `_IDsToRemove` are ignored by snapshot rebuild, stats, and `updatedStatus` calculations.
 - Removal flags are processed as a real cache change even if no incoming record has a newer `upd`.
+
+## Watermark: `upv`, not `upd`
+
+A table with a `db.TypeDelta` index watermarks its sync on `upv` (`updated_version`), the record's
+write sequence number, and the client sends it back as the `upv` query parameter. `upd` remains the
+human-facing timestamp and is still the fallback watermark for routes whose table has not moved to a
+delta index yet — see `getRecordUpdateValue` in `delta-cache.fetch.ts`.
+
+Why a sequence and not a timestamp: several writes can land in the same second, so a client that
+syncs mid-second gets a watermark that hides records it never received. The ORM assigns `upv` from a
+per-partition counter, so it is strictly increasing and never collides. That makes the server's
+`>= watermark + 1` bound exact — the boundary rows are not re-sent on every poll, which is what a
+timestamp watermark had to do to stay correct.
+
+### Known limitation: concurrent writers
+
+Versions are reserved before the write commits, so two overlapping writers can commit out of order:
+writer A reserves 100, writer B reserves 101 and commits first, a client polls and stores watermark
+101, then A commits. A's records are never delivered until they are written again.
+
+The window is the few milliseconds between two concurrent writes on the same tenant and table, with
+a poll landing inside it. This is accepted rather than fixed: closing it needs a per-partition
+"all versions below this are committed" watermark and cross-process in-flight tracking. If it ever
+shows up in practice, that is the fix.
+
+Note `upv` means something different on `*-ids` routes — see `CACHE_BY_IDS.md`.

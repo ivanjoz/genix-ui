@@ -3,6 +3,7 @@ export {
   checksum,
   checksumBase64_6,
   concatenateInts,
+  concatenateUint16s,
 } from './parsers.js';
 export {
   DateHelper,

@@ -260,7 +260,10 @@ const parseResponseAsStream = async (
 }
 
 const getRecordUpdateValue = (record: any): number => {
-  return record?.upc || record?.upd || 0
+  // `upv` is the write sequence number: strictly increasing and unique per write, so the watermark
+  // it produces is exact. `upc` still serves grouped caches, and `upd` remains the fallback for
+  // routes whose table has not moved to a delta index yet.
+  return record?.upc || record?.upv || record?.upd || 0
 }
 
 const getRecordStatusValue = (record: any): number => {
@@ -528,7 +531,7 @@ const getNextRouteURL = (args: serviceHttpProps, routeRow?: ICacheRouteRow) => {
   }
 
   if(lastSync.updatedStatus._default){
-    route = addToRoute(route, "updated", lastSync.updatedStatus._default as number)
+    route = addToRoute(route, "upv", lastSync.updatedStatus._default as number)
     return { route, lastSync }
   }
 
@@ -540,7 +543,7 @@ const getNextRouteURL = (args: serviceHttpProps, routeRow?: ICacheRouteRow) => {
     route = addToRoute(route, key, updated as number)
   }
 
-  route = addToRoute(route, "updated", minUpdated)
+  route = addToRoute(route, "upv", minUpdated)
   return { route, lastSync }
 }
 

@@ -9,7 +9,7 @@ import { getCacheRuntime } from './runtime.js'
 /**
  * Goal:
  * Cache a whole list-endpoint response keyed by its `route`, invalidated by a parent
- * record's `updated` watermark. Unlike cache-by-ids (per-record `ccv` delta protocol)
+ * record's `updated` watermark. Unlike cache-by-ids (per-record `upv` slot-version protocol)
  * or delta-cache (watermark status maps), this is one route -> one stored blob -> one
  * `updated` stamp. Freshness is driven solely by `updated`: when it changes (the parent
  * was modified), the cache misses and the records are re-fetched.

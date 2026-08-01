@@ -4,7 +4,7 @@ This folder contains the `cache_by_ids` flow used to resolve records by `ID` wit
 
 - in-memory cache
 - IndexedDB persistence
-- backend delta validation using cache-version (`ccv`)
+- backend validation using the per-slot version (`upv`)
 
 This is the cache used by features that ask for many individual records by `ID` and want to avoid downloading unchanged rows repeatedly.
 
@@ -40,7 +40,7 @@ If a record is found in IndexedDB, it is promoted to memory.
 Each cached record stores:
 
 - `ID`: unique record identifier
-- `ccv`: cache-version returned by backend
+- `upv`: slot version returned by backend
 - `_fch`: fetch timestamp in seconds
 - `ss`: status, where `0` means deleted/tombstone
 - `upd`: updated value used by `getRecordByIDUpdated`
@@ -62,13 +62,15 @@ When the frontend needs server validation, it sends:
 - `cc-ids`
   IDs that exist locally
 - `cc-ver`
-  cache-version for each `cc-id`
+  slot-version for each `cc-id`
 
 Important:
 
 - `cc-ids` and `cc-ver` are positional pairs
-- they must stay aligned after compact encoding
-- `cc-ver` must always fit in `uint8`, so it must be `0..255`
+- they must stay aligned after compact encoding. `cc-ids` uses `concatenateInts`, which buckets by
+  magnitude; `cc-ver` uses `concatenateUint16s`, a single fixed-width array, precisely so that
+  bucketing cannot reorder it out of alignment
+- `cc-ver` must fit in `uint16`, so `0..65535`. `0` means "no version held" and always forces a read
 
 If backend does not return a cached ID, frontend treats that row as unchanged and only refreshes `_fch`.
 
@@ -80,12 +82,25 @@ The backend endpoint receives the IDs and calls:
 err := db.QueryCachedIDs(&records, cachedIDs)
 ```
 
-`QueryCachedIDs` compares the client `ccv` against the current server cache-version state.
+`QueryCachedIDs` compares the client `upv` against the current slot version in `cache_updated_version`.
 
 Behavior:
 
 - matching version: row is omitted from response
 - different version: row is selected from the main table and returned
+- the returned row's `upv` is overwritten with its **slot** version, not its own write version — that
+  is the value the client must send back next time
+
+### Why the slot version, not the record's own
+
+Records are bucketed into 256 slots by `uint8(ID)`, and a write bumps the whole slot. If the client
+kept a record's own write version, a record sharing a slot with a more recently written one would
+mismatch forever and be refetched on every request. Stamping the slot version makes the comparison
+converge after one fetch.
+
+The cost: a record that reached this cache from a **delta** list carries its own write version
+instead, which never equals a slot version. That costs exactly one revalidation fetch, after which
+the record holds the right value. This is expected, not a bug.
 
 So the response contains only:
 
@@ -103,7 +118,7 @@ The frontend record type must include at least:
 ```ts
 export interface IMinimalRecord {
 	ID: number
-	ccv?: number
+	upv?: number
 	ss: number
 	_fch?: number
 	upd: number
@@ -114,7 +129,7 @@ Minimum practical requirements:
 
 - `ID`
   Required. Used as cache key.
-- `ccv`
+- `upv`
   Required for backend delta validation.
 - `ss`
   Required. `0` is treated as deleted.
@@ -125,14 +140,14 @@ Minimum practical requirements:
 
 ### Backend schema requirements
 
-The backend table schema must enable cache-version support:
+The backend table schema must enable slot-version support:
 
 ```go
 func (t ProductoTable) GetSchema() db.TableSchema {
 	return db.TableSchema{
 		Name:             "productos",
 		Partition:        t.EmpresaID,
-		SaveCacheVersion: true,
+		SaveUpdatedVersion: true,
 		Keys:             []db.Coln{t.ID.Autoincrement(0)},
 	}
 }
@@ -140,7 +155,7 @@ func (t ProductoTable) GetSchema() db.TableSchema {
 
 Requirements enforced by the ORM:
 
-- `SaveCacheVersion: true`
+- `SaveUpdatedVersion: true`
 - exactly one key column
 - key column must be `int16`, `int32`, or `int64`
 - table must have a partition column
@@ -148,31 +163,31 @@ Requirements enforced by the ORM:
 
 ### Backend response struct requirements
 
-The response struct must expose a cache-version field:
+The response struct must expose a slot-version field:
 
 ```go
 type Producto struct {
 	ID           int32 `json:",omitempty"`
 	Status       int8  `json:"ss,omitempty"`
 	Updated      int32 `json:"upd,omitempty"`
-	CacheVersion uint8 `json:"ccv,omitempty"`
+	UpdatedVersion int32 `json:"upv,omitempty"`
 }
 ```
 
 Requirements:
 
-- field name `CacheVersion` or JSON tag `ccv`
+- field name `UpdatedVersion` with JSON tag `upv`, in **both** the record and the table struct
 - type must be `uint8`
 - `ID` must be present in the response
 
-If `ccv` is missing from the response, frontend cannot validate cached rows correctly.
+If `upv` is missing from the response, the frontend cannot validate cached rows correctly.
 
 ## Expected Endpoint Pattern
 
 The `*-ids` endpoint usually does this:
 
 1. parse `ids`, `cc-ids`, `cc-ver`
-2. build `[]db.IDCacheVersion`
+2. build `[]db.IDUpdatedVersion`
 3. call `db.QueryCachedIDs`
 4. return only changed/new rows
 
@@ -180,7 +195,7 @@ Example:
 
 ```go
 func GetProductosByIDs(req *core.HandlerArgs) core.HandlerResponse {
-	cachedIDs := req.ExtractCacheVersionValues()
+	cachedIDs := req.ExtractUpdatedVersionValues()
 	if len(cachedIDs) == 0 {
 		return req.MakeErr("No se enviaron ids a buscar.")
 	}
@@ -204,7 +219,7 @@ Each route gets its own object store.
 IndexedDB stores the full record object, including:
 
 - `ID`
-- `ccv`
+- `upv`
 - `_fch`
 - `ss`
 - domain fields
@@ -222,11 +237,11 @@ This means:
 
 This cache works correctly only if all of these are true:
 
-1. frontend sends `ID` and `ccv` for cached rows
-2. backend response includes the correct `ccv`
-3. backend schema has `SaveCacheVersion: true`
-4. backend response model exposes `CacheVersion uint8` as `ccv`
-5. `cc-ver` never exceeds `255`
+1. frontend sends `ID` and `upv` for cached rows
+2. backend response includes the correct `upv`
+3. backend schema has `SaveUpdatedVersion: true`
+4. backend response model exposes `UpdatedVersion int32` as `upv`
+5. `cc-ver` never exceeds `65535`
 6. `cc-ids` and `cc-ver` stay aligned in the same order
 7. returned records are merged into memory and IndexedDB
 8. unchanged cached records refresh `_fch`
@@ -237,9 +252,9 @@ If any of these fail, the usual symptom is:
 
 ## Important Limitation
 
-Current backend implementation groups cache-version state by `uint8(id)`.
+The backend groups slot-version state by `uint8(id)`, one row per slot in `cache_updated_version`.
 
-That means different IDs can share the same cache-version bucket when:
+That means different IDs can share the same slot-version bucket when:
 
 ```text
 uint8(idA) == uint8(idB)
@@ -259,23 +274,24 @@ This is compact and fast, but it means unrelated rows can invalidate together.
 
 If the same rows keep coming back from backend:
 
-1. check frontend request snapshot for `ID`, `ccv`, `_fch`
+1. check frontend request snapshot for `ID`, `upv`, `_fch`
 2. check IndexedDB stored value for the same `ID`
-3. check backend received `CacheVersion`
-4. check backend response `ccv`
-5. confirm `cc-ver` values are `0..255`
+3. check backend received the slot version
+4. check backend response `upv`
+5. confirm `cc-ver` values are `0..65535`
 6. confirm `cc-ids` and `cc-ver` stay aligned
 
 Typical failure patterns:
 
-- IndexedDB has correct `ccv`, but backend receives another one
+- IndexedDB has correct `upv`, but backend receives another one
   Usually transport ordering/alignment bug.
-- backend returns rows with no `ccv`
-  Response struct is missing `CacheVersion`.
+- backend returns rows with no `upv`
+  Response struct is missing `UpdatedVersion`.
 - every cached row always fetches again
-  `_fch` is not refreshed or local rows are always stale.
+  `_fch` is not refreshed, local rows are always stale, or the rows came from a delta list and still
+  carry their own write version instead of a slot version (self-heals after one fetch).
 
 ## Related References
 
 - `backend/docs/ORM_DATABASE_QUERY.md`
-- `backend/db/cache_version.go`
+- `backend/genix-orm/scylla/cache_updated_version.go`

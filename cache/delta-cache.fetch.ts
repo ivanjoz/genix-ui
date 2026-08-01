@@ -22,7 +22,7 @@ import {
   stripRowMeta,
   verifyRouteMemoryState,
 } from './delta-cache.idb';
-import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync } from './delta-cache.types';
+import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync, WatermarkField } from './delta-cache.types';
 import type { serviceHttpProps } from './service-http.types.js';
 import { parseObject } from './parse-object.js';
 import { parsePsvResponse } from './psv-parse';
@@ -259,12 +259,37 @@ const parseResponseAsStream = async (
   return await fetchResponse.json()
 }
 
-const getRecordUpdateValue = (record: any): number => {
-  // `upv` is the write sequence number: strictly increasing and unique per write, so the watermark
-  // it produces is exact. `upc` still serves grouped caches, and `upd` remains the fallback for
-  // routes whose table has not moved to a delta index yet.
-  return record?.upc || record?.upv || record?.upd || 0
+const getRecordUpdateValue = (record: any, watermarkField: WatermarkField): number => {
+  return record?.[watermarkField] || 0
 }
+
+// A route's watermark field is decided once, from the records of its first fetch, and then persisted
+// on the route row. `upv` is the write sequence number of a db.TypeDelta table: strictly increasing
+// and unique per write, so the watermark it produces is exact. A table without a delta index sends no
+// `upv`, and the route falls back to the `upd` timestamp — where two writes in the same second are
+// indistinguishable, so boundary rows get re-sent.
+//
+// Deciding per route rather than per record matters: picking whichever field a given record happened
+// to carry let one response silently change the protocol, and let an omitempty zero fall through to a
+// different field entirely.
+const detectWatermarkField = (records: any[]): WatermarkField => {
+  for(const record of records || []){
+    if(record?.upv !== undefined){ return 'upv' }
+  }
+  return 'upd'
+}
+
+const detectWatermarkFields = (content: CacheContent): Record<string, WatermarkField> => {
+  const watermarkFields: Record<string, WatermarkField> = {}
+  for(const [key, values] of listRecordResponseEntries(content)){
+    watermarkFields[key] = detectWatermarkField(values)
+  }
+  return watermarkFields
+}
+
+const resolveWatermarkField = (
+  lastSync: ILastSync, responseKey: string,
+): WatermarkField => lastSync.watermarkFields?.[responseKey] || 'upv'
 
 const getRecordStatusValue = (record: any): number => {
   const rawStatus = record?.ss ?? 0
@@ -395,15 +420,16 @@ const buildRouteRowsFromResponse = (
 }
 
 const extractUpdated = (
-  content: { [key: string]: any[] }, useMin?: boolean,
+  content: { [key: string]: any[] }, watermarkFields: Record<string, WatermarkField>, useMin?: boolean,
 ) => {
   const updatedStatus: { [key: string]: number } = {}
 
   for(const [key, values] of listRecordResponseEntries(content as CacheContent)){
+    const watermarkField = watermarkFields[key] || 'upv'
 
     let maxOrMin = 0
     for(const record of values || []){
-      const updated = getRecordUpdateValue(record)
+      const updated = getRecordUpdateValue(record, watermarkField)
       if(useMin){
         if(maxOrMin === 0 || updated < maxOrMin){ maxOrMin = updated }
       } else if(updated > maxOrMin){
@@ -531,19 +557,26 @@ const getNextRouteURL = (args: serviceHttpProps, routeRow?: ICacheRouteRow) => {
   }
 
   if(lastSync.updatedStatus._default){
-    route = addToRoute(route, "upv", lastSync.updatedStatus._default as number)
+    route = addToRoute(route, resolveWatermarkField(lastSync, "_default"),
+      lastSync.updatedStatus._default as number)
     return { route, lastSync }
   }
 
   let minUpdated = 0
+  let minUpdatedField: WatermarkField = 'upv'
   const fields = args.fields || []
   for(const [key, updated] of Object.entries(lastSync.updatedStatus)){
-    if(minUpdated === 0 || updated < minUpdated){ minUpdated = updated }
+    if(minUpdated === 0 || updated < minUpdated){
+      minUpdated = updated
+      minUpdatedField = resolveWatermarkField(lastSync, key)
+    }
     if(fields.length > 0 && !fields.includes(key)){ continue }
     route = addToRoute(route, key, updated as number)
   }
 
-  route = addToRoute(route, "upv", minUpdated)
+  // Multi-key responses are read per key by the backend; this trailing param only serves routes that
+  // take a single watermark, so it is named after the field the minimum came from.
+  route = addToRoute(route, minUpdatedField, minUpdated)
   return { route, lastSync }
 }
 
@@ -632,8 +665,11 @@ const handleFetchResponse = async (
     routeRow.isSingle = isArrayResponse
   }
 
-  const updatedStatusDelta = extractUpdated(response)
-  const updatedMinDelta = extractUpdated(response, true)
+  if(!routeRow.watermarkFields){
+    routeRow.watermarkFields = detectWatermarkFields(response)
+  }
+  const updatedStatusDelta = extractUpdated(response, routeRow.watermarkFields)
+  const updatedMinDelta = extractUpdated(response, routeRow.watermarkFields, true)
   const idsToRemoveByResponseKey = listIDsToRemoveByResponseKey(response)
   let hasChanged = [...idsToRemoveByResponseKey.values()].some((idsToRemove) => idsToRemove.length > 0)
 
@@ -762,7 +798,8 @@ const saveInitialSnapshot = async (
   // First sync writes the full route snapshot as indexed rows.
   const routeRow = await ensureCacheRouteRow(routeReference)
   routeRow.fetchTime = fetchTime
-  routeRow.updatedStatus = extractUpdated(response)
+  routeRow.watermarkFields = detectWatermarkFields(response)
+  routeRow.updatedStatus = extractUpdated(response, routeRow.watermarkFields)
   accumulateRouteFetchStats(routeRow, response, args.contentLength)
   routeRow.__version__ = args.__version__ || 1
   routeRow.forceNetwork = false

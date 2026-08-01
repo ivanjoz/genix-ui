@@ -3,6 +3,10 @@ export type CacheRecordID = string | number
 export interface ILastSync {
   fetchTime: number
   updatedStatus: { [key: string]: number }
+  // Which field each response key watermarks on, detected from the records of the first fetch and
+  // reused from then on. `upv` (the write sequence of a db.TypeDelta table) when the records carry
+  // it, `upd` (the updated timestamp) otherwise.
+  watermarkFields?: Record<string, WatermarkField>
   fetchedRecordsCount: number
   fetchedBytes: number
   forceNetwork?: boolean
@@ -35,6 +39,10 @@ export interface ICacheRouteRow extends ILastSync {
   // in `cacheRecordsSingle` and skip the `_k` field. The flag is set on the first fetch.
   isSingle?: boolean
 }
+
+// A route watermarks on the write sequence when its table has a delta index, and on the timestamp
+// otherwise. Both names double as the query param the value is sent back as.
+export type WatermarkField = 'upv' | 'upd'
 
 export interface ICacheRecordRowMulti {
   _r: number

@@ -63,34 +63,17 @@ export const unmarshall = (encoded: any): any => {
     if (header === 0) {
       if (lastTypeId === null) return val;
 
-      let skipIndices = new Set<number>();
+      const skipIndices = new Set<number>();
       let valueStartIdx = 1;
 
+      // Position 1 of a header-0 record is the skip block whenever it is an array.
+      // The encoder (serialize/marshal.go) upholds that invariant by emitting an
+      // empty skip block `[]` when the record has nothing to skip and its first
+      // value is itself an encoded array — otherwise `[2]` would mean both "skip
+      // field 2" and "empty slice", and every following field would shift by one.
       if (Array.isArray(val[1])) {
-        const sub = val[1];
-        // Disambiguate a skip block from a value that is itself an encoded array.
-        //
-        // The Go encoder (serialize/marshal.go) emits omitted fields as a skip
-        // block: a non-empty array of the skipped field-order indices, e.g. `[2]`
-        // or `[2, 6]`. The Go decoder tells this apart from a real value using the
-        // first field's *type* — info we don't have here.
-        //
-        // We rely on a structural invariant instead: a skip block is always a
-        // non-empty array of NON-NEGATIVE INTEGERS, whereas a value that happens to
-        // be an array is an encoded struct (`[1, [refBlock], …]` → contains a nested
-        // array), slice (`[2, …items]`), or map (`[3, "key", …]` → contains string
-        // keys). All of those carry a non-integer element right after the header, so
-        // "every element is a non-negative integer" cleanly identifies a skip block.
-        // (The old heuristic rejected leading 2/3 as headers, so common skip blocks
-        // like `[2]` (skip `children`) were misread as values and shifted every field.)
-        const isSkipBlock =
-          sub.length > 0 &&
-          sub.every((s: any) => typeof s === 'number' && Number.isInteger(s) && s >= 0);
-
-        if (isSkipBlock) {
-          for (const s of sub) skipIndices.add(s);
-          valueStartIdx = 2;
-        }
+        for (const s of val[1]) skipIndices.add(s);
+        valueStartIdx = 2;
       }
 
       return populate(lastTypeId, val.slice(valueStartIdx), skipIndices);

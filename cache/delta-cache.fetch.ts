@@ -639,7 +639,8 @@ const fetchNetworkResponse = async (args: serviceHttpProps, route: string) => {
 const parseNetworkResponse = async (args: serviceHttpProps, preResponse: Response) => {
   let response = ((await parseResponseAsStream(preResponse, args)) || {}) as CacheContent
   response = unmarshall(response)
-
+  // console.log("response11", response)
+  
   if(Array.isArray((response as any).response) && typeof (response as any).message === 'string'){
     response = (response as any).response as CacheContent
   }

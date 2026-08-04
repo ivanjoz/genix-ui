@@ -76,9 +76,14 @@
 		button.classList.add('is-active');
 	}
 
-	async function navigateTo(route: string, menuId: number, buttonElement?: HTMLElement) {
-		if (open && buttonElement) {
-			applyActiveStylesInstant(buttonElement);
+	async function navigateTo(clickEvent: MouseEvent, route: string, menuId: number, optionElement?: HTMLElement) {
+		// Options are real <a href> links so the router can preload them on hover/touch. Modified
+		// clicks (new tab/window) belong to the browser, so bail before preventing the default.
+		if (clickEvent.metaKey || clickEvent.ctrlKey || clickEvent.shiftKey || clickEvent.altKey) { return }
+		clickEvent.preventDefault();
+
+		if (open && optionElement) {
+			applyActiveStylesInstant(optionElement);
 		}
 
 		await onNavigate(route);
@@ -206,11 +211,12 @@
 						{#each menu.options as option}
 							{@const isActive = option.route === activePath}
 							{@const optionName = translate(option.name)}
-							<button class="submenu-option w-full flex items-center px-0 py-10 relative
+							<a class="submenu-option w-full flex items-center px-0 py-10 relative
 								hover:bg-indigo-600/20 transition-all duration-150
 								border-l-2 border-transparent
-								{isActive ? 'bg-indigo-600/30 border-indigo-400 text-white' : 'text-gray-300'}"
-								onclick={() => navigateTo(option.route || '/', menu.id || 0)}
+								{isActive ? 'is-selected bg-indigo-600/30 border-indigo-400 text-white' : 'text-gray-300'}"
+								href={option.route || '/'}
+								onclick={(clickEvent) => navigateTo(clickEvent, option.route || '/', menu.id || 0)}
 							>
 								<div class="option-content flex w-full">
 									<!-- Keep one stable icon node during menu expansion to avoid mask repaint flicker. -->
@@ -231,7 +237,7 @@
 										class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3/4 bg-indigo-400 rounded-r"
 									></div>
 								{/if}
-							</button>
+							</a>
 						{/each}
 					</div>
 				{/if}
@@ -289,9 +295,10 @@
 							{#each menu.options as option}
 								{@const isActive = option.route === activePath}
 								{@const optionName = translate(option.name)}
-								<button
+								<a
 									class="mobile-menu-option {isActive ? 'is-active' : ''}"
-									onclick={(e) => navigateTo(option.route || '/', menu.id || 0, e.currentTarget)}
+									href={option.route || '/'}
+									onclick={(e) => navigateTo(e, option.route || '/', menu.id || 0, e.currentTarget)}
 									onmousedown={(e) => e.currentTarget.classList.add('is-pressed')}
 									onmouseup={(e) => e.currentTarget.classList.remove('is-pressed')}
 									onmouseleave={(e) => e.currentTarget.classList.remove('is-pressed')}
@@ -302,7 +309,7 @@
 										<i class="{option.icon} option-icon"></i>
 									{/if}
 									<span class="option-text">{optionName}</span>
-								</button>
+								</a>
 							{/each}
 						</div>
 					{/if}
@@ -394,8 +401,12 @@
 		color: rgb(156 163 175);
 	}
 
+	/* Match on the component's own `is-selected` marker, NEVER on a Tailwind utility
+	   like `.text-white`: naming a utility here makes the class hasher treat it as a
+	   local class and rename every occurrence in this file, silently dropping the
+	   Tailwind rule (the whole menu then loses its white text in production builds). */
 	.submenu-option:hover .desktop-option-icon,
-	.submenu-option.text-white .desktop-option-icon {
+	.submenu-option.is-selected .desktop-option-icon {
 		color: currentColor;
 	}
 
@@ -423,6 +434,7 @@
 	/* Submenu padding adjustment */
 	.submenu-option {
 		height: 38px;
+		text-decoration: none;
 	}
 
 	.d-menu:hover .submenu-option {
@@ -608,6 +620,7 @@
     cursor: pointer;
     min-height: 70px;
     justify-content: center;
+    text-decoration: none;
 	}
 
 	.mobile-menu-option:hover:not(.is-active) {

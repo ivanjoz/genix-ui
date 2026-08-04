@@ -162,7 +162,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 			{currentValue}
 		{/if}
 		{#if !currentValue && required}
-			<i class="icon-[fa--exclamation-triangle] text-red-500"></i>
+			<i class="icon-[fa--exclamation-triangle] required-warning-icon"></i>
 		{/if}
 	</div>
 	{#if isEditing}
@@ -228,7 +228,9 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 		position: relative;
 	}
 
-	.text-red-500 {
+	/* Semantic name, not `.text-red-500`: a scoped rule that reuses a Tailwind utility
+	   name gets hashed by the class hasher and shadows the real utility. */
+	.required-warning-icon {
 		color: #dc3545;
 	}
 </style>

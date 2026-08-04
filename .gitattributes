@@ -1,1 +1,5 @@
-*.wasm.bin filter=lfs diff=lfs merge=lfs -text
+# El wasm de excelize se guarda como blob normal, NO en LFS: el CI de Pages solo
+# resuelve LFS del superproyecto y no baja a los submodulos, asi que el puntero LFS
+# terminaba publicado como un asset de 132 bytes. "binary" evita ademas cualquier
+# conversion de fin de linea sobre los 4 MB.
+*.wasm.bin binary

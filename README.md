@@ -89,7 +89,7 @@ import { Env } from '$core/env';
 import { Notify } from '$libs/helpers';
 import type { IUser } from '$core/types/common';
 
-const isPublicRoute = (route: string) => route === '/' || route === '/login';
+const isPublicRoute = (route: string) => route === '/' || route === '/welcome';
 
 export const ui = createUiRuntime<IUser>({
   applicationName: 'My application',
@@ -105,7 +105,7 @@ export const ui = createUiRuntime<IUser>({
   notify: Notify,                           // { failure, success, warning?, info? }
   security: {
     storageNamespace: 'myapp',
-    onLogout: () => goto('/login'),
+    onLogout: () => goto('/welcome'),
     isPublicRoute,
     autoStartRefreshCheck: true,
   },
@@ -246,7 +246,7 @@ export const ui = createUiRuntime<IUser>({
   /* …transport options… */
   security: {
     storageNamespace: 'myapp',
-    onLogout: () => navigate('/login'),
+    onLogout: () => navigate('/welcome'),
     messages: { sessionExpired, sessionExpiresIn },   // optional, English defaults
     isPublicRoute,
     resolveRouteAccessEntries: getAccessEntriesForRoute,

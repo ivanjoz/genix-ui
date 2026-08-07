@@ -1,7 +1,29 @@
+<script module lang="ts">
+	let lockedModalCount = 0;
+	let bodyOverflowBeforeModal = "";
+
+	// Count open modal instances so stacked dialogs do not restore page scrolling too early.
+	function lockDocumentScroll() {
+		if (lockedModalCount === 0) {
+			bodyOverflowBeforeModal = document.body.style.overflow;
+			document.body.style.overflow = "hidden";
+		}
+		lockedModalCount += 1;
+	}
+
+	function unlockDocumentScroll() {
+		lockedModalCount = Math.max(0, lockedModalCount - 1);
+		if (lockedModalCount === 0) {
+			document.body.style.overflow = bodyOverflowBeforeModal;
+		}
+	}
+</script>
+
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
 	import { untrack } from "svelte";
+	import { onDestroy } from "svelte";
 	import Portal from "../misc/Portal.svelte";
 	import OptionsStrip from "../navigation/OptionsStrip.svelte";
 	import FileUploadSelector from "../files/FileUploadSelector.svelte";
@@ -48,9 +70,45 @@
 	// Local state for this modal instance
 	let isOpen = $state(false);
 	let modalDiv: HTMLDivElement | undefined = $state();
+	let dialogDiv: HTMLDivElement | undefined = $state();
 	let selectedImportFile = $state<File | undefined>(undefined);
 	let selectedImportView = $state(1);
+	let focusBeforeOpen: HTMLElement | null = null;
+	let hasLockedDocumentScroll = false;
 	const importViewOptions = [[1, "Records|Registros"], [2, "Errors|Errores"]] as [number, string][];
+	const focusableSelector = [
+		'a[href]',
+		'button:not([disabled])',
+		'input:not([disabled])',
+		'select:not([disabled])',
+		'textarea:not([disabled])',
+		'[tabindex]:not([tabindex="-1"])',
+	].join(',');
+
+	const getFocusableElements = () => {
+		if (!dialogDiv) return [];
+		return [...dialogDiv.querySelectorAll<HTMLElement>(focusableSelector)]
+			.filter((element) => !element.hasAttribute('hidden') && element.getClientRects().length > 0);
+	};
+
+	const focusDialogContent = () => {
+		if (!dialogDiv) return;
+		// Prefer a form control so data-entry dialogs are ready immediately; fall back to any action.
+		const preferredControl = dialogDiv.querySelector<HTMLElement>(
+			'[autofocus], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+		);
+		(preferredControl || getFocusableElements()[0] || dialogDiv).focus();
+	};
+
+	const releaseDialogFocus = () => {
+		if (focusBeforeOpen?.isConnected) focusBeforeOpen.focus();
+		focusBeforeOpen = null;
+	};
+
+	const closeDialog = () => {
+		if (onClose) onClose();
+		ui.closeModal(id);
+	};
 
 	// Mirror this modal's local transition state from the shared runtime collection.
 	$effect(() => {
@@ -60,6 +118,11 @@
 		}
 
 		if (isThisModalOpen) {
+			focusBeforeOpen = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			if (!hasLockedDocumentScroll) {
+				lockDocumentScroll();
+				hasLockedDocumentScroll = true;
+			}
 			isOpen = true;
 			if (useFileImportWithErrors) {
 				selectedImportView = 1;
@@ -71,9 +134,15 @@
 					if (modalDiv) {
 						modalDiv.classList.add("modal-show");
 					}
+					focusDialogContent();
 				}, 0);
 			});
 		} else {
+			if (hasLockedDocumentScroll) {
+				unlockDocumentScroll();
+				hasLockedDocumentScroll = false;
+			}
+			releaseDialogFocus();
 			untrack(() => {
 				modalDiv?.classList?.remove("modal-show");
 				setTimeout(() => {
@@ -85,8 +154,34 @@
 
 	function handleClose(ev: MouseEvent) {
 		ev.stopPropagation();
-		if (onClose) onClose();
-		ui.closeModal(id);
+		closeDialog();
+	}
+
+	function handleModalKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
+			closeDialog();
+			return;
+		}
+		if (event.key !== 'Tab') return;
+
+		const focusableElements = getFocusableElements();
+		if (focusableElements.length === 0) {
+			event.preventDefault();
+			dialogDiv?.focus();
+			return;
+		}
+
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements[focusableElements.length - 1];
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement.focus();
+		}
 	}
 
 	function handleDelete(ev: MouseEvent) {
@@ -152,6 +247,11 @@
 		}
 	});
 
+	onDestroy(() => {
+		if (hasLockedDocumentScroll) unlockDocumentScroll();
+		releaseDialogFocus();
+	});
+
 	const componentID = ui.nextComponentId();
 	const titleLabel = $derived.by(() => (typeof title === "string" ? title : ""));
 
@@ -161,8 +261,7 @@
 			type: "Modal",
 			label: titleLabel,
 			close: () => {
-				if (onClose) onClose();
-				ui.closeModal(id);
+				closeDialog();
 			},
 		});
 	});
@@ -178,11 +277,18 @@
 				class="_2 pt-50 min-h-460 flex flex-col relative {css} {modalSizesMap.get(
 					size,
 				)}"
+				bind:this={dialogDiv}
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="modal-title-{componentID}"
+				tabindex="-1"
+				onkeydown={handleModalKeydown}
 			>
 				<div
 					class="_3 h-50 py-0 px-8 md:px-12 flex absolute w-full top-0 left-0 items-center justify-between mb-auto {headCss}"
 				>
 					<div
+						id="modal-title-{componentID}"
 						class="flex items-center ff-bold leading-[1.1] text-lg md:text-xl"
 					>
 						{#if isSnippet(title)}

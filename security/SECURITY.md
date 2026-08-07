@@ -16,14 +16,14 @@ import { createSecurity } from '@genix/ui/security';
 
 export const security = createSecurity<IUser>({
   storageNamespace: 'myapp',
-  onLogout: () => navigate('/login'),
+  onLogout: () => navigate('/welcome'),
   messages: {
     sessionExpired: 'Your session expired, please sign in again.',
     sessionExpiresIn: (minutes) => `Your session expires in ${minutes} minutes`,
   },
   notify: Notify,
   resolveRouteAccessEntries: getAccessEntriesForRoute,
-  isPublicRoute: (route) => route === '/' || route === '/login',
+  isPublicRoute: (route) => route === '/' || route === '/welcome',
   getCompanyID: () => activeCompanyID,
   autoStartRefreshCheck: true,
 });

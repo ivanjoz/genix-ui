@@ -4,7 +4,7 @@
 
   interface ITextRecord {
     ID: number;
-    Usuario?: string;
+    User?: string;
     Name?: string;
     FirstName?: string;
     LastName?: string;
@@ -31,7 +31,7 @@
     if (!resolvedRecord) { return placeholder; }
 
     // Prefer common display keys used across modules before fallback to placeholder.
-    if (resolvedRecord.Usuario) { return resolvedRecord.Usuario; }
+    if (resolvedRecord.User) { return resolvedRecord.User; }
     if (resolvedRecord.Name) { return resolvedRecord.Name; }
     const fullName = [resolvedRecord.FirstName, resolvedRecord.LastName].filter(Boolean).join(' ').trim();
     if (fullName.length > 0) { return fullName; }

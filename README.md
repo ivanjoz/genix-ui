@@ -373,7 +373,7 @@ component writes straight into it (bindable, no event plumbing).
 | `Input` **(ui)** | Text/number/password/textarea field with validation | `saveOn`, `save`, `label`, `type`, `required`, `validator`, `baseDecimals`, `transform`, `useTextArea`, `rows`, `postValue`, `dependencyValue`, `disabled`, `onChange` |
 | `SearchSelect` **(ui)** | Searchable single-select over a record list; mobile opens `TopLayerSelector` | `options`, `keyId`, `keyName`, `saveOn`, `save`, `selected`, `onChange`, `max`, `avoidIDs`, `optionRenderer`, `getSearchText`, `clearOnSelect`, `noStyle`, `icon`, `useCache` |
 | `Checkbox` **(ui)** | Single boolean | `saveOn`, `save`, `label`, `useNumber` (store `0\|1`) |
-| `CheckboxOptions` **(ui)** | Single/multi option set, optionally rendered as buttons | `options`, `keyId`, `keyName`, `type: 'single'\|'multiple'`, `useButtons`, `onChange` |
+| `CheckboxOptions` **(ui)** | Single/multi option set, optionally rendered as buttons | `options`, `keyId`, `keyName`, `type: 'single'\|'multiple'`, `useButtons`, `useButtonsSlim`, `onChange` |
 | `DateInput` **(ui)** | Calendar input over Unix day / SUnix values | `saveOn`, `save`, `type: 'unix'\|'sunix'`, `usePopover`, `useInlineStyle`, `required`, `onChange` |
 | `FilterInput` **(ui)** | Throttled search box | `value` (bindable), `throttle`, `icon`, `placeholder` |
 | `ColorPicker` **(ui)** | Color value picker | `saveOn`, `save`, `label`, `onChange` |
@@ -492,7 +492,7 @@ Neither menu imports routing, security, or services; all policy arrives as props
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `ChartCanvas` | Canvas time series with cached rendering | `data`, `dateLabels`, `dateLabelFormatter`, `dateLabelEvery`, `height`, `fixedPointWidthPx`, `useHtmlRendered` |
+| `ChartCanvas` | Canvas time series with cached rendering | `data`, `dateLabels`, `dateLabelFormatter`, `dateLabelEvery`, `height`, `fixedPointWidthPx`, `useHtmlRendered`, `showBottomBaseline` |
 | `CellSimpleChart` | Table-cell bar sparkline | `values`, `labels`, `barWidth`, `barGap`, `barColor`, `barColors`, `colorScale` |
 | `CellHorizontalBars` | Table-cell total/pending horizontal bars | `values: [total, pending][]`, `maxValue`, `logScaleFactor`, `totalBarColor`, `pendingBarColor` |
 

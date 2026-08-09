@@ -25,6 +25,10 @@ export interface httpProps {
   headers?: Record<string, string>;
   successMessage?: string;
   errorMessage?: string;
+  // Suppresses the failure toast so the caller can render the message where it belongs — inline in
+  // a form, for instance. The promise still rejects with the raw response; pair it with
+  // extractError() to get the readable text.
+  silentError?: boolean;
   module?: string;
   onUploadProgress?: (event: AxiosProgressEvent) => void;
   status?: IHttpStatus;
@@ -70,7 +74,7 @@ export interface HttpClient {
   POST_XMLHR: (props: httpProps) => Promise<any>;
 }
 
-const extractError = (result: any): string => {
+export const extractError = (result: any): string => {
   let errorValue: any;
   let errorMessage = '';
 
@@ -160,7 +164,9 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
 
     if (!isSuccessful) {
       console.warn('[http] Request failed:', response);
-      notifyFailure(extractError(response));
+      if (!props.silentError) {
+        notifyFailure(extractError(response));
+      }
       return false;
     }
     if (props.successMessage) {
@@ -202,7 +208,9 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       return result;
     } catch (error) {
       console.error(`[http] ${method} failed:`, props.route, error);
-      notifyFailure(props.errorMessage || String(error));
+      if (!props.silentError) {
+        notifyFailure(props.errorMessage || String(error));
+      }
       throw error;
     } finally {
       if (requestId > 0) {

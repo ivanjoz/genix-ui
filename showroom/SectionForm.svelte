@@ -75,7 +75,7 @@
   </div>
 </ShowroomBlock>
 
-<ShowroomBlock name="Checkbox / CheckboxOptions" note="boolean · useNumber · single · multiple · useButtons">
+<ShowroomBlock name="Checkbox / CheckboxOptions" note="boolean · useNumber · single · multiple · useButtons · useButtonsSlim">
   <div class="flex flex-wrap items-start gap-20">
     <Checkbox saveOn={form} save="IsActive" label="Active (boolean)|Activo (boolean)" />
     <Checkbox saveOn={form} save="IsVisible" label="Visible (0 | 1)" useNumber />
@@ -89,6 +89,11 @@
     <div class="text-xs text-gray-500 mb-4">type="multiple" + useButtons — writes an id array</div>
     <CheckboxOptions saveOn={form} save="LanguageIDs" type="multiple" useButtons
       options={languageOptions} keyId="ID" keyName="Name" />
+  </div>
+  <div class="mt-12">
+    <div class="text-xs text-gray-500 mb-4">type="single" + useButtonsSlim — compact blue segmented control</div>
+    <CheckboxOptions saveOn={form} save="StatusID" type="single" useButtonsSlim
+      options={statusOptions} keyId="ID" keyName="Name" />
   </div>
 </ShowroomBlock>
 

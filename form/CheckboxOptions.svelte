@@ -5,7 +5,8 @@
     import { Agent } from '../agent/registry';
 
   const {
-		options, saveOn = $bindable(), save, keyId, keyName, css, type, useButtons = false, onChange
+		options, saveOn = $bindable(), save, keyId, keyName, css, type,
+		useButtons = false, useButtonsSlim = false, onChange
 	}: {
     saveOn?: T
 		save?: keyof T
@@ -15,6 +16,7 @@
     css?: string
     type?: "single" | "multiple"
     useButtons?: boolean
+    useButtonsSlim?: boolean
     onChange?: (selected: (number|string)[]) => void
   } = $props();
 
@@ -90,15 +92,17 @@
   })
 </script>
 
-<div data-id="CheckboxOptions:{componentID}" class="flex {css}">
+<div data-id="CheckboxOptions:{componentID}" class="flex {css}" class:_buttonsSlim={useButtonsSlim}>
   {#each options as opt }
   {@const optId = opt[keyId] as (number|string)}
   {@const isSelected = optionsSelected.includes(optId)}
-    {#if useButtons}
+    {#if useButtons || useButtonsSlim}
       <button data-id="Option:{optId}"
         data-selected={isSelected ? "true" : undefined}
-        class="_button ff-semibold mr-10"
-        class:_buttonSelected={isSelected}
+        class="_button ff-semibold {useButtonsSlim ? 'text-[14px]' : 'mr-10 text-[15px]'}"
+        class:_buttonSelected={isSelected && !useButtonsSlim}
+        class:_buttonSlim={useButtonsSlim}
+        class:_buttonSlimSelected={isSelected && useButtonsSlim}
         aria-label={opt[keyName] as string}
         onclick={ev => {
           ev.stopPropagation()
@@ -157,7 +161,6 @@
     padding: 0 8px;
     box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 3px;
     border: 1px solid transparent;
-    font-size: 15px;
     line-height: 1;
   }
 
@@ -168,5 +171,41 @@
 	  background-color: #f7f2ff;
 	  color: #6f42b8;
 	  border: 1px solid #ece1ff;
+  }
+
+  /* Slim mode is a compact blue segmented control for dense toolbars and headers. */
+  ._buttonsSlim {
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid #dbe3ee;
+    border-radius: 9px;
+    background-color: #f1f5f9;
+  }
+  ._buttonSlim {
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 7px;
+    border-color: transparent;
+    background-color: transparent;
+    box-shadow: none;
+    color: #64748b;
+    opacity: 1;
+  }
+  ._buttonSlim:hover {
+    border-color: #bfdbfe;
+    background-color: #eaf2ff;
+    color: #2563eb;
+  }
+  ._buttonSlimSelected,
+  ._buttonSlimSelected:hover {
+    border-color: #93c5fd;
+    outline: none;
+    background-color: #dbeafe;
+    box-shadow: rgb(59 130 246 / 24%) 0 1px 2px;
+    color: #1d4ed8;
+  }
+  ._buttonSlim:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 1px;
   }
 </style>

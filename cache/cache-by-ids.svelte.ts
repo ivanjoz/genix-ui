@@ -924,15 +924,23 @@ const fetchStaticRecordsFromServer = async <T extends { ID: number }>(
  * present locally. Once fetched, a record is assumed immutable for its ID — there's no `upd`/`upv`
  * revalidation and no staleness timer. Use for catalog-like tables (e.g. product-stock-lots).
  */
+export interface GetStaticRecordsByIDOptions {
+	cacheNamespace?: string
+	databaseCompanyID?: number
+}
+
 export const getStaticRecordsByID = async <T extends { ID: number }>(
 	apiRoute: string,
 	ids: number[],
+	options?: GetStaticRecordsByIDOptions,
 ): Promise<Map<number, T>> => {
 	const normalizedIDs = normalizePositiveIDs(ids)
 	if (normalizedIDs.length === 0) return new Map<number, T>()
 
-	const tableCache = getOrCreateStaticTableCache<T>(apiRoute)
-	const inFlightTable = getOrCreateStaticInFlightTable<T>(apiRoute)
+	// A custom namespace lets global pre-login records stay isolated by selected environment.
+	const cacheNamespace = options?.cacheNamespace || apiRoute
+	const tableCache = getOrCreateStaticTableCache<T>(cacheNamespace)
+	const inFlightTable = getOrCreateStaticInFlightTable<T>(cacheNamespace)
 	const resolvedRecordsByID = new Map<number, T>()
 
 	// 1) Memory hits resolve immediately.
@@ -962,7 +970,7 @@ export const getStaticRecordsByID = async <T extends { ID: number }>(
 	// 3) For fresh IDs, resolve from IDB first.
 	let idsMissingFromIDB: number[] = []
 	if (idsNotInFlight.length > 0) {
-		const idbRecordsByID = await readRecordsFromIDBByIDs<T>(apiRoute, idsNotInFlight)
+		const idbRecordsByID = await readRecordsFromIDBByIDs<T>(cacheNamespace, idsNotInFlight, options?.databaseCompanyID)
 		for (const id of idsNotInFlight) {
 			const idbRecord = idbRecordsByID.get(id)
 			if (idbRecord) {
@@ -985,7 +993,7 @@ export const getStaticRecordsByID = async <T extends { ID: number }>(
 				fetchedByID.set(fetchedRecord.ID, fetchedRecord)
 			}
 			if (fetchedByID.size > 0) {
-				await upsertRecordsIntoIDB<T>(apiRoute, Array.from(fetchedByID.values()))
+				await upsertRecordsIntoIDB<T>(cacheNamespace, Array.from(fetchedByID.values()), options?.databaseCompanyID)
 			}
 			return fetchedByID
 		})()
@@ -995,14 +1003,14 @@ export const getStaticRecordsByID = async <T extends { ID: number }>(
 			existingPromisesByID.set(id, fetchPromise)
 		}
 		void fetchPromise.finally(() => {
-			const currentInFlight = inFlightStaticBatchPromiseByTable.get(apiRoute)
+			const currentInFlight = inFlightStaticBatchPromiseByTable.get(cacheNamespace)
 			if (!currentInFlight) return
 			for (const id of idsMissingFromIDB) {
 				if (currentInFlight.get(id) === (fetchPromise as unknown as Promise<Map<number, { ID: number }>>)) {
 					currentInFlight.delete(id)
 				}
 			}
-			if (currentInFlight.size === 0) inFlightStaticBatchPromiseByTable.delete(apiRoute)
+			if (currentInFlight.size === 0) inFlightStaticBatchPromiseByTable.delete(cacheNamespace)
 		})
 	}
 

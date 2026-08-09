@@ -1,12 +1,21 @@
 <script module lang="ts">
 	let lockedModalCount = 0;
-	let bodyOverflowBeforeModal = "";
+	let documentOverflowBeforeModal = "";
+	let documentScrollbarGutterBeforeModal = "";
 
 	// Count open modal instances so stacked dialogs do not restore page scrolling too early.
 	function lockDocumentScroll() {
 		if (lockedModalCount === 0) {
-			bodyOverflowBeforeModal = document.body.style.overflow;
-			document.body.style.overflow = "hidden";
+			const documentRoot = document.documentElement;
+			documentOverflowBeforeModal = documentRoot.style.overflow;
+			documentScrollbarGutterBeforeModal = documentRoot.style.scrollbarGutter;
+			const scrollbarWidth = window.innerWidth - documentRoot.clientWidth;
+			// Only reserve space that existed before opening; short pages have no gutter to keep.
+			if (scrollbarWidth > 0) documentRoot.style.scrollbarGutter = "stable";
+			documentRoot.style.overflow = "hidden";
+			console.debug("[modal] document scroll locked", {
+				scrollbarWidth,
+			});
 		}
 		lockedModalCount += 1;
 	}
@@ -14,7 +23,10 @@
 	function unlockDocumentScroll() {
 		lockedModalCount = Math.max(0, lockedModalCount - 1);
 		if (lockedModalCount === 0) {
-			document.body.style.overflow = bodyOverflowBeforeModal;
+			const documentRoot = document.documentElement;
+			documentRoot.style.overflow = documentOverflowBeforeModal;
+			documentRoot.style.scrollbarGutter = documentScrollbarGutterBeforeModal;
+			console.debug("[modal] document scroll restored");
 		}
 	}
 </script>
@@ -40,6 +52,10 @@
 		onClose?: () => void;
 		bodyCss?: string;
 		headCss?: string;
+		// Drops the title bar so the dialog can draw its own header edge to edge. The action
+		// buttons stay exactly where the bar put them, and the body reclaims the 50px the bar
+		// used to reserve.
+		hideTitle?: boolean;
 		size: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 		saveIcon?: string;
 		saveButtonLabel?: string;
@@ -55,6 +71,7 @@
 		css = "",
 		headCss,
 		bodyCss,
+		hideTitle = false,
 		isEdit = false,
 		onSave,
 		onDelete,
@@ -267,6 +284,43 @@
 	});
 </script>
 
+{#snippet modalTitleContent()}
+	{#if isSnippet(title)}
+		{@render title()}
+	{:else}
+		{ui.translate(title)}
+	{/if}
+{/snippet}
+
+{#snippet modalActions()}
+	{#if onDelete}
+		<button
+			class="bx-red mr-10 lh-10"
+			onclick={handleDelete}
+			aria-label={ui.translate("Delete|Eliminar")}
+		>
+			<i class="icon-[fa--trash]"></i>
+		</button>
+	{/if}
+	{#if onSave}
+		<button
+			class="bx-blue mr-10 lh-10"
+			onclick={handleSave}
+			aria-label={ui.translate(saveLabel)}
+		>
+			<i class={saveIcon || "icon-[fa--floppy-o]"}></i>
+			<span class="_5">{ui.translate(saveLabel)}</span>
+		</button>
+	{/if}
+	<button
+		class="bx-yellow h3 lh-10 -mr-2"
+		onclick={handleClose}
+		aria-label={ui.translate("Close|Cerrar")}
+	>
+		<i class="icon-[fa--close]"></i>
+	</button>
+{/snippet}
+
 {#if isOpen}
 	<Portal>
 		<div data-id="Modal:{componentID}"
@@ -274,9 +328,9 @@
 			bind:this={modalDiv}
 		>
 			<div
-				class="_2 pt-50 min-h-460 flex flex-col relative {css} {modalSizesMap.get(
-					size,
-				)}"
+				class="_2 min-h-460 flex flex-col relative {hideTitle
+					? 'overflow-hidden'
+					: 'pt-50'} {css} {modalSizesMap.get(size)}"
 				bind:this={dialogDiv}
 				role="dialog"
 				aria-modal="true"
@@ -284,48 +338,31 @@
 				tabindex="-1"
 				onkeydown={handleModalKeydown}
 			>
-				<div
-					class="_3 h-50 py-0 px-8 md:px-12 flex absolute w-full top-0 left-0 items-center justify-between mb-auto {headCss}"
-				>
+				{#if hideTitle}
+					<!-- The bar is gone but the dialog still needs a name, so the title is kept for
+					     assistive tech only. The actions keep the header's own box (h-50 + the same
+					     horizontal padding) so they land pixel-identical to the titled layout. -->
+					<span id="modal-title-{componentID}" class="sr-only">
+						{@render modalTitleContent()}
+					</span>
+					<div class="h-50 px-8 md:px-12 flex absolute top-0 right-0 z-10 items-center {headCss}">
+						{@render modalActions()}
+					</div>
+				{:else}
 					<div
-						id="modal-title-{componentID}"
-						class="flex items-center ff-bold leading-[1.1] text-lg md:text-xl"
+						class="_3 h-50 py-0 px-8 md:px-12 flex absolute w-full top-0 left-0 items-center justify-between mb-auto {headCss}"
 					>
-						{#if isSnippet(title)}
-							{@render title()}
-						{:else}
-							{ui.translate(title)}
-						{/if}
-					</div>
-					<div class="flex items-center">
-						{#if onDelete}
-							<button
-								class="bx-red mr-10 lh-10"
-								onclick={handleDelete}
-								aria-label={ui.translate("Delete|Eliminar")}
-							>
-								<i class="icon-[fa--trash]"></i>
-							</button>
-						{/if}
-						{#if onSave}
-							<button
-								class="bx-blue mr-10 lh-10"
-								onclick={handleSave}
-								aria-label={ui.translate(saveLabel)}
-							>
-								<i class={saveIcon || "icon-[fa--floppy-o]"}></i>
-								<span class="_5">{ui.translate(saveLabel)}</span>
-							</button>
-						{/if}
-						<button
-							class="bx-yellow h3 lh-10 -mr-2"
-							onclick={handleClose}
-							aria-label={ui.translate("Close|Cerrar")}
+						<div
+							id="modal-title-{componentID}"
+							class="flex items-center ff-bold leading-[1.1] text-lg md:text-xl"
 						>
-							<i class="icon-[fa--close]"></i>
-						</button>
+							{@render modalTitleContent()}
+						</div>
+						<div class="flex items-center">
+							{@render modalActions()}
+						</div>
 					</div>
-				</div>
+				{/if}
 				<div class="w-full grow py-6 px-2 relative md:px-10 {bodyCss}">
 					{#if useFileImportWithErrors}
 						<div

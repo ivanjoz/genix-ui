@@ -74,6 +74,7 @@
     style?: string
     height?: number
     fixedPointWidthPx?: number
+    showBottomBaseline?: boolean
   }
 
   const sharedChartCache = new Map<string, IChartCanvasCacheEntry>()
@@ -93,6 +94,7 @@
     style = "",
     height = 64,
     fixedPointWidthPx = undefined,
+    showBottomBaseline = false,
   }: ChartCanvasProps = $props()
 
   let containerElement = $state<HTMLDivElement | undefined>(undefined)
@@ -524,6 +526,11 @@
           <div style={`top:${yAxisGuide.top}px`}></div>
         {/each}
       </div>
+
+      {#if showBottomBaseline}
+        <!-- The explicit zero baseline is opt-in because existing charts intentionally have a floating plot. -->
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 z-[1] border-t border-solid border-slate-400/90"></div>
+      {/if}
 
       {#if useHtmlRendered}
         <!-- Render bars in the DOM so narrow stacked columns can use the browser's pixel snapping. -->

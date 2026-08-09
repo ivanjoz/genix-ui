@@ -45,6 +45,11 @@
       "svelte": "./runtime/index.ts",
       "default": "./runtime/index.ts"
     },
+    "./http": {
+      "types": "./http/index.ts",
+      "svelte": "./http/index.ts",
+      "default": "./http/index.ts"
+    },
     "./menu": {
       "types": "./menu/index.ts",
       "svelte": "./menu/index.ts",

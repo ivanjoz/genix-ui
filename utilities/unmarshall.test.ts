@@ -31,4 +31,23 @@ describe('unmarshall', () => {
 			{ id: 316, name: 'second' },
 		])
 	})
+
+	// A response struct whose fields are all zero-valued (e.g. a multi-table delta response with
+	// no rows on either side) still emits a type entry with no field pairs — `[typeID]` — so the
+	// decoder can tell "empty object of a known type" apart from "bare empty array". Without that
+	// entry, `populate` has no typeDef to work from and falls back to returning the raw (empty)
+	// values array, which the delta-cache layer then mistakes for an array-shaped route response.
+	it('decodes an all-zero-fields struct as an empty object, not a bare array', () => {
+		const keys = [[7]]
+		const content = [1, [7]]
+
+		expect(unmarshall([keys, content])).toEqual({})
+	})
+
+	it('decodes a slice of all-zero-fields structs as objects, not bare arrays', () => {
+		const keys = [[7]]
+		const content = [2, [1, [7]], [0]]
+
+		expect(unmarshall([keys, content])).toEqual([{}, {}])
+	})
 })

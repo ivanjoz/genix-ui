@@ -70,21 +70,22 @@ const forgetCacheByIDsDatabase = (databaseName: string) => {
 	cacheByIDsDatabasesByName.delete(databaseName)
 }
 
-const getCurrentDatabaseName = (): string => {
+const getCurrentDatabaseName = (companyIDOverride?: number): string => {
 	const runtime = getCacheRuntime()
-	return makeCacheByIDsDatabaseName(runtime.getCompanyID(), runtime.getEnvironment())
+	return makeCacheByIDsDatabaseName(companyIDOverride ?? runtime.getCompanyID(), runtime.getEnvironment())
 }
 
 export const readRecordsFromIDBByIDs = async <T extends { ID: number }>(
 	tableName: string,
 	ids: number[],
+	companyIDOverride?: number,
 ): Promise<Map<number, T>> => {
 	const uniqueIDs = [...new Set(ids.filter((id) => Number.isFinite(id) && id > 0))]
 	if (uniqueIDs.length === 0) return new Map()
 
 	try {
 		console.debug(`${LOG_PREFIX} read:start store=${tableName} ids=${uniqueIDs.length}`)
-		const rows = await getCacheByIDsDatabase(getCurrentDatabaseName()).cacheByIDs.bulkGet(
+		const rows = await getCacheByIDsDatabase(getCurrentDatabaseName(companyIDOverride)).cacheByIDs.bulkGet(
 			uniqueIDs.map((id) => [tableName, id] as [string, number])
 		)
 
@@ -106,13 +107,14 @@ export const readRecordsFromIDBByIDs = async <T extends { ID: number }>(
 export const upsertRecordsIntoIDB = async <T extends { ID: number }>(
 	tableName: string,
 	records: T[],
+	companyIDOverride?: number,
 ): Promise<void> => {
 	const normalizedRecords = records.filter((record) => record && typeof record.ID === 'number' && record.ID > 0)
 	if (normalizedRecords.length === 0) return
 
 	try {
 		console.debug(`${LOG_PREFIX} write:start store=${tableName} rows=${normalizedRecords.length}`)
-		await getCacheByIDsDatabase(getCurrentDatabaseName()).cacheByIDs.bulkPut(
+		await getCacheByIDsDatabase(getCurrentDatabaseName(companyIDOverride)).cacheByIDs.bulkPut(
 			normalizedRecords.map((record) => ({
 				storeName: tableName,
 				ID: record.ID,

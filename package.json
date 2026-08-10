@@ -65,11 +65,6 @@
       "svelte": "./excel/index.ts",
       "default": "./excel/index.ts"
     },
-    "./http": {
-      "types": "./http/index.ts",
-      "svelte": "./http/index.ts",
-      "default": "./http/index.ts"
-    },
     "./charts": {
       "types": "./charts/index.ts",
       "svelte": "./charts/index.ts",

@@ -1,4 +1,4 @@
-import { unmarshall } from '../utilities/index.js';
+import { unmarshal } from '../utilities/index.js';
 import {
   addRequestLogRow,
   bulkDeleteRouteRecordRowsMulti,
@@ -638,7 +638,7 @@ const fetchNetworkResponse = async (args: serviceHttpProps, route: string) => {
 
 const parseNetworkResponse = async (args: serviceHttpProps, preResponse: Response) => {
   let response = ((await parseResponseAsStream(preResponse, args)) || {}) as CacheContent
-  response = unmarshall(response)
+  response = unmarshal(response)
   // console.log("response11", response)
   
   if(Array.isArray((response as any).response) && typeof (response as any).message === 'string'){
@@ -955,7 +955,7 @@ export const fetchDeltaCache = async (args: serviceHttpProps) => {
       sPs: args.status.metadata?.preSerializeMs || 0,
       sF: args.status.metadata?.finalMs || 0,
       req: networkResponse.requestMs,
-      // This covers parse/unmarshall work plus IndexedDB writes/reads before replying to the client.
+      // This covers parse/decode work plus IndexedDB writes/reads before replying to the client.
       spc: responsePreparedAt - networkResponse.responseReceivedAt,
       size: measureResponseSizeKB(args.contentLength),
     })

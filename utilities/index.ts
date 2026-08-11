@@ -20,6 +20,6 @@ export {
   recreateObject,
   simplifyObject,
 } from './shared-objects.js';
-export { unmarshall } from './unmarshall.js';
+export { unmarshal } from '@ivanjoz/minijson';
 export { normalizeStringN } from './string.js';
 export * from './ui.js';

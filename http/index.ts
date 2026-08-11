@@ -4,7 +4,7 @@ import {
   createGroupCacheGetter,
   type GroupCacheGetter,
 } from '../cache/group-cache.fetch.js';
-import { unmarshall } from '../utilities/unmarshall.js';
+import { unmarshal } from '@ivanjoz/minijson';
 
 export * from './get-handler.svelte.js';
 export type { AxiosProgressEvent };
@@ -119,7 +119,7 @@ const setResponseMetadata = (headers: Headers, status: IHttpStatus): void => {
 
 export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
   // Genix compact responses are decoded by default; lower-level clients may override this.
-  const transformResponse = runtime.transformResponse ?? unmarshall;
+  const transformResponse = runtime.transformResponse ?? unmarshal;
   const notifyFailure = runtime.notify?.failure ?? ((message) => console.error(message));
   const notifySuccess = runtime.notify?.success ?? (() => {});
 

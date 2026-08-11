@@ -108,6 +108,7 @@
     "svelte": "^5.46.0"
   },
   "dependencies": {
+    "@ivanjoz/minijson": "github:ivanjoz/minijson#v0.1.0",
     "@humanspeak/svelte-virtual-list": "^0.3.5",
     "@jsquash/avif": "^2.1.1",
     "axios": "^1.13.2",

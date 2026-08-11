@@ -618,10 +618,10 @@ genix-ui/
   workers/            # image worker
 ```
 
-`@genix/ui/utilities` is dependency-free: encoding/parsers (`checksum`,
+`@genix/ui/utilities` provides encoding/parsers (`checksum`,
 `base64ToUInt16`, `concatenateInts`), dates (`dateToFechaUnix`, `getFechaUnix`,
 `DateHelper`, `semanaFromCode`), object mapping (`simplifyObject`, `recreateObject`,
-`unmarshall`), strings (`normalizeStringN`, `highlString`), `throttle`, and `decrypt`
+`unmarshal`, backed by `@ivanjoz/minijson`), strings (`normalizeStringN`, `highlString`), `throttle`, and `decrypt`
 (AES-GCM). Safe to use anywhere, including outside Svelte.
 
 Subpath exports: `@genix/ui`, `/runtime`, `/http`, `/cache`, `/security`,

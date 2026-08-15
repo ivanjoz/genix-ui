@@ -170,13 +170,12 @@
       id: componentID,
       type: "Table",
       label: "",
+      ...(hasRowClick ? { selectRow: (...ids: (number | string)[]) => {
+        for (const rowID of ids) { dispatchRowSelect(parseChildID(rowID)) }
+      }} : {}),
       select: (...ids) => {
         if (ids.length === 0) { return }
         const first = parseChildID(ids[0])
-        if (Number.isFinite(first) && first % 100 === 0) {
-          for (const rid of ids) { dispatchRowSelect(parseChildID(rid)) }
-          return
-        }
         cellRegistry.get(first)?.select?.(...ids.slice(1))
       },
       setValueChild: (cellID, value) => {
@@ -211,11 +210,11 @@
     {#if data.length === 0}
       <div class="table-tree-empty"><T text={emptyMessage} /></div>
     {:else}
-      <div class="table-tree-body">
+      <div class="table-tree-body" data-id={hasRowClick ? `TableBody:${componentID}` : undefined}>
         {#each data as node, nodeIndex(node.id)}
           {@const nodeFlatIdx = nodeFlatIndices[nodeIndex] ?? 0}
           <div class="table-tree-row-shell"
-            data-id={hasRowClick ? `TableRow:${componentID}:${buildRowID(nodeFlatIdx)}` : undefined}
+            data-id={hasRowClick ? `Row:${componentID}:${buildRowID(nodeFlatIdx)}` : undefined}
             data-selected={selectedId === node.id ? "true" : undefined}>
             <div
               class="table-tree-row {rowCss}"
@@ -275,7 +274,7 @@
               {@const childId = resolveChildId(childRecord, childIndex, node)}
               {@const childFlatIdx = flatChildIndex(nodeIndex, childIndex)}
               <div class="table-tree-row-shell table-tree-child-row-shell"
-                data-id={hasRowClick ? `TableRow:${componentID}:${buildRowID(childFlatIdx)}` : undefined}
+                data-id={hasRowClick ? `Row:${componentID}:${buildRowID(childFlatIdx)}` : undefined}
                 data-selected={selectedChildId === childId ? "true" : undefined}>
                 <div
                   class="table-tree-row table-tree-child-row {rowCss}"

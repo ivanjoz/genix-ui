@@ -111,7 +111,7 @@
       id: componentID,
       type: "Table",
       label: "",
-      select: (...ids) => {
+      selectRow: (...ids) => {
         // Composite id ("<tableID>:<rowID>") is what the agent receives in the
         // HTML snapshot; strip the parent prefix to compare against record ids.
         const targets = new Set(
@@ -145,7 +145,7 @@
           {/each}
         </tr>
       </thead>
-      <tbody>
+      <tbody data-id={onRowClick ? `TableBody:${componentID}` : undefined}>
         {#if streamRecords.length === 0}
           <tr>
             <td colspan={Math.max(1, getVisibleColumns().length)} class="stream-empty">{ui.translate(emptyMessage)}</td>
@@ -153,7 +153,7 @@
         {:else}
           {#each streamRecords as rowRecord, rowIndex (`${rowIndex}_${rowVersions.get(rowIndex) || 0}`)}
             <tr
-              data-id={onRowClick ? `TableRow:${componentID}:${resolveStreamRowId(rowRecord, rowIndex)}` : undefined}
+              data-id={onRowClick ? `Row:${componentID}:${resolveStreamRowId(rowRecord, rowIndex)}` : undefined}
               data-selected={getRowSelected(rowRecord) ? "true" : undefined}
               class:stream-row-selected={getRowSelected(rowRecord)}
               class:stream-row-even={rowIndex % 2 === 0}

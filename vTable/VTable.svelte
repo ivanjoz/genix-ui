@@ -407,18 +407,13 @@
       id: componentID,
       type: "Table",
       label: "",
-      // The agent calls Table methods with the composite id stripped down by
-      // the backend bridge (http.go::resolveTarget): "setValue('38:101', v)"
-      // arrives here as setValueChild(101, v). select() still receives the
-      // composite first arg because the table needs to disambiguate row vs
-      // cell from the id alone.
+      // Row actions are explicit on TableBody; select remains cell-only.
+      ...(onRowClick ? { selectRow: (...ids: (number | string)[]) => {
+        for (const rowID of ids) { dispatchRowSelect(parseChildID(rowID)); }
+      }} : {}),
       select: (...ids) => {
         if (ids.length === 0) { return; }
         const first = parseChildID(ids[0]);
-        if (Number.isFinite(first) && first % 100 === 0) {
-          for (const rid of ids) { dispatchRowSelect(parseChildID(rid)); }
-          return;
-        }
         cellRegistry.get(first)?.select?.(...ids.slice(1));
       },
       setValueChild: (cellID, value) => {
@@ -499,7 +494,7 @@
     </thead>
 
     <!-- Virtual Body -->
-    <tbody class="vtable-body">
+    <tbody class="vtable-body" data-id={onRowClick ? `TableBody:${componentID}` : undefined}>
       {#if filteredData.length === 0}
         <tr>
           <td colspan={processedColumns.flatColumns.length} class="vtable-empty">
@@ -528,7 +523,7 @@
 
           <tr class="vtable-row"
             use:virtualizer.observeRow={rowIndex}
-            data-id={onRowClick ? `TableRow:${componentID}:${buildRowID(rowIndex)}` : undefined}
+            data-id={onRowClick ? `Row:${componentID}:${buildRowID(rowIndex)}` : undefined}
             data-selected={selected ? "true" : undefined}
             class:vtable-row-even={rowIndex % 2 === 0}
             class:vtable-row-odd={rowIndex % 2 !== 0}

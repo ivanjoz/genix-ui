@@ -70,7 +70,8 @@ on its children:
 |---|---|
 | `data-id="<Type>:<id>"` | identifies a registered handle |
 | `data-id="Option:<id>"` | a selectable option / chip / step inside a component |
-| `data-id="TableRow:<tableID>:<rowID>"` | a selectable table row (no handle of its own — owned by the parent `Table`); the composite id is what the agent passes back to `Table.select` |
+| `data-id="TableBody:<tableID>"` | the table body action surface; exposes `selectRow(rowID)` through the parent table handle |
+| `data-id="Row:<tableID>:<rowID>"` | a selectable row with no method of its own; pass this composite id to its `TableBody.selectRow` |
 | `data-id="Button:<id>"` | a clickable command button (auto-registered with a `click` method) |
 | `data-menu-root="true"` | marks the side-menu DOM (desktop nav + mobile drawer); the backend parser drops these subtrees from the agent snapshot — agents read the menu via `GET /agent?get=menu` and move via the `navigate` action |
 | `data-agent-hidden="true"` | opts an element (and its entire subtree) out of the page snapshot at the *frontend* layer — `getPageContent` strips it before sanitizing. Use it on parts of the UI the agent must never see / interact with (e.g. the agent chat widget itself, debug panels, dev-only overlays). |
@@ -109,6 +110,7 @@ the agent doesn't learn a new verb per component.
 |---|---|---|
 | `search` | `(text: string) => void` | type into a search input that filters options |
 | `select` | `(...ids: (number \| string)[]) => void` | select one or many options. Multi-select components accept several ids in one call; single-select components ignore ids past the first |
+| `selectRow` | `(...ids: (number \| string)[]) => void` | select one or many `Row` ids through a `TableBody` |
 | `remove` | `(id: number \| string) => void` | remove one selected item from a multi-select |
 | `setValue` | `(value: string \| number) => void` | write a value the user would otherwise type |
 | `click` | `() => void` | dispatch the component's primary action (used by buttons and components whose only verb is "click me") |
@@ -150,7 +152,7 @@ Pure-display, infrastructural, or trivially composed components don't register:
 | `Modal` | `Modal` | header save/delete/close as `Button:<id>` with `data-value="save"\|"delete"\|"close"` | `close` |
 | `TopLayerSelector` | `TopLayerSelector` | each option as `Option:<id>` | `search`, `select`, `close` |
 | `TopLayerDatePicker` | `TopLayerDatePicker` | root has `data-value="YYYY-MM-DD"` | `setValue`, `close` |
-| `vTable/VTable` | `Table` | each selectable row as `TableRow:<tableID>:<rowID>`, with `data-selected="true"` on the active one. Rows expose `methods="select"`. | (none on the Table tag — methods live on the rows/cells) |
+| `vTable/VTable` | `Table` | body as `TableBody:<tableID>` with `selectRow`; each selectable row as `Row:<tableID>:<rowID>` and `data-selected="true"`. Rows expose no method. | `selectRow` is shown on `TableBody`; cell methods remain on cells |
 | `vTable/TableGrid` | `Table` | same as `VTable` | (same) |
 | `vTable/TableTree` | `Table` | same | (same) |
 | `vTable/TableStream` | `Table` | same | (same) |
@@ -169,7 +171,7 @@ the rest:
 
 | Call (from the agent) | Routing |
 |---|---|
-| `select("<table>:<rowID>")` | row id (multiple of 100) → toggles/selects that row. |
+| `selectRow("<table>:<rowID>")` | selects that row through the enclosing `TableBody`. |
 | `select("<table>:<cellID>", …optionIds)` | non-multiple-of-100 → forwarded to that cell's `select`. |
 | `setValue("<table>:<cellID>", value)` | bridge rewrites to `Table.setValueChild(cellID, value)` → cell's `setValue`. |
 | `search("<table>:<cellID>", text)` | bridge → `Table.searchChild` → cell's `search`. |
@@ -181,8 +183,8 @@ cells never collide with rows. Cap of ~99 cells per row.
 | `Renderer` | `Renderer` | each rendered button as `Button:<id>` | — (buttons register their own `click`) |
 | `domain-components/SideMenu` | — (DOM only) | side-menu wrappers carry `data-menu-root="true"` so the parser drops them; agents fetch the menu via `GET /agent?get=menu` and move with the `navigate` action | `navigate` (global, not on a handle) |
 
-`TableRow` is markup only — it doesn't register a handle. All row interaction
-goes through the parent's `select(...ids)`. The four desktop table variants
+`Row` is markup only and exposes no method. All row interaction goes through
+its `TableBody.selectRow(...ids)`. The four desktop table variants
 (`VTable`, `TableGrid`, `TableTree`, `TableStream`) register as `type: "Table"`;
 `MobileCardsVirtualList` (and the cards rendered through `CardsList`) registers
 as `type: "CardList"`. The cell-routing semantics are identical between the

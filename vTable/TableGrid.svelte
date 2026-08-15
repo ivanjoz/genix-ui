@@ -363,17 +363,13 @@
       id: componentID,
       type: "Table",
       label: "",
-      // ids that are exact multiples of 100 are row ids; everything else is a
-      // cell id, in which case the remaining args are forwarded to the cell's
-      // own select() (e.g. CellSelect option ids). The first arg may arrive as
-      // composite "<tableID>:<childID>" — parseChildID strips the prefix.
+      // Row actions are explicit on TableBody; select remains cell-only.
+      ...(onRowClick ? { selectRow: (...ids: (number | string)[]) => {
+        for (const rowID of ids) { dispatchRowSelect(parseChildID(rowID)); }
+      }} : {}),
       select: (...ids) => {
         if (ids.length === 0) { return; }
         const first = parseChildID(ids[0]);
-        if (Number.isFinite(first) && first % 100 === 0) {
-          for (const rid of ids) { dispatchRowSelect(parseChildID(rid)); }
-          return;
-        }
         cellRegistry.get(first)?.select?.(...ids.slice(1));
       },
       setValueChild: (cellID, value) => {
@@ -436,6 +432,7 @@
         {/each}
       </div>
 
+      <div data-id={onRowClick ? `TableBody:${componentID}` : undefined} style="display: contents;">
       {#if data.length === 0}
         <div class="table-grid-empty">{ui.translate(emptyMessage)}</div>
       {:else}
@@ -446,7 +443,7 @@
             class:table-grid-row-even={rowIndex % 2 === 0}
             class:table-grid-row-odd={rowIndex % 2 !== 0}
             class:table-grid-row-selected={selected}
-            data-id={onRowClick ? `TableRow:${componentID}:${buildRowID(rowIndex)}` : undefined}
+            data-id={onRowClick ? `Row:${componentID}:${buildRowID(rowIndex)}` : undefined}
             data-selected={selected ? "true" : undefined}
             style={resolveRowShellStyle(rowRecord, rowIndex)}
             role="row"
@@ -543,6 +540,7 @@
         {/each}
         <div class="table-grid-edge-spacer" aria-hidden="true"></div>
       {/if}
+      </div>
     </div>
   {:else}
     {@const range = virtualizer.range}
@@ -564,7 +562,7 @@
         {/each}
       </div>
 
-      <div class="table-grid-body">
+      <div class="table-grid-body" data-id={onRowClick ? `TableBody:${componentID}` : undefined}>
         <div class="table-grid-virtual-spacer" aria-hidden="true" style="height: {topSpacerHeight}px;"></div>
 
         {#each visibleRowIndices as rowIndex (`${getRowId ? getRowId(data[rowIndex], rowIndex) : rowIndex}_${rowVersions.get(rowIndex) || 0}`)}
@@ -576,7 +574,7 @@
               class:table-grid-row-even={rowIndex % 2 === 0}
               class:table-grid-row-odd={rowIndex % 2 !== 0}
               class:table-grid-row-selected={selected}
-              data-id={onRowClick ? `TableRow:${componentID}:${buildRowID(rowIndex)}` : undefined}
+              data-id={onRowClick ? `Row:${componentID}:${buildRowID(rowIndex)}` : undefined}
               data-selected={selected ? "true" : undefined}
               style={resolveRowShellStyle(rowRecord, rowIndex)}
               role="row"

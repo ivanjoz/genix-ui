@@ -65,8 +65,15 @@ export interface HttpClientRuntime {
   verifyRouteMemoryState?: () => boolean;
 }
 
+// Mirrors backend/main-handlers.go: a route prefixed with "p-" is public and its handler never
+// validates the token. Attaching one is pointless and — with an expired token in storage — makes
+// getToken() clear the session and toast "session expired" while the user is signing in.
+export const isPublicApiRoute = (route?: string): boolean => {
+  return (route || '').startsWith('p-');
+};
+
 export interface HttpClient {
-  buildHeaders: (contentType?: string) => Record<string, string>;
+  buildHeaders: (contentType?: string, route?: string) => Record<string, string>;
   GET: (props: httpProps) => Promise<any>;
   GETWithGroupCache: GroupCacheGetter;
   POST: (props: httpProps) => Promise<any>;
@@ -123,11 +130,13 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
   const notifyFailure = runtime.notify?.failure ?? ((message) => console.error(message));
   const notifySuccess = runtime.notify?.success ?? (() => {});
 
-  const buildHeaders = (contentType?: string): Record<string, string> => {
+  const buildHeaders = (contentType?: string, route?: string): Record<string, string> => {
     const contentTypes: Record<string, string> = { json: 'application/json' };
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${runtime.getToken()}`,
-    };
+    const headers: Record<string, string> = {};
+
+    if (!isPublicApiRoute(route)) {
+      headers.Authorization = `Bearer ${runtime.getToken()}`;
+    }
 
     if (contentType && contentTypes[contentType]) {
       headers['Content-Type'] = contentTypes[contentType];
@@ -196,7 +205,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       console.log(`[http] ${method}:`, props.route);
       const response = await fetch(runtime.makeRoute(props.route), {
         method,
-        headers: buildHeaders('json'),
+        headers: buildHeaders('json', props.route),
         body: JSON.stringify(props.data),
       });
       const result = transformResponse(await parsePreResponse(response, status));
@@ -231,7 +240,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       console.log('[http] Upload POST:', props.route);
       const response = await axios.post(runtime.makeRoute(props.route), props.data, {
         onUploadProgress: props.onUploadProgress,
-        headers: { authorization: `Bearer ${runtime.getToken()}` },
+        headers: buildHeaders(undefined, props.route),
       });
       const result = transformResponse(response.data);
 
@@ -263,7 +272,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
         route: props.route,
         useCache: props.useCache,
         module: props.module || 'a',
-        headers: buildHeaders('json'),
+        headers: buildHeaders('json', props.route),
         cacheMode: props.cacheMode,
         verifyRouteMemoryState: runtime.verifyRouteMemoryState?.() ?? false,
         status,
@@ -278,7 +287,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     const requestId = runtime.startRequest?.(props.route) || 0;
     try {
       console.log('[http] GET:', props.route);
-      const response = await fetch(routeParsed, { headers: buildHeaders() });
+      const response = await fetch(routeParsed, { headers: buildHeaders(undefined, props.route) });
       const result = transformResponse(await parsePreResponse(response, status));
 
       if (!hasSuccessfulResponse(result, props, status)) {

@@ -10,7 +10,7 @@
     icon?: string;
     /** Icon rendered after the label (chevrons, external-link marks, counters). */
     iconRight?: string;
-    onClick?: (ev: MouseEvent) => void;
+    onClick?: (ev: MouseEvent) => void | Promise<void>;
     name?: string;
     label?: string;
     color?: ButtonColor;
@@ -39,7 +39,7 @@
   // Single source for the click action so the Agent and the DOM trigger the same handler.
   const triggerClick = (ev?: MouseEvent) => {
     if (ev) ev.stopPropagation();
-    onClick?.(ev as MouseEvent);
+    return onClick?.(ev as MouseEvent);
   };
 
   const componentID = ui.nextComponentId();
@@ -49,7 +49,7 @@
       id: componentID,
       type: 'Button',
       label: label || name || '',
-      click: () => { triggerClick(); },
+      click: () => triggerClick(),
     });
   });
 </script>

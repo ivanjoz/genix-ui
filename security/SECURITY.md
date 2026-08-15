@@ -72,5 +72,9 @@ security.setSessionRefresher(reloadLogin);
 ```
 
 `getToken()` notifies through `notify.failure` and clears the session when the token has
-expired; pass `getToken(true)` for silent probes such as route guards. It also emits a
+expired; pass `getToken(true)` for silent probes such as route guards. The http client only
+calls it for authenticated routes: a route prefixed with `p-` is public (the backend does not
+validate a token for it), so `buildHeaders` sends no `Authorization` at all — otherwise signing
+in with an expired token still in localStorage would toast "session expired" during the login
+request itself. It also emits a
 throttled `notify.warning` when the session is within 15 (then 5) minutes of expiring.

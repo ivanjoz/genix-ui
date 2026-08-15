@@ -25,7 +25,7 @@ export interface GetHandlerPostRequest {
 
 export interface GetHandlerRuntime {
 	makeRoute: (route: string) => string
-	buildHeaders: (contentType?: string) => Record<string, string>
+	buildHeaders: (contentType?: string, route?: string) => Record<string, string>
 	fetchCached: (request: serviceHttpProps) => Promise<unknown>
 	post: (request: GetHandlerPostRequest) => Promise<unknown>
 	getRecordsByID: <T extends IMinimalRecord>(
@@ -81,7 +81,7 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 			route: this.route,
 			useCache: this.useCache,
 			module: this.module,
-			headers: this.runtime.buildHeaders('json'),
+			headers: this.runtime.buildHeaders('json', this.route),
 			cacheMode,
 			verifyRouteMemoryState: this.runtime.verifyRouteMemoryState?.() ?? false,
 			keyID: this.keyID,

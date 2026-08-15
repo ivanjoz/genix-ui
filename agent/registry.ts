@@ -27,6 +27,7 @@ export interface AgentOption {
 export interface AgentMethodMap {
   search?: (text: string) => AgentOption[] | void;
   select?: (...ids: (number | string)[]) => void;
+  selectRow?: (...ids: (number | string)[]) => void;
   remove?: (id: number | string) => void;
   setValue?: (value: string | number) => void;
   click?: () => void;
@@ -49,6 +50,7 @@ export type AgentMethodName = keyof AgentMethodMap;
 const AGENT_METHOD_NAMES: AgentMethodName[] = [
   "search",
   "select",
+  "selectRow",
   "remove",
   "setValue",
   "click",

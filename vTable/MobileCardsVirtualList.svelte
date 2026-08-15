@@ -280,18 +280,13 @@
       id: componentID,
       type: "CardList",
       label: "",
-      // The agent calls CardList methods with the composite id stripped down
-      // by the backend bridge (http.go::resolveTarget): "setValue('38:101', v)"
-      // arrives here as setValueChild(101, v). select() still receives the
-      // composite first arg because we need to disambiguate row vs cell from
-      // the id alone.
+      // Row actions are explicit on TableBody; select remains cell-only.
+      ...(onRowClick ? { selectRow: (...ids: (number | string)[]) => {
+        for (const rowID of ids) { dispatchRowSelect(parseChildID(rowID)); }
+      }} : {}),
       select: (...ids) => {
         if (ids.length === 0) { return; }
         const first = parseChildID(ids[0]);
-        if (Number.isFinite(first) && first % 100 === 0) {
-          for (const rid of ids) { dispatchRowSelect(parseChildID(rid)); }
-          return;
-        }
         cellRegistry.get(first)?.select?.(...ids.slice(1));
       },
       setValueChild: (cellID, value) => {
@@ -313,6 +308,7 @@
 <div class="card-list-root"
   data-id={shouldRegisterCardList ? `CardList:${componentID}` : undefined}
 >
+<div data-id={onRowClick ? `TableBody:${componentID}` : undefined} style="display: contents;">
 {#if data.length === 0}
   <div class="mobile-cards-empty-message">
     {ui.translate(emptyMessage)}
@@ -323,7 +319,7 @@
     {@const resolvedRecord = getResolvedRecord(sourceRecord, recordIndex)}
     {@const selectedCard = resolvedRecord ? isRowSelected(resolvedRecord) : false}
     <div
-        data-id={onRowClick ? `TableRow:${componentID}:${buildRowID(sourceIndex)}` : undefined}
+        data-id={onRowClick ? `Row:${componentID}:${buildRowID(sourceIndex)}` : undefined}
         data-selected={selectedCard ? "true" : undefined}
         class="mobile-cards-card mobile-cards-card-{variant} {cardCss}"
         class:mobile-cards-card-selected={showSelectedCard && selectedCard}
@@ -730,6 +726,7 @@
     </SvelteVirtualList>
   {/if}
 {/if}
+</div>
 </div>
 
 <style>

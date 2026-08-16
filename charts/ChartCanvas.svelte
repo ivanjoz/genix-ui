@@ -75,6 +75,11 @@
     height?: number
     fixedPointWidthPx?: number
     showBottomBaseline?: boolean
+    // Pins the top of the shared axis, for series whose scale is known in advance rather than
+    // observed — a CPU percentage is 0..100 even on an idle machine, and auto-scaling it to the
+    // highest sample makes 3% fill the plot and read as alarming. Only raises the axis, never
+    // lowers it, so a series that exceeds the expected ceiling is still drawn in full.
+    sharedAxisMaxValue?: number
   }
 
   const sharedChartCache = new Map<string, IChartCanvasCacheEntry>()
@@ -95,6 +100,7 @@
     height = 64,
     fixedPointWidthPx = undefined,
     showBottomBaseline = false,
+    sharedAxisMaxValue = undefined,
   }: ChartCanvasProps = $props()
 
   let containerElement = $state<HTMLDivElement | undefined>(undefined)
@@ -141,7 +147,10 @@
       return Math.max(maxCount, chartSeries.values.length)
     }, 0)
     const barSeries = data.filter((chartSeries) => chartSeries.type === 'bar')
-    const lineSeries = data.filter((chartSeries) => chartSeries.type === 'line')
+    // A series on its own axis is by definition not on this one, so it must not set its scale.
+    // Including it let a memory line in MB rescale the CPU axis it shares a chart with, and the
+    // y-axis labels — which are always built from this value — then described neither series.
+    const lineSeries = data.filter((chartSeries) => chartSeries.type === 'line' && !chartSeries.useOwnAxis)
     const maxChartValue = Array.from({ length: pointsCount }, (_, pointIndex) => {
       const stackedBarTotal = barSeries.reduce((stackTotal, chartSeries) => {
         return stackTotal + (chartSeries.values[pointIndex] || 0)
@@ -150,7 +159,7 @@
         return Math.max(maxValue, chartSeries.values[pointIndex] || 0, 0)
       }, 0)
       return Math.max(stackedBarTotal, lineMaximum)
-    }).reduce((maxValue, stackValue) => Math.max(maxValue, stackValue), 0)
+    }).reduce((maxValue, stackValue) => Math.max(maxValue, stackValue), sharedAxisMaxValue || 0)
 
     return {
       pointsCount,
@@ -372,6 +381,7 @@
       dateLabels,
       dateLabelEvery,
       useHtmlRendered,
+      sharedAxisMaxValue: sharedAxisMaxValue || 0,
       series: data.map((chartSeries) => ({
         type: chartSeries.type,
         name: chartSeries.name,

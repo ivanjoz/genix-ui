@@ -22,7 +22,8 @@
     rowIndexFromRowID,
     type CellAgentMethods,
   } from '../vTable/agentContext'
-  import type { ITableColumn } from './types'
+  import MobileCardsVirtualList from './MobileCardsVirtualList.svelte'
+  import type { ITableColumn, IMobileCardsListCell } from './types'
 
   interface TableTreeProps<TRecord> {
     columns: ITableColumn<TRecord>[]
@@ -36,6 +37,8 @@
     getChildId?: (record: TRecord, index: number, parent: TableTreeNode<TRecord>) => string | number
     onNodeClick?: (node: TableTreeNode<TRecord>, index: number) => void
     onChildClick?: (record: TRecord, index: number, parent: TableTreeNode<TRecord>) => void
+    mobileBreakpointPx?: number
+    mobileCardCss?: string
   }
 
   let {
@@ -50,6 +53,8 @@
     getChildId,
     onNodeClick,
     onChildClick,
+    mobileBreakpointPx = 580,
+    mobileCardCss = '',
   }: TableTreeProps<TRecord> = $props()
 
   const visibleColumns = $derived(columns.filter((column) => !column.hidden))
@@ -95,6 +100,103 @@
     // Caller-owned state drives the row refresh; CellInput only needs the callback signature.
   }
 
+  /* ---------- Mobile card mode ---------- */
+
+  // A tree row is either a parent node or one of its children; the card list is flat, so both
+  // are wrapped with enough context to route taps back to toggleNode / onChildClick.
+  interface ITableTreeCardRow {
+    record: TRecord
+    node: TableTreeNode<TRecord>
+    nodeIndex: number
+    childIndex: number
+    isChild: boolean
+    rowKey: string | number
+  }
+
+  let windowWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1024)
+
+  $effect(() => {
+    const handleResize = () => {
+      windowWidth = window.innerWidth
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  })
+
+  const mobileColumns = $derived(columns.filter((column) => !column.hidden && column.mobile))
+
+  // Card mode only engages when the caller opted in with at least one `mobile` column.
+  const isMobileView = $derived(windowWidth < mobileBreakpointPx && mobileColumns.length > 0)
+
+  // Flatten open nodes into the parent-then-children order the card list renders.
+  const mobileCardRows = $derived.by((): ITableTreeCardRow[] => {
+    const flatRows: ITableTreeCardRow[] = []
+    for (let nodeIndex = 0; nodeIndex < data.length; nodeIndex++) {
+      const node = data[nodeIndex]
+      flatRows.push({ record: node.record, node, nodeIndex, childIndex: -1, isChild: false, rowKey: node.id })
+      if (!node.isOpen) { continue }
+      for (let childIndex = 0; childIndex < node.children.length; childIndex++) {
+        flatRows.push({
+          record: node.children[childIndex],
+          node,
+          nodeIndex,
+          childIndex,
+          isChild: true,
+          rowKey: resolveChildId(node.children[childIndex], childIndex, node),
+        })
+      }
+    }
+    return flatRows
+  })
+
+  // Unwrap the flat row before delegating to the column's own value/render callbacks so callers
+  // keep writing `mobile` config against their record type, exactly like VTable and TableGrid.
+  const mobileCardCells = $derived.by((): IMobileCardsListCell<ITableTreeCardRow, ITableColumn<TRecord>>[] => {
+    return [...mobileColumns]
+      .sort((a, b) => (a.mobile?.order || 0) - (b.mobile?.order || 0))
+      .map((column) => ({
+        id: column.id,
+        source: column,
+        itemCss: column.mobile?.css || 'col-span-full',
+        contentCss: column.mobile?.contentCss,
+        labelTop: column.mobile?.labelTop,
+        labelLeft: column.mobile?.labelLeft,
+        labelCss: 'color-label',
+        icon: column.mobile?.icon,
+        iconCss: column.mobile?.iconCss,
+        elementLeft: column.mobile?.elementLeft,
+        elementRight: column.mobile?.elementRight,
+        type: column.cellInputType,
+        inputCss: column.inputCss,
+        getValue: (cardRow, idx) => getCellValue(cardRow.record, column, idx) as string | number,
+        // Cards stay editable: unwrap the flat row before handing the value to the column's handler.
+        onCellEdit: column.onCellEdit
+          ? (cardRow, value, rerender) => column.onCellEdit!(cardRow.record, value, rerender)
+          : undefined,
+        disableCellInteractions: (cardRow, idx) => Boolean(column.disableCellInteractions?.(cardRow.record, idx)),
+        mobileRender: column.mobile?.render
+          ? (cardRow, idx) => column.mobile!.render!(cardRow.record, idx)
+          : undefined,
+        render: column.render ? (cardRow, idx) => column.render!(cardRow.record, idx) : undefined,
+        setCellCss: (cardRow) => column.setCellCss?.(cardRow.record),
+        if: column.mobile?.if ? (cardRow, idx) => column.mobile!.if!(cardRow.record, idx) : undefined,
+      }))
+  })
+
+  // Parent taps expand/collapse; child taps forward to the caller's child handler.
+  function handleMobileCardClick(cardRow: ITableTreeCardRow) {
+    if (!cardRow.isChild) {
+      toggleNode(cardRow.node, cardRow.nodeIndex)
+      return
+    }
+    console.debug('[table-tree] mobile child click', { parentId: cardRow.node.id, rowKey: cardRow.rowKey })
+    onChildClick?.(cardRow.record, cardRow.childIndex, cardRow.node)
+  }
+
+  function isMobileCardSelected(cardRow: ITableTreeCardRow): boolean {
+    return cardRow.isChild ? selectedChildId === cardRow.rowKey : selectedId === cardRow.rowKey
+  }
+
   const componentID = ui.nextComponentId()
 
   // Flat visible-row indices: node row, then child rows (when node.isOpen).
@@ -134,8 +236,10 @@
   const hasInteractiveCell = $derived(
     columns.some((column) => column.onCellEdit || column.onCellSelect),
   )
+  // In card mode MobileCardsVirtualList registers its own CardList handle, so the table
+  // must stay unregistered to avoid two agent handles addressing the same rows.
   const shouldRegisterTable = $derived(
-    Boolean(onNodeClick) || Boolean(onChildClick) || hasInteractiveCell,
+    !isMobileView && (Boolean(onNodeClick) || Boolean(onChildClick) || hasInteractiveCell),
   )
 
   // rowID → (nodeIndex, childIndex?) for select dispatch.
@@ -192,6 +296,23 @@
 </script>
 
 <div data-id={shouldRegisterTable ? `Table:${componentID}` : undefined} class="table-tree-shell {css}">
+  {#if isMobileView}
+    <div class="table-tree-mobile-cards">
+      <MobileCardsVirtualList
+        data={mobileCardRows}
+        cells={mobileCardCells}
+        variant="compact"
+        cardCss={`mb-6 ${mobileCardCss}`.trim()}
+        getCardCss={(cardRow) => (cardRow.isChild ? 'table-tree-mobile-child-card' : '')}
+        emptyMessage={emptyMessage}
+        showSelectedCard={true}
+        selected={selectedChildId ?? selectedId}
+        isSelected={(cardRow) => isMobileCardSelected(cardRow)}
+        onRowClick={(cardRow) => handleMobileCardClick(cardRow)}
+        debugName="TableTree"
+      />
+    </div>
+  {:else}
   <div class="table-tree-plain-scroll">
     <div class="table-tree-header table-tree-header-sticky">
       <div class="table-tree-header-row" role="row" style:grid-template-columns={gridTemplateColumns}>
@@ -335,9 +456,22 @@
       </div>
     {/if}
   </div>
+  {/if}
 </div>
 
 <style>
+  .table-tree-mobile-cards {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px 4px;
+  }
+
+  /* Child cards stay visually nested under the parent node they expanded from. */
+  .table-tree-mobile-cards :global(.table-tree-mobile-child-card) {
+    margin-left: 16px;
+    border-left: 3px solid #c4b5fd;
+  }
+
   .table-tree-shell {
     min-height: 0;
     height: 100%;

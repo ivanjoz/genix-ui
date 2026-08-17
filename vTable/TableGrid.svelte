@@ -165,6 +165,8 @@
       elementLeft: columnDefinition.mobile?.elementLeft,
       elementRight: columnDefinition.mobile?.elementRight,
       mobileRender: columnDefinition.mobile?.render,
+      // Card cells read `type`; grid columns declare the same intent as `cellInputType`.
+      type: columnDefinition.cellInputType,
       if: columnDefinition.mobile?.if,
       onCellClick: columnDefinition.onCellClick,
       disableCellInteractions: columnDefinition.disableCellInteractions,
@@ -412,6 +414,8 @@
           return resolvedIndex >= 0 ? resolvedIndex : fallbackIndex;
         }}
         debugName="TableGrid"
+        useRowRenderer={useRowRenderer}
+        rowRenderer={rowRenderer}
         gridCellRenderer={cellRenderer}
       />
     </div>

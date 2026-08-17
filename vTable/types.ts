@@ -90,6 +90,11 @@ export interface IMobileCardsListCell<T, TSource = unknown> {
   elementLeft?: string | ElementAST | ElementAST[]
   elementRight?: string | ElementAST | ElementAST[]
   useRenderer?: boolean
+  // Row actions carried over from the desktop column so cards keep the same edit/delete affordance.
+  buttonEditHandler?: (record: T) => void
+  buttonDeleteHandler?: (record: T) => void
+  buttonEditIf?: (record: T) => boolean
+  buttonDeleteIf?: (record: T) => boolean
 }
 
 export interface ITableColumn<T> {

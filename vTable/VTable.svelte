@@ -160,6 +160,8 @@
         elementLeft: column.mobile?.elementLeft,
         elementRight: column.mobile?.elementRight,
         mobileRender: column.mobile?.render,
+        // Card cells read `type`; table columns declare the same intent as `cellInputType`.
+        type: column.cellInputType,
         if: column.mobile?.if,
         onCellClick: column.onCellClick,
         disableCellInteractions: column.disableCellInteractions,
@@ -170,6 +172,27 @@
 
   // Mobile view - only enable if columns have mobile config and screen is small
   const isMobileView = $derived(windowWidth < 580 && mobileColumns.length > 0);
+
+  // Callers tune `maxHeight` for desktop chrome (e.g. "calc(80vh - 15rem)"), which strands a third
+  // of a phone screen. In card mode measure the real distance to the viewport bottom instead.
+  let mobileAvailableHeight = $state('');
+
+  $effect(() => {
+    if (!isMobileView || !containerRef) {
+      mobileAvailableHeight = '';
+      return;
+    }
+    const measureAvailableHeight = () => {
+      if (!containerRef) { return; }
+      const distanceFromViewportTop = containerRef.getBoundingClientRect().top;
+      mobileAvailableHeight = `${Math.max(240, window.innerHeight - distanceFromViewportTop - 8)}px`;
+    };
+    measureAvailableHeight();
+    window.addEventListener('resize', measureAvailableHeight);
+    return () => window.removeEventListener('resize', measureAvailableHeight);
+  });
+
+  const effectiveMobileHeight = $derived(mobileAvailableHeight || maxHeight);
 
   const filterTextArray = $derived((filterText||"").toLowerCase().split(" ").filter(x => x.length > 1))
 
@@ -435,11 +458,11 @@
 <div bind:this={containerRef}
   data-id={shouldRegisterTable ? `Table:${componentID}` : undefined}
   class="vtable-container {css}" class:_14={isMobileView}
-  style="max-height: {maxHeight}; overflow: {isMobileView ? 'hidden' : 'auto'};"
+  style="max-height: {isMobileView ? effectiveMobileHeight : maxHeight}; overflow: {isMobileView ? 'hidden' : 'auto'};"
 >
   {#if isMobileView}
     <!-- Mobile Card View -->
-    <div class="mobile-card-container" style="height: {maxHeight};">
+    <div class="mobile-card-container" style="height: {effectiveMobileHeight};">
       <MobileCardsVirtualList
         data={filteredData}
         cells={mobileColumns}

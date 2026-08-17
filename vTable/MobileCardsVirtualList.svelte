@@ -23,6 +23,7 @@
     MobileCardsListRendererSnippet,
     MobileCardsListVariant,
     TableGridCellRendererSnippet,
+    TableGridRowRendererSnippet,
   } from './types';
 
   const ui = useUI();
@@ -41,6 +42,8 @@
     cells: TCell[];
     variant?: MobileCardsListVariant;
     cardCss?: string;
+    // Per-record card classes, for lists whose rows are not visually uniform (e.g. tree children).
+    getCardCss?: (record: TRecord, index: number) => string;
     showSelectedCard?: boolean;
     viewportClass?: string;
     itemsClass?: string;
@@ -63,6 +66,9 @@
     legacyCardCellRenderer?: CardRendererSnippet<TRecord>;
     tableCellRenderer?: CellRendererSnippet<TRecord>;
     gridCellRenderer?: TableGridCellRendererSnippet<TRecord>;
+    // Full-card escape hatch: rows like section/lot headers replace the whole cell grid.
+    useRowRenderer?: (record: TRecord, index: number) => boolean;
+    rowRenderer?: TableGridRowRendererSnippet<TRecord>;
   }
 
   let {
@@ -70,6 +76,7 @@
     cells,
     variant = 'compact',
     cardCss = '',
+    getCardCss,
     showSelectedCard = false,
     viewportClass = '',
     itemsClass = '',
@@ -92,6 +99,8 @@
     legacyCardCellRenderer,
     tableCellRenderer,
     gridCellRenderer,
+    useRowRenderer,
+    rowRenderer,
   }: MobileCardsVirtualListProps<TRecord, TCell> = $props();
 
   // Keep the virtualizer hooks stable so parent containers can keep their own sizing rules.
@@ -314,6 +323,37 @@
     {ui.translate(emptyMessage)}
   </div>
 {:else}
+  <!-- Mirrors the desktop table's per-column row actions so cards keep the same edit/delete entry point. -->
+  {#snippet cellActionButtons(cell: TCell, record: TRecord, recordIndex: number)}
+    {#if cell.buttonEditHandler || cell.buttonDeleteHandler}
+      <div class="mobile-cards-actions">
+        {#if cell.buttonEditHandler && (!cell.buttonEditIf || cell.buttonEditIf(record))}
+          <button type="button" class="mobile-cards-action-button mobile-cards-action-edit"
+            aria-label={ui.translate("edit|editar")}
+            onclick={(event) => {
+              event.stopPropagation();
+              logInteraction('buttonEditHandler', { rowIndex: recordIndex, cellId: cell.id });
+              cell.buttonEditHandler?.(record);
+            }}
+          >
+            <i class="icon-[fa--pencil]"></i>
+          </button>
+        {/if}
+        {#if cell.buttonDeleteHandler && (!cell.buttonDeleteIf || cell.buttonDeleteIf(record))}
+          <button type="button" class="mobile-cards-action-button mobile-cards-action-delete"
+            aria-label={ui.translate("delete|eliminar")}
+            onclick={(event) => {
+              event.stopPropagation();
+              logInteraction('buttonDeleteHandler', { rowIndex: recordIndex, cellId: cell.id });
+              cell.buttonDeleteHandler?.(record);
+            }}
+          >
+            <i class="icon-[fa--trash]"></i>
+          </button>
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
   {#snippet cardItem(sourceRecord: TRecord, sourceIndex: number)}
     {@const recordIndex = getRecordListIndex(sourceRecord, sourceIndex)}
     {@const resolvedRecord = getResolvedRecord(sourceRecord, recordIndex)}
@@ -321,7 +361,7 @@
     <div
         data-id={onRowClick ? `Row:${componentID}:${buildRowID(sourceIndex)}` : undefined}
         data-selected={selectedCard ? "true" : undefined}
-        class="mobile-cards-card mobile-cards-card-{variant} {cardCss}"
+        class="mobile-cards-card mobile-cards-card-{variant} {cardCss} {getCardCss?.(sourceRecord, recordIndex) || ''}"
         class:mobile-cards-card-selected={showSelectedCard && selectedCard}
         role="button"
         tabindex="0"
@@ -357,6 +397,9 @@
           {/if}
 
           {@const rowVersion = rowVersions.get(sourceIndex) || 0}
+          {#if useRowRenderer?.(resolvedRecord, recordIndex) && rowRenderer}
+            {@render rowRenderer(resolvedRecord, recordIndex)}
+          {:else}
           <div class="mobile-cards-grid mobile-cards-grid-{variant}">
             {#each visibleCells as cell, cellIndex (`${String(cell.id || cell.field || cellIndex)}_${filterText || ''}_${rowVersion}`)}
               {@const shouldRender = !cell.if || cell.if(resolvedRecord, recordIndex)}
@@ -455,6 +498,7 @@
                           {/if}
                         {/if}
                       </div>
+                      {@render cellActionButtons(cell, resolvedRecord, recordIndex)}
                     </div>
                   </div>
                 {:else if cell.labelTop}
@@ -578,6 +622,7 @@
                           {/if}
                         </div>
                       {/if}
+                      {@render cellActionButtons(cell, resolvedRecord, recordIndex)}
                     </div>
                   </div>
                 {:else}
@@ -697,11 +742,13 @@
                         {/if}
                       </div>
                     {/if}
+                    {@render cellActionButtons(cell, resolvedRecord, recordIndex)}
                   </div>
                 {/if}
               {/if}
             {/each}
           </div>
+          {/if}
         {/if}
       </div>
   {/snippet}
@@ -879,6 +926,32 @@
   .mobile-cards-highlight {
     color: #da3c3c;
     text-decoration: underline;
+  }
+
+  .mobile-cards-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .mobile-cards-action-button {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .mobile-cards-action-edit {
+    background-color: #eef0ff;
+    color: #5a52c8;
+  }
+
+  .mobile-cards-action-delete {
+    background-color: #ffe8ea;
+    color: #e55757;
   }
 
   .mobile-cards-delete-button {

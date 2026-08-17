@@ -3,8 +3,9 @@
   const ui = useUI();
   import { SvelteMap } from 'svelte/reactivity';
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
+  import MobileCardsVirtualList from './MobileCardsVirtualList.svelte';
   import { Agent } from '../agent/registry';
-  import type { ITableColumn } from './types';
+  import type { ITableColumn, IMobileCardsListCell } from './types';
 
   interface TableStreamProps<T> {
     columns: ITableColumn<T>[];
@@ -14,9 +15,12 @@
     css?: string;
     tableCss?: string;
     onRowClick?: (row: T, index: number, rerender: () => void) => void;
-    selected?: T | number;
-    isSelected?: (row: T, selected: T | number) => boolean;
+    // Widened to the shared card-list contract so the same props feed table and card mode.
+    selected?: T | string | number;
+    isSelected?: (row: T, selected: T | string | number) => boolean;
     emptyMessage?: string;
+    mobileBreakpointPx?: number;
+    mobileCardCss?: string;
   }
 
   let {
@@ -29,7 +33,9 @@
     onRowClick,
     selected,
     isSelected,
-    emptyMessage = 'No records found.|No se encontraron registros.'
+    emptyMessage = 'No records found.|No se encontraron registros.',
+    mobileBreakpointPx = 580,
+    mobileCardCss = '',
   }: TableStreamProps<T> = $props();
 
   let streamRecords = $state<T[]>([]);
@@ -54,6 +60,43 @@
   });
 
   const getVisibleColumns = () => columns.filter((columnDefinition) => !columnDefinition.hidden);
+
+  // Narrow screens cannot show a stream table without horizontal scrolling, so the same
+  // `column.mobile` contract used by VTable/TableGrid flips the stream into a card list.
+  let windowWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  $effect(() => {
+    const handleResize = () => {
+      windowWidth = window.innerWidth;
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  });
+
+  // Flatten `column.mobile` into the shared card-cell shape so the renderer stays the single source of truth.
+  const mobileColumns = $derived.by((): IMobileCardsListCell<T, ITableColumn<T>>[] => {
+    return columns
+      .filter((columnDefinition) => !columnDefinition.hidden && columnDefinition.mobile)
+      .sort((a, b) => (a.mobile?.order || 0) - (b.mobile?.order || 0))
+      .map((columnDefinition) => ({
+        ...columnDefinition,
+        source: columnDefinition,
+        itemCss: columnDefinition.mobile?.css || 'col-span-full',
+        contentCss: columnDefinition.mobile?.contentCss,
+        labelTop: columnDefinition.mobile?.labelTop,
+        labelLeft: columnDefinition.mobile?.labelLeft,
+        labelCss: 'color-label',
+        icon: columnDefinition.mobile?.icon,
+        iconCss: columnDefinition.mobile?.iconCss,
+        elementLeft: columnDefinition.mobile?.elementLeft,
+        elementRight: columnDefinition.mobile?.elementRight,
+        mobileRender: columnDefinition.mobile?.render,
+        if: columnDefinition.mobile?.if,
+      }));
+  });
+
+  // Card mode only engages when the caller opted in with at least one `mobile` column.
+  const isMobileView = $derived(windowWidth < mobileBreakpointPx && mobileColumns.length > 0);
 
   const getHeaderContent = (columnDefinition: ITableColumn<T>) => {
     return ui.translate(typeof columnDefinition.header === 'function'
@@ -105,8 +148,12 @@
 
   const componentID = ui.nextComponentId();
 
+  // In card mode MobileCardsVirtualList registers its own CardList handle, so the table
+  // must stay unregistered to avoid two agent handles pointing at the same rows.
+  const shouldRegisterTable = $derived(Boolean(onRowClick) && !isMobileView);
+
   $effect(() => {
-    if (!onRowClick) { return; }
+    if (!shouldRegisterTable) { return; }
     return Agent.register({
       id: componentID,
       type: "Table",
@@ -124,7 +171,7 @@
         for (let i = 0; i < streamRecords.length; i++) {
           const record = streamRecords[i];
           if (targets.has(String(resolveStreamRowId(record, i)))) {
-            onRowClick(record, i, () => rerenderRow(i));
+            onRowClick?.(record, i, () => rerenderRow(i));
           }
         }
       },
@@ -132,8 +179,24 @@
   });
 </script>
 
-<div data-id={onRowClick ? `Table:${componentID}` : undefined}
+<div data-id={shouldRegisterTable ? `Table:${componentID}` : undefined}
   class="stream-table-card {css}">
+  {#if isMobileView}
+    <div class="stream-mobile-cards" style="max-height: {maxHeight};">
+      <MobileCardsVirtualList
+        data={streamRecords}
+        cells={mobileColumns}
+        variant="compact"
+        cardCss={`mb-6 ${mobileCardCss}`.trim()}
+        nonVirtual={true}
+        emptyMessage={emptyMessage}
+        selected={selected}
+        isSelected={isSelected}
+        onRowClick={onRowClick}
+        debugName="TableStream"
+      />
+    </div>
+  {:else}
   <div class="stream-table-scroll" style="max-height: {maxHeight};">
     <table class="stream-table {tableCss}">
       <thead>
@@ -178,9 +241,16 @@
       </tbody>
     </table>
   </div>
+  {/if}
 </div>
 
 <style>
+  /* Cards scroll inside the same bounded box the desktop table uses. */
+  .stream-mobile-cards {
+    overflow-y: auto;
+    padding: 8px;
+  }
+
   .stream-table-card {
     border: 1px solid #cbd5e1;
     border-radius: 10px;

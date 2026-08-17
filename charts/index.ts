@@ -5,3 +5,4 @@ export type {
   ChartCanvasProps,
   ChartCanvasSeries,
 } from './ChartCanvas.svelte';
+export type { ChartBarMode } from './chart-bar-layout';

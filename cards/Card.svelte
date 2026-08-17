@@ -38,7 +38,10 @@
   aria-label={ui.translate(label)}
   class={css}
   onclick={onClick ? triggerClick : undefined}
-  onkeydown={onClick ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') triggerClick(); } : undefined}
+  onkeydown={onClick ? (ev) => {
+    // Nested controls own their keyboard actions; only the card surface opens the card itself.
+    if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) triggerClick();
+  } : undefined}
   role={onClick ? 'button' : undefined}
   tabindex={onClick ? 0 : undefined}
 >

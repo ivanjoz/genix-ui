@@ -1,12 +1,4 @@
 <script lang="ts" module>
-  interface IChartCanvasRectFrame {
-    x: number
-    y: number
-    width: number
-    height: number
-    fill: string
-  }
-
   interface IChartCanvasLineFrame {
     name: string
     stroke: string
@@ -23,7 +15,7 @@
 
   interface IChartCanvasCacheEntry {
     renderKey: string
-    stackedBarFrames: IChartCanvasRectFrame[]
+    barFrames: import('./chart-bar-layout').ChartBarFrame[]
     lineFrames: IChartCanvasLineFrame[]
   }
 
@@ -42,12 +34,21 @@
     hideLabel: boolean
   }
 
+  interface IChartCanvasHoverSeries {
+    name: string
+    color: string
+    valueLabel: string
+    // Null for bar series and for a series whose line is drawn on a scale this readout does not
+    // resolve: the value still prints, it just gets no dot on the crosshair.
+    dotY: number | null
+  }
+
   interface IChartCanvasXAxisLabel {
     key: string
     label: string
     left: number
-    width: number
     align: "left" | "center" | "right"
+    transform: string
   }
 
   export interface ChartCanvasSeries {
@@ -75,11 +76,23 @@
     height?: number
     fixedPointWidthPx?: number
     showBottomBaseline?: boolean
+    barMode?: import('./chart-bar-layout').ChartBarMode
     // Pins the top of the shared axis, for series whose scale is known in advance rather than
     // observed — a CPU percentage is 0..100 even on an idle machine, and auto-scaling it to the
     // highest sample makes 3% fill the plot and read as alarming. Only raises the axis, never
     // lowers it, so a series that exceeds the expected ceiling is still drawn in full.
     sharedAxisMaxValue?: number
+    // Snaps the shared-axis ceiling and labels to this base interval. Crowded charts may skip
+    // ticks, but every visible value remains an exact multiple of the requested step.
+    yAxisStepSize?: number
+    // Opt-in, because the readout puts a pointer-capturing overlay over the plot and a chart that
+    // sits inside a clickable card does not necessarily want one.
+    showTooltip?: boolean
+    // dateLabelFormatter names the span a label heads, not a single point, so a caller can have it
+    // collapse the tail of the window into one edge label. The tooltip names one exact point and
+    // would inherit that collapse, so it takes its own formatter and falls back only when absent.
+    tooltipLabelFormatter?: (dateLabel: string | number, labelIndex: number) => string
+    tooltipValueFormatter?: (value: number, series: ChartCanvasSeries) => string
   }
 
   const sharedChartCache = new Map<string, IChartCanvasCacheEntry>()
@@ -87,6 +100,9 @@
 
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte"
+  import { buildSteppedYAxisTickValues, getSteppedYAxisMaximum, getXAxisLabelPosition, normalizeYAxisStepSize } from './chart-axis-layout'
+  import { buildChartBarFrames, getChartBarMaximum } from './chart-bar-layout'
+  import { formatHoverValue, getHoverCrosshairX, resolveHoverPointIndex } from './chart-hover'
 
   const {
     id = "",
@@ -100,7 +116,12 @@
     height = 64,
     fixedPointWidthPx = undefined,
     showBottomBaseline = false,
+    barMode = 'stacked',
     sharedAxisMaxValue = undefined,
+    yAxisStepSize = undefined,
+    showTooltip = false,
+    tooltipLabelFormatter = undefined,
+    tooltipValueFormatter = undefined,
   }: ChartCanvasProps = $props()
 
   let containerElement = $state<HTMLDivElement | undefined>(undefined)
@@ -118,13 +139,13 @@
   // Throttle expensive canvas redraws while allowing the host layout to resize freely.
   const renderThrottleMs = 250
   const yAxisLabelWidthPx = 28
+  // Enough gap that the tooltip clears the cursor without detaching from it.
+  const hoverTooltipOffsetPx = 14
   const yAxisGuideSpacingPx = 16
   const yAxisPaddingTopPx = 2
   const linePaddingBottomPx = 1
   const xAxisLabelHeightPx = 18
 
-  const snapRectStart = (value: number) => Math.round(value)
-  const snapRectSize = (value: number) => value > 0 ? Math.max(1, Math.round(value)) : 0
   const snapStrokePoint = (value: number, strokeWidth: number) => {
     const roundedValue = Math.round(value)
     return Math.round(strokeWidth) % 2 === 1 ? roundedValue + 0.5 : roundedValue
@@ -147,19 +168,18 @@
       return Math.max(maxCount, chartSeries.values.length)
     }, 0)
     const barSeries = data.filter((chartSeries) => chartSeries.type === 'bar')
+    const barMaximum = getChartBarMaximum(barSeries, pointsCount, barMode)
     // A series on its own axis is by definition not on this one, so it must not set its scale.
     // Including it let a memory line in MB rescale the CPU axis it shares a chart with, and the
     // y-axis labels — which are always built from this value — then described neither series.
     const lineSeries = data.filter((chartSeries) => chartSeries.type === 'line' && !chartSeries.useOwnAxis)
-    const maxChartValue = Array.from({ length: pointsCount }, (_, pointIndex) => {
-      const stackedBarTotal = barSeries.reduce((stackTotal, chartSeries) => {
-        return stackTotal + (chartSeries.values[pointIndex] || 0)
-      }, 0)
+    const observedMaximum = Array.from({ length: pointsCount }, (_, pointIndex) => {
       const lineMaximum = lineSeries.reduce((maxValue, chartSeries) => {
         return Math.max(maxValue, chartSeries.values[pointIndex] || 0, 0)
       }, 0)
-      return Math.max(stackedBarTotal, lineMaximum)
+      return Math.max(barMaximum, lineMaximum)
     }).reduce((maxValue, stackValue) => Math.max(maxValue, stackValue), sharedAxisMaxValue || 0)
+    const maxChartValue = getSteppedYAxisMaximum(observedMaximum, yAxisStepSize)
 
     return {
       pointsCount,
@@ -179,6 +199,17 @@
 
   const buildYAxisGuides = (metrics: IChartCanvasMetrics): IChartCanvasYAxisGuide[] => {
     const guideCount = Math.max(1, Math.floor(height / yAxisGuideSpacingPx))
+    const normalizedStepSize = normalizeYAxisStepSize(yAxisStepSize)
+    if (normalizedStepSize && metrics.maxChartValue > 0) {
+      const tickValues = buildSteppedYAxisTickValues(metrics.maxChartValue, normalizedStepSize, guideCount)
+      return tickValues.map((tickValue, tickIndex) => ({
+        label: formatYAxisLabel(tickValue),
+        top: yAxisPaddingTopPx + ((1 - (tickValue / metrics.maxChartValue)) * (height - yAxisPaddingTopPx)),
+        transform: tickIndex === 0 ? 'translateY(0)' : 'translateY(-50%)',
+        labelOffsetPx: tickIndex === 0 ? -2 : 2,
+        hideLabel: false,
+      }))
+    }
     let hasRenderedZeroLabel = false
 
     // Keep the HTML grid deterministic with the same vertical scale the canvas uses.
@@ -203,45 +234,16 @@
     })
   }
 
-  const buildStackedBarFrames = (metrics: IChartCanvasMetrics): IChartCanvasRectFrame[] => {
+  const buildBarFrames = (metrics: IChartCanvasMetrics) => {
     const barSeries = data.filter((chartSeries) => chartSeries.type === 'bar')
-
-    return Array.from({ length: metrics.pointsCount }, (_, pointIndex) => {
-      const columnBarEntries = barSeries.flatMap((chartSeries, seriesIndex) => {
-        const pointValue = chartSeries.values[pointIndex] || 0
-        if (pointValue <= 0) { return [] }
-
-        return [{
-          pointValue,
-          fill: chartSeries.color || (seriesIndex % 2 === 0 ? '#ef4444' : '#3b82f6'),
-        }]
-      })
-      const usesStackedLayout = columnBarEntries.length > 1
-      let stackedHeight = 0
-
-      // Decide per column if we need stacking; most charts end up mixed instead of globally stacked.
-      return columnBarEntries.map((columnBarEntry) => {
-        const pointValue = columnBarEntry.pointValue
-        const frameHeight = metrics.maxChartValue > 0 ? (pointValue / metrics.maxChartValue) * height : 0
-        const frameX = snapRectStart(pointIndex * metrics.columnWidth)
-        const frameWidth = snapRectSize(Math.max(1, metrics.columnWidth - 1))
-        const frameHeightPx = snapRectSize(frameHeight)
-        const frameY = usesStackedLayout
-          ? snapRectStart(height - stackedHeight - frameHeight)
-          : snapRectStart(height - frameHeight)
-        const frame = {
-          x: frameX,
-          y: frameY,
-          width: frameWidth,
-          height: frameHeightPx,
-          fill: columnBarEntry.fill,
-        }
-        if (usesStackedLayout) {
-          stackedHeight += frameHeightPx
-        }
-        return frame
-      })
-    }).flat()
+    return buildChartBarFrames({
+      series: barSeries,
+      pointsCount: metrics.pointsCount,
+      columnWidth: metrics.columnWidth,
+      maxValue: metrics.maxChartValue,
+      height,
+      mode: barMode,
+    })
   }
 
   const getLineRange = (chartSeries: ChartCanvasSeries, metrics: IChartCanvasMetrics): IChartCanvasLineRange => {
@@ -347,30 +349,95 @@
     const visibleLabels: IChartCanvasXAxisLabel[] = []
 
     for (let labelIndex = 0; labelIndex < Math.min(dateLabels.length, chartMetrics.pointsCount); labelIndex += labelStep) {
-      const spanPointsCount = Math.min(labelStep, chartMetrics.pointsCount - labelIndex)
+      const labelPosition = getXAxisLabelPosition(labelIndex, chartMetrics.pointsCount, chartMetrics.columnWidth)
       visibleLabels.push({
         key: `${labelIndex}-${String(dateLabels[labelIndex] ?? "")}`,
         label: dateLabelFormatter(dateLabels[labelIndex], labelIndex),
-        left: labelIndex * chartMetrics.columnWidth,
-        width: spanPointsCount * chartMetrics.columnWidth,
-        align: labelIndex === 0
-          ? "left"
-          : labelIndex + spanPointsCount >= chartMetrics.pointsCount
-            ? "right"
-            : "center",
+        ...labelPosition,
       })
     }
 
     return visibleLabels
   })
 
-  const stackedBarFrames = $derived.by(() => {
-    return buildStackedBarFrames(chartMetrics)
+  const barFrames = $derived.by(() => {
+    return buildBarFrames(chartMetrics)
   })
 
   const lineFrames = $derived.by(() => {
     return buildLineFrames(chartMetrics)
   })
+
+  let hoverPointIndex = $state<number | null>(null)
+  let hoverPointerX = $state(0)
+  let hoverPointerY = $state(0)
+
+  // The plot is anchored to the right edge of its frame, so with a fixed point width narrower than
+  // the frame the two do not share an origin. The overlay is anchored the same way, which keeps
+  // pointer coordinates in the plot's own space; this is only needed to place the tooltip, which
+  // lives outside the frame so the frame's overflow: hidden cannot clip it.
+  const plotOffsetLeft = $derived(Math.max(0, measuredWidth - chartMetrics.plotWidth))
+
+  const hoverSeries = $derived.by((): IChartCanvasHoverSeries[] => {
+    if (!showTooltip || hoverPointIndex === null) { return [] }
+
+    return data.flatMap((chartSeries) => {
+      const pointValue = chartSeries.values[hoverPointIndex as number]
+      // A gap in the data is a gap in the readout: printing "0" where the sample is missing would
+      // claim the service reported an idle value rather than nothing at all.
+      if (pointValue === null || pointValue === undefined) { return [] }
+
+      const hoverSeriesItem: IChartCanvasHoverSeries = {
+        name: chartSeries.name,
+        color: chartSeries.color || '#0f172a',
+        valueLabel: tooltipValueFormatter
+          ? tooltipValueFormatter(pointValue, chartSeries)
+          : formatHoverValue(pointValue),
+        dotY: chartSeries.type === 'line'
+          ? getLinePointY(pointValue, getLineRange(chartSeries, chartMetrics))
+          : null,
+      }
+      return [hoverSeriesItem]
+    })
+  })
+
+  const hoverCrosshairX = $derived(hoverPointIndex === null
+    ? 0
+    : getHoverCrosshairX(hoverPointIndex, chartMetrics.columnWidth))
+
+  const hoverTooltipLabel = $derived.by(() => {
+    if (hoverPointIndex === null) { return "" }
+    const dateLabel = dateLabels[hoverPointIndex]
+    if (dateLabel === undefined) { return "" }
+    return (tooltipLabelFormatter || dateLabelFormatter)(dateLabel, hoverPointIndex)
+  })
+
+  // Past the middle of the plot the tooltip flips to the other side of the cursor, so it never
+  // runs off the card it is drawn on and never covers the part of the line still to the right.
+  const hoverTooltipFlipped = $derived(hoverPointerX > chartMetrics.plotWidth / 2)
+
+  const hoverTooltipLeft = $derived(yAxisLabelWidthPx + plotOffsetLeft + hoverPointerX
+    + (hoverTooltipFlipped ? -hoverTooltipOffsetPx : hoverTooltipOffsetPx))
+
+  const hoverTooltipTop = $derived(Math.min(height, Math.max(0, hoverPointerY)))
+
+  const hoverTooltipTransform = $derived(hoverTooltipFlipped
+    ? 'translate(-100%, -50%)'
+    : 'translate(0, -50%)')
+
+  const handleHoverPointerMove = (pointerEvent: PointerEvent) => {
+    const overlayElement = pointerEvent.currentTarget as HTMLElement
+    const overlayBounds = overlayElement.getBoundingClientRect()
+    const localX = pointerEvent.clientX - overlayBounds.left
+
+    hoverPointIndex = resolveHoverPointIndex(localX, chartMetrics.columnWidth, chartMetrics.pointsCount)
+    hoverPointerX = localX
+    hoverPointerY = pointerEvent.clientY - overlayBounds.top
+  }
+
+  const handleHoverPointerLeave = () => {
+    hoverPointIndex = null
+  }
 
   const getRenderKey = () => {
     return JSON.stringify({
@@ -381,7 +448,9 @@
       dateLabels,
       dateLabelEvery,
       useHtmlRendered,
+      barMode,
       sharedAxisMaxValue: sharedAxisMaxValue || 0,
+      yAxisStepSize: yAxisStepSize || 0,
       series: data.map((chartSeries) => ({
         type: chartSeries.type,
         name: chartSeries.name,
@@ -409,13 +478,13 @@
     const cacheID = String(id || '')
     const cachedChart = cacheID ? sharedChartCache.get(cacheID) : undefined
     const useCachedFrames = cachedChart?.renderKey === nextRenderKey
-    const nextStackedBarFrames = useCachedFrames ? cachedChart.stackedBarFrames : buildStackedBarFrames(metrics)
+    const nextBarFrames = useCachedFrames ? cachedChart.barFrames : buildBarFrames(metrics)
     const nextLineFrames = useCachedFrames ? cachedChart.lineFrames : buildLineFrames(metrics)
 
     if (cacheID && !useCachedFrames) {
       sharedChartCache.set(cacheID, {
         renderKey: nextRenderKey,
-        stackedBarFrames: nextStackedBarFrames,
+        barFrames: nextBarFrames,
         lineFrames: nextLineFrames,
       })
     }
@@ -430,9 +499,9 @@
 
     // Rebuild from the flat frame list so updates stay deterministic and minimal.
     if (!useHtmlRendered) {
-      for (const stackedBarFrame of nextStackedBarFrames) {
-        if (!stackedBarFrame.height) { continue }
-        chartLeafer.add(new Rect(stackedBarFrame))
+      for (const barFrame of nextBarFrames) {
+        if (!barFrame.height) { continue }
+        chartLeafer.add(new Rect(barFrame))
       }
     }
 
@@ -502,6 +571,8 @@
     dateLabels
     dateLabelEvery
     useHtmlRendered
+    barMode
+    yAxisStepSize
     className
     style
     height
@@ -545,10 +616,10 @@
       {#if useHtmlRendered}
         <!-- Render bars in the DOM so narrow stacked columns can use the browser's pixel snapping. -->
         <div class="absolute inset-y-0 [&>div]:pointer-events-none [&>div]:absolute" style={`width:${chartMetrics.plotWidth}px;right:0`}>
-          {#each stackedBarFrames as stackedBarFrame, frameIndex (`${frameIndex}-${stackedBarFrame.x}-${stackedBarFrame.y}-${stackedBarFrame.height}`)}
-            {#if stackedBarFrame.height}
+          {#each barFrames as barFrame, frameIndex (`${frameIndex}-${barFrame.x}-${barFrame.y}-${barFrame.height}`)}
+            {#if barFrame.height}
               <div
-                style={`left:${stackedBarFrame.x}px;top:${stackedBarFrame.y}px;width:${stackedBarFrame.width}px;height:${stackedBarFrame.height}px;background:${stackedBarFrame.fill}`}
+                style={`left:${barFrame.x}px;top:${barFrame.y}px;width:${barFrame.width}px;height:${barFrame.height}px;background:${barFrame.fill}`}
               ></div>
             {/if}
           {/each}
@@ -560,18 +631,62 @@
         class="absolute inset-y-0"
         style={`width:${chartMetrics.plotWidth}px;right:0`}
       ></div>
+
+      {#if showTooltip}
+        {#if hoverPointIndex !== null && hoverSeries.length}
+          <div class="pointer-events-none absolute inset-y-0 z-[2]" style={`width:${chartMetrics.plotWidth}px;right:0`}>
+            <div class="absolute inset-y-0 border-l border-dashed border-slate-500/70" style={`left:${hoverCrosshairX}px`}></div>
+            {#each hoverSeries as hoverSeriesItem, hoverSeriesIndex (hoverSeriesIndex)}
+              {#if hoverSeriesItem.dotY !== null}
+                <div
+                  class="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white"
+                  style={`left:${hoverCrosshairX}px;top:${hoverSeriesItem.dotY}px;background:${hoverSeriesItem.color}`}
+                ></div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+
+        <!-- The capture layer is last and empty on purpose: nothing it would report sits above it,
+             and the crosshair it drives must not intercept the pointer that positions it. -->
+        <div
+          class="absolute inset-y-0 z-[3]"
+          style={`width:${chartMetrics.plotWidth}px;right:0`}
+          onpointermove={handleHoverPointerMove}
+          onpointerleave={handleHoverPointerLeave}
+        ></div>
+      {/if}
     </div>
     </div>
+
+    {#if showTooltip && hoverPointIndex !== null && hoverSeries.length}
+      <!-- Outside the plot frame, whose overflow: hidden would cut the tooltip off at the edges. -->
+      <div
+        class="pointer-events-none absolute z-[4] whitespace-nowrap rounded-[6px] border border-slate-300 bg-white/95 px-8 py-6 text-[11px] leading-[15px] text-slate-600 shadow-md"
+        style={`left:${hoverTooltipLeft}px;top:${hoverTooltipTop}px;transform:${hoverTooltipTransform}`}
+      >
+        {#if hoverTooltipLabel}
+          <div class="mb-4 font-bold text-slate-900">{hoverTooltipLabel}</div>
+        {/if}
+        {#each hoverSeries as hoverSeriesItem, hoverSeriesIndex (hoverSeriesIndex)}
+          <div class="flex items-center gap-6">
+            <span class="inline-block h-8 w-8 shrink-0 rounded-full" style={`background:${hoverSeriesItem.color}`}></span>
+            <span>{hoverSeriesItem.name}</span>
+            <span class="ff-mono ml-auto pl-10 font-bold text-slate-900">{hoverSeriesItem.valueLabel}</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     {#if xAxisLabels.length}
       <div class="relative mt-2 flex w-full min-w-0">
         <div class="shrink-0" style={`width:${yAxisLabelWidthPx}px`}></div>
         <div class="relative min-w-0 flex-1 overflow-hidden" style={`height:${xAxisLabelHeightPx}px`}>
-          <div class="absolute inset-y-0 [&>div]:pointer-events-none [&>div]:absolute [&>div]:overflow-hidden [&>div]:text-[11px] [&>div]:uppercase [&>div]:leading-none [&>div]:text-slate-500 [&>div]:whitespace-nowrap" style={`width:${chartMetrics.plotWidth}px;right:0`}>
+          <div class="absolute inset-y-0 [&>div]:pointer-events-none [&>div]:absolute [&>div]:text-[11px] [&>div]:uppercase [&>div]:leading-none [&>div]:text-slate-500 [&>div]:whitespace-nowrap" style={`width:${chartMetrics.plotWidth}px;right:0`}>
             {#each xAxisLabels as xAxisLabel (xAxisLabel.key)}
               <div
                 class={`${xAxisLabel.align === 'left' ? '[&>div]:text-left' : xAxisLabel.align === 'right' ? '[&>div]:text-right' : '[&>div]:text-center'}`}
-                style={`left:${xAxisLabel.left}px;width:${xAxisLabel.width}px`}
+                style={`left:${xAxisLabel.left}px;transform:${xAxisLabel.transform}`}
               >
                 <div>{xAxisLabel.label}</div>
               </div>

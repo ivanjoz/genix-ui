@@ -63,7 +63,7 @@
   onclick={triggerClick}
 >
   {#if icon}<i class="{icon}{name ? ' icon-lead' : ''}"></i>{/if}
-  {#if name}<span class={hideNameOnMobile ? 'hidden md:block' : ''}><T text={name} /></span>{/if}
+  {#if name}<span class={hideNameOnMobile ? 'hidden md:inline' : ''}><T text={name} /></span>{/if}
   {#if iconRight}<i class="{iconRight}{name ? ' icon-trail' : ''}"></i>{/if}
 </button>
 

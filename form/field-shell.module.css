@@ -10,10 +10,14 @@
    --notch-x in the top border row only. Nothing is inferred from browser behaviour:
    the line's position and the gap's size are both stated explicitly.
 
-   The border and the focus ring are ONE masked layer, so their cuts are pixel-identical.
-   Neither is an outer box-shadow: an outer shadow is not cut by the mask and paints
-   straight across the notch. The resting drop shadow is offset downward with a negative
-   spread for the same reason — it never reaches the top edge.
+   The border and the focus ring are ONE masked layer, so their cuts are pixel-identical:
+   the line is an inset shadow and the ring an outer one, both on that layer, both cut by
+   its mask — which is grown 3px past the border box precisely so the ring is inside it.
+   The ring is deliberately NOT a border (see .box::before): a border box counts as
+   scrollable overflow and raised a horizontal scrollbar on every field flush with the edge
+   of a scroll container, whereas a shadow is ink overflow and never scrolls. The resting
+   drop shadow on .box is offset downward with a negative spread so it never reaches the
+   notched top edge, which is why only its colour is exposed as a token.
 
    Variant flags come from FieldShell as global classes on the root: no-label, is-bare,
    is-pill, has-prefix, has-suffix, is-invalid, is-disabled.
@@ -69,13 +73,57 @@
      label row is shorter than the label itself (which is absolute, so it just overhangs):
      that lifts the content row, landing the value 3px under the box's own centre. */
   padding-top: 13px;
-  align-self: end;
   /* Gap starts 2px before the label's text and ends 2px after it (--notch-w = w + 4). */
   --notch-x: 12px;
 }
 
+/* Only justified WITH the 13px overhang above: the field is taller than its own box, so
+   bottom alignment is what lines the box up with a neighbour's — and, in an undeclared
+   flex row, what stops the field from being stretched to the tallest item on the line
+   (.box is absolute inset 7px 0 0 0, so a stretched field paints a box that tall).
+
+   An auto margin, NOT `align-self: end`. Both bottom-align in a flex ROW or a grid cell,
+   but `align-self` names the CROSS axis, which flips to HORIZONTAL the moment the parent
+   is `flex-col` — there it reads as `end` on the inline axis, which both shrink-wraps the
+   field to max-content and pushes it to the right edge. `margin-top: auto` is axis-correct:
+   it absorbs cross-axis free space in a row (an auto cross margin also disables stretch, so
+   the field keeps its own height and bottom-aligns exactly as before), block-end-aligns in
+   a grid, and resolves to 0 in an auto-height column — leaving the field stretched to the
+   column's width like any other block child.
+
+   Wrapped in `:where()` so it carries ZERO specificity, because unlike `align-self` this
+   property is one call sites also set (`css="mt-10"`): a plain `.field` rule ties with those
+   utilities and would win or lose on stylesheet order. At specificity 0 any `mt-*` from a
+   call site always wins. The resets below are wrapped for the same reason and must stay
+   AFTER this rule — equal specificity, so order decides. */
+:where(.field) {
+  margin-top: auto;
+}
+
+/* The one case `margin-top: auto` still reads on the wrong axis: in a column it is a MAIN
+   axis margin, so if the column itself was stretched taller than its content — the default
+   for a grid cell, or for a column sitting next to something taller — the leftover space is
+   absorbed above the first field and drops it to the bottom. A column stacks fields on top
+   of each other, so there is nothing to bottom-align against there anyway: zero it out.
+   Kept keyed to the column classes because flex-direction cannot be queried in CSS; a
+   column declared some other way (inline `style`, a bespoke class) keeps the auto margin. */
+:where(:global(.flex-col), :global(.flex-column)) > :where(.field) {
+  margin-top: 0;
+}
+
+/* No overhang, so nothing to bottom-align against: drop the auto margin and let the
+   parent's align-items decide, so a `flex items-center` row centres the field like any
+   other child. `height: fit-content` is what makes that safe — the inherited alignment is
+   `normal` (stretch for flex), and stretch only applies to items whose cross size is
+   `auto`; without it an unlabelled filter in an undeclared flex row grows to the tallest
+   item on the line. Covers bare and pill too: both render without a label. */
 .field:global(.no-label) {
   padding-top: 0;
+  height: fit-content;
+}
+
+:where(.field:global(.no-label)) {
+  margin-top: 0;
 }
 
 /* Fill + radius + shadow, unmasked. Top edge at 7px, where the border line sits. */
@@ -101,9 +149,11 @@
    pixel — which is what two separate layers (different insets, different radii, two
    independent rasterisations) could never guarantee at fractional DPR.
 
-   The ring is this element's border. The line is an INSET shadow: inset shadows are
-   painted inside the padding box, so the mask cuts them; an outer shadow would escape
-   the mask and paint straight across the notch.
+   Both edges are shadows on this one element: the line an INSET one (painted inside the
+   padding box), the ring an OUTER one (painted outside the border box). Neither escapes
+   the mask, because the mask is sized to cover the ring's band as well — a mask layer is
+   free to extend past the border box, it is only the DEFAULT painting area that stops
+   there.
 
    The two layers must not ABUT. They used to: a full-width layer covering everything
    below the top 4px, unioned with a 4px layer carrying the notch. Each layer's rect is
@@ -123,32 +173,60 @@
 .box::before {
   content: '';
   position: absolute;
-  inset: -3px;
-  border: 3px solid transparent; /* the focus ring, transparent at rest */
-  border-radius: 10px; /* padding-box radius lands at 7px, matching .box */
-  box-shadow: inset 0 0 0 1px var(--input-border-color, #d0d4e7);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  /* Flush with .box, NOT `inset: -3px`. The ring used to be this element's 3px transparent
+     BORDER, which put its border box 3px outside .box on every side — and a border box is
+     scrollable overflow. Every field flush with the right edge of a scroll container
+     therefore pushed that container's scrollWidth 3px past its clientWidth and raised a
+     horizontal scrollbar with a full-width thumb (measured: 903 vs 900 in a 900px
+     `overflow:auto`). `overflow: clip` + `overflow-clip-margin: 3px` on .box does NOT fix
+     it — Chrome adds the clip margin back to the scrollable region — and clip without the
+     margin erases the ring.
+     So the ring is now an OUTER shadow instead: shadows are ink overflow, which per
+     css-overflow-3 is never scrollable. Geometry is unchanged — spread 3px off a 7px
+     radius gives the same 10px outer arc the border did. */
+  inset: 0;
+  border-radius: 7px; /* matches .box, so the 1px line sits exactly on its edge */
+  /* Both edges in ONE property so the shadow list is declared once and every state below
+     only re-tints a token — which is also what makes a state impossible to half-apply. */
+  --_line: var(--input-border-color, #d0d4e7);
+  --_ring: transparent;
+  box-shadow:
+    inset 0 0 0 1px var(--_line),
+    0 0 0 3px var(--_ring);
+  transition: box-shadow 0.15s ease;
   mask-image:
     linear-gradient(#000, #000),
     linear-gradient(to right,
       transparent 0 calc(var(--notch-x) + 3px),
       #000 calc(var(--notch-x) + 3px) calc(var(--notch-x) + 3px + var(--notch-w, 0px)),
       transparent calc(var(--notch-x) + 3px + var(--notch-w, 0px)) 100%);
-  mask-size: 100% 100%, 100% 8px;
-  mask-position: 0 0, 0 0;
+  /* The mask's painting area is the border box, which no longer covers the ring, so both
+     layers are grown 3px on every side to reach it — landing on exactly the rectangle the
+     old `inset: -3px` border box occupied. That is what keeps the notch arithmetic
+     untouched: `--notch-x + 3px` is still measured from 3px left of .box, and the patch
+     still starts 3px above it, with the same 4px of ink (3px ring + 1px line) at its top. */
+  mask-size: calc(100% + 6px) calc(100% + 6px), calc(100% + 6px) 8px;
+  mask-position: -3px -3px, -3px -3px;
   mask-repeat: no-repeat;
+  /* Load-bearing, and the one part of this that is NOT obvious: growing the mask LAYERS is
+     not enough, because `mask-clip` still defaults to border-box and clips everything the
+     element paints outside it — which is now the entire ring. Without this line the focus
+     halo silently disappears (measured: the whole 3px band reverts to the page background)
+     while the notch and the line stay perfect, so it does not look like a masking bug. */
+  mask-clip: no-clip;
+  -webkit-mask-clip: no-clip; /* Safari still reads the prefixed property for this value */
   /* Layers are listed top-first, and the operator composites a layer with everything
      below it: `subtract` = full OUT patch. The bottom layer's operator is inert. */
   mask-composite: subtract, add;
 }
 
 .field:hover .box::before {
-  box-shadow: inset 0 0 0 1px var(--input-border-color-hover, #b9bede);
+  --_line: var(--input-border-color-hover, #b9bede);
 }
 
 .field:focus-within .box::before {
-  border-color: var(--input-ring-color, rgb(139 135 214 / 40%));
-  box-shadow: inset 0 0 0 1px var(--input-border-color-focus, #8b87d6);
+  --_line: var(--input-border-color-focus, #8b87d6);
+  --_ring: var(--input-ring-color, rgb(139 135 214 / 40%));
 }
 
 .lab {
@@ -162,6 +240,12 @@
   color: var(--input-label-color, #6d5dad);
   white-space: nowrap;
   cursor: pointer;
+  /* The label overhangs the 13px row, so without this a long one widens the whole field
+     instead of being clipped. Clipping also bounds the measured clientWidth, which is what
+     keeps the notch from running off the top edge. */
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .field:focus-within .lab {
@@ -172,12 +256,12 @@
    resizes — unlike the old chrome, which put the icon inside the label. The label keeps
    its purple. */
 .field:global(.is-invalid) .box::before {
-  box-shadow: inset 0 0 0 1px var(--input-border-color-invalid, #dfa2a2);
+  --_line: var(--input-border-color-invalid, #dfa2a2);
 }
 
 .field:global(.is-invalid):focus-within .box::before {
-  border-color: var(--input-ring-color-invalid, rgb(207 106 99 / 35%));
-  box-shadow: inset 0 0 0 1px var(--input-border-color-invalid-focus, #cf6a63);
+  --_line: var(--input-border-color-invalid-focus, #cf6a63);
+  --_ring: var(--input-ring-color-invalid, rgb(207 106 99 / 35%));
 }
 
 .row {
@@ -187,11 +271,11 @@
      Spans the box's interior (top edge at 7px) almost exactly, so centring the value
      here centres it in the box the user sees. */
   align-items: center;
-  height: calc(var(--input-height) - 6px);
+  height: calc(var(--input-height, 38px) - 6px);
 }
 
 .field:global(.no-label) .row {
-  height: calc(var(--input-height) - 4px);
+  height: calc(var(--input-height, 38px) - 4px);
 }
 
 /* Textarea grows with `rows` — the old fixed-height wrapper made that prop a no-op. */
@@ -204,8 +288,13 @@
   padding: 8px 0 6px;
 }
 
-/* No label to clear, and no 13px row offset either — back to symmetric padding. */
+/* No label to clear, and no 13px row offset either — back to symmetric padding. The
+   height/align pair is repeated because `.field.no-label .row` (0,3,0) outranks
+   `.row.is-textarea` (0,2,0): without it an unlabelled textarea is pinned to the fixed row
+   height and `rows` goes back to being the no-op the rule above exists to fix. */
 .field:global(.no-label) .row:global(.is-textarea) {
+  height: auto;
+  align-items: stretch;
   padding: 6px 0;
 }
 
@@ -217,6 +306,9 @@
   outline: none !important;
   background: transparent;
   color: var(--input-text-color, #1f2430);
+  /* An input's UA `min-width` is its `size` attribute, so without this a field in a flex
+     row refuses to shrink below ~170px. */
+  min-width: 0;
 }
 
 .inp::placeholder {
@@ -256,8 +348,9 @@ textarea.inp {
   box-shadow: none;
 }
 
+/* Only the line: a disabled control cannot take focus, so --_ring stays transparent. */
 .field:global(.is-disabled) .box::before {
-  box-shadow: inset 0 0 0 1px var(--input-border-color-disabled, #e2e5ee);
+  --_line: var(--input-border-color-disabled, #e2e5ee);
 }
 
 .field:global(.is-disabled) .lab {
@@ -303,9 +396,11 @@ textarea.inp {
   box-shadow: var(--input-pill-shadow, rgb(50 50 93 / 13%) 0 1px 3px 0, rgb(0 0 0 / 30%) 0 1px 3px -1px);
 }
 
+/* Declares the whole shadow rather than re-tinting --_line, which is also what keeps the
+   focus ring off the pill: the base rule's ring layer is dropped along with the value it
+   was declared in. */
 .field:global(.is-pill) .box::before {
   inset: 0;
-  border: 0;
   border-radius: 16px;
   mask-image: none; /* nothing to notch */
   box-shadow: inset 0 0 0 1px var(--input-pill-border-color, #47465521);
@@ -322,7 +417,7 @@ textarea.inp {
 }
 
 .field:global(.is-pill) .row {
-  height: calc(var(--input-height) - 6px);
+  height: calc(var(--input-height, 38px) - 6px);
 }
 
 .field:global(.is-pill) .inp {

@@ -90,7 +90,7 @@ import FieldShell from './FieldShell.svelte';
   }
   ._1 :global(.color-picker .color) {
     border-radius: 0;
-    height: calc(var(--input-height) - 16px);
+    height: calc(var(--input-height, 38px) - 16px);
     width: 54px;
     border: 2px solid rgba(0, 0, 0, 0.8);
     /* No margin-bottom: it used to compensate for the old chrome's off-centre row, and

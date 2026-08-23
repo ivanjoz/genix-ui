@@ -4,7 +4,10 @@
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { createTableVirtualizer } from './vtable-virtual.svelte';
-  import type { ITableColumn, CellRendererSnippet, IMobileCardsListCell } from "./types";
+  import type {
+    ITableColumn, CellRendererSnippet, IMobileCardsListCell,
+    TableGridHeaderRendererSnippet,
+  } from "./types";
   import CellInput from '../vTable/CellInput.svelte';
   import CellSelect from '../vTable/CellSelect.svelte';
   import { highlString, wordInclude } from '../utilities/ui.js';
@@ -45,6 +48,10 @@
     isSelected?: (row: T, selected: T | number) => boolean;
     emptyMessage?: string;
     cellRenderer?: CellRendererSnippet<T>;
+    // Replaces EVERY header's text, the same all-or-nothing contract TableGrid
+    // uses: the consumer switches on the column it wants and renders the header
+    // string for the rest. That is what lets a header cell hold a control.
+    headerRenderer?: TableGridHeaderRendererSnippet<T>;
     filterText?: string;
     getFilterContent?: (row: T) => string;
     useFilterCache?: boolean;
@@ -67,6 +74,7 @@
     isSelected,
     emptyMessage = 'No records found.|No se encontraron registros.',
     cellRenderer,
+    headerRenderer,
     filterText,
     getFilterContent,
     useFilterCache = false,
@@ -485,7 +493,7 @@
     <thead class="vtable-header">
       <!-- First level headers -->
       <tr class="vtable-header-row">
-        {#each processedColumns.level1 as column}
+        {#each processedColumns.level1 as column, columnIndex}
           <th class="vtable-header-cell {column.headerCss || ''}"
             class:hsc={(column.subcols||[]).length > 0}
             style={column.headerStyle ? Object.entries(column.headerStyle).map(([k, v]) => `${k}: ${v}`).join('; ') : ''}
@@ -493,7 +501,11 @@
             rowspan={column._colspan ? 1 : (processedColumns.hasSubcols ? 2 : 1)}
           >
             <div class={column.headerInnerCss || ''}>
-              <T text={resolveHeader(column)} />
+              {#if headerRenderer}
+                {@render headerRenderer(column, columnIndex)}
+              {:else}
+                <T text={resolveHeader(column)} />
+              {/if}
             </div>
           </th>
         {/each}
@@ -502,13 +514,17 @@
       <!-- Second level headers (if subcolumns exist) -->
       {#if processedColumns.hasSubcols}
         <tr class="vtable-header-row vtable-header-row-sub">
-          {#each processedColumns.level2 as column}
+          {#each processedColumns.level2 as column, columnIndex}
             <th
               class="vtable-header-cell {column.headerCss || ''}"
               style={column.headerStyle ? Object.entries(column.headerStyle).map(([k, v]) => `${k}: ${v}`).join('; ') : ''}
             >
               <div class={column.headerInnerCss || ''}>
-                <T text={resolveHeader(column)} />
+                {#if headerRenderer}
+                  {@render headerRenderer(column, columnIndex)}
+                {:else}
+                  <T text={resolveHeader(column)} />
+                {/if}
               </div>
             </th>
           {/each}

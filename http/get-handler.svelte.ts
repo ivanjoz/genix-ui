@@ -48,6 +48,10 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 	columnarIDField = ''
 	combineColumnarValuesOnFields: string[] = []
 	useCache: { min: number, ver: number } | undefined
+	// Opt back into watermark-only change detection: a delta whose highest watermark equals the
+	// cached one is discarded instead of applied. Only correct when the watermark moves on every
+	// write; a route that rewrites a live aggregate row under a fixed watermark must leave this off.
+	doNothingOnSameValue = false
 	conversion: CacheConversions | undefined
 	// A snapshot can seed the first cache sync instead of downloading the complete API list.
 	fileRoute = ''
@@ -83,6 +87,7 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 			module: this.module,
 			headers: this.runtime.buildHeaders('json', this.route),
 			cacheMode,
+			doNothingOnSameValue: this.doNothingOnSameValue,
 			verifyRouteMemoryState: this.runtime.verifyRouteMemoryState?.() ?? false,
 			keyID: this.keyID,
 			keysIDs: this.keysIDs,

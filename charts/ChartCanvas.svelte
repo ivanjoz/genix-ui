@@ -70,6 +70,9 @@
     dateLabels?: Array<string | number>
     dateLabelFormatter?: (dateLabel: string | number, labelIndex: number) => string
     dateLabelEvery?: number
+    // Drops the axis row while keeping dateLabels, which the tooltip reads to name the hovered
+    // point. A chart narrow enough for its labels to collide still wants the readout.
+    hideXAxisLabels?: boolean
     useHtmlRendered?: boolean
     className?: string
     style?: string
@@ -119,6 +122,7 @@
     barMode = 'stacked',
     sharedAxisMaxValue = undefined,
     yAxisStepSize = undefined,
+    hideXAxisLabels = false,
     showTooltip = false,
     tooltipLabelFormatter = undefined,
     tooltipValueFormatter = undefined,
@@ -343,7 +347,7 @@
   })
 
   const xAxisLabels = $derived.by((): IChartCanvasXAxisLabel[] => {
-    if (!dateLabels.length || chartMetrics.pointsCount <= 0) { return [] }
+    if (hideXAxisLabels || !dateLabels.length || chartMetrics.pointsCount <= 0) { return [] }
 
     const labelStep = Math.max(1, Math.floor(dateLabelEvery || 1))
     const visibleLabels: IChartCanvasXAxisLabel[] = []

@@ -492,7 +492,7 @@ Neither menu imports routing, security, or services; all policy arrives as props
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `ChartCanvas` | Canvas time series with cached rendering | `data`, `dateLabels`, `dateLabelFormatter`, `dateLabelEvery`, `height`, `fixedPointWidthPx`, `useHtmlRendered`, `showBottomBaseline` |
+| `ChartCanvas` | Canvas time series with cached rendering | `data`, `dateLabels`, `dateLabelFormatter`, `dateLabelEvery`, `height`, `fixedPointWidthPx`, `useHtmlRendered`, `showBottomBaseline`, `hideXAxisLabels` |
 | `CellSimpleChart` | Table-cell bar sparkline | `values`, `labels`, `barWidth`, `barGap`, `barColor`, `barColors`, `colorScale` |
 | `CellHorizontalBars` | Table-cell total/pending horizontal bars | `values: [total, pending][]`, `maxValue`, `logScaleFactor`, `totalBarColor`, `pendingBarColor` |
 

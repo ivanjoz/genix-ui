@@ -29,6 +29,19 @@ Rules:
 - Keys ending in `_IDsToRemove` are ignored by snapshot rebuild, stats, and `updatedStatus` calculations.
 - Removal flags are processed as a real cache change even if no incoming record has a newer `upd`.
 
+## When a delta is applied: `doNothingOnSameValue`
+
+A response that carries at least one record is always applied. The watermark is the *bound of the
+question*, not proof of what came back: a route that rewrites a live aggregate row in place — today's
+credit usage row, keyed by today's time frame — sends the same `upd` all day, so comparing only the
+highest watermark per response key concluded "nothing happened" and froze the route until the next
+day. An empty response still means nothing new, which is what the backend answers when the client's
+watermark already covers everything.
+
+Set `doNothingOnSameValue: true` on a service to get the old behaviour back: an unmoved watermark
+discards the delta. Only correct when the watermark moves on every write (a `upv` delta index), and
+worth it only for routes where re-persisting an identical payload costs real IndexedDB writes.
+
 ## Watermark: `upv`, not `upd`
 
 A table with a `db.TypeDelta` index watermarks its sync on `upv` (`updated_version`), the record's

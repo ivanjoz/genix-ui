@@ -672,7 +672,15 @@ const handleFetchResponse = async (
   const updatedStatusDelta = extractUpdated(response, routeRow.watermarkFields)
   const updatedMinDelta = extractUpdated(response, routeRow.watermarkFields, true)
   const idsToRemoveByResponseKey = listIDsToRemoveByResponseKey(response)
+  // Any delta carrying at least one record is applied. An unmoved watermark does not say the values
+  // did not change: the current day's row is rewritten in place under a fixed time frame, so its
+  // watermark stays the same all day and comparing only that froze the route until the next day.
+  // An empty response still means "nothing new", which is what the backend answers when the
+  // client's watermark already covers everything.
+  // doNothingOnSameValue restores the watermark comparison, for routes whose watermark identifies
+  // every write and where rewriting the cache with identical values only costs IndexedDB.
   let hasChanged = [...idsToRemoveByResponseKey.values()].some((idsToRemove) => idsToRemove.length > 0)
+    || (!args.doNothingOnSameValue && countResponseRecords(response) > 0)
 
   for(const [key, updated] of Object.entries(updatedStatusDelta)){
     if(!updated){ continue }

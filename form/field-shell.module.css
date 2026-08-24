@@ -246,6 +246,7 @@
   max-width: calc(100% - 20px);
   overflow: hidden;
   text-overflow: ellipsis;
+  height: 100%;
 }
 
 .field:focus-within .lab {

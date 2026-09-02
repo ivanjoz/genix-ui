@@ -2,6 +2,7 @@
   import Button from '../buttons/Button.svelte';
   import FileUploadSelector from '../files/FileUploadSelector.svelte';
   import HighlightText from '../misc/HighlightText.svelte';
+  import Info from '../misc/Info.svelte';
   import LoadingBar from '../misc/LoadingBar.svelte';
   import Portal from '../misc/Portal.svelte';
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
@@ -50,6 +51,16 @@
     <HighlightText words={['lobortis', 'dolor']}
       text="Donec lobortis eleifend condimentum. Cras dictum dolor lacinia lectus vehicula rutrum." />
   </div>
+</ShowroomBlock>
+
+<ShowroomBlock name="Info" note="hint box · light background with a colored left rule">
+  <Info css="mb-8" text="Leave the purchase amount at 0 for a donated asset.|Deje el monto de compra en 0 para un activo donado." />
+  <Info color="green">
+    <T text="The asset must be registered as a material first.|El activo debe registrarse como material primero." />
+    <a href="#info" class="underline">
+      <T text="Register it here.|Regístrelo aqui." />
+    </a>
+  </Info>
 </ShowroomBlock>
 
 <ShowroomBlock name="LoadingBar" note="indeterminate progress, with and without a label">

@@ -110,11 +110,17 @@
 
 	const focusDialogContent = () => {
 		if (!dialogDiv) return;
-		// Prefer a form control so data-entry dialogs are ready immediately; fall back to any action.
-		const preferredControl = dialogDiv.querySelector<HTMLElement>(
-			'[autofocus], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+		// Two queries, not one comma-separated selector: querySelector returns the first match in
+		// *document order*, so a marker bundled with the control selectors never actually wins —
+		// an earlier input takes the focus and the marker does nothing. A dialog whose first
+		// unlocked field is a DateInput needs the override, because DateInput opens its calendar
+		// on focus and covers the rest of the form. Set it with Input's `focusOnOpen`.
+		const explicitTarget = dialogDiv.querySelector<HTMLElement>('[data-autofocus]');
+		// Otherwise prefer a form control, so data-entry dialogs are ready immediately.
+		const firstControl = dialogDiv.querySelector<HTMLElement>(
+			'input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
 		);
-		(preferredControl || getFocusableElements()[0] || dialogDiv).focus();
+		(explicitTarget || firstControl || getFocusableElements()[0] || dialogDiv).focus();
 	};
 
 	const releaseDialogFocus = () => {

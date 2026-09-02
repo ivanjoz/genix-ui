@@ -26,6 +26,12 @@
         type?: string;
         placeholder?: string;
         disabled?: boolean;
+        // Marks this field as the one a Modal should focus on open, overriding its
+        // first-control default. Needed whenever an earlier field would grab focus and open
+        // something over the form — see Modal.focusDialogContent. It is a marker attribute, not
+        // the HTML autofocus behaviour: the browser's own version fires on mount, which is the
+        // wrong moment and trips the a11y rule.
+        focusOnOpen?: boolean;
         onChange?: () => void;
         postValue?: string | ElementAST[];
         baseDecimals?: number;
@@ -47,6 +53,7 @@
         type,
         placeholder,
         disabled,
+        focusOnOpen,
         onChange,
         postValue,
         baseDecimals,
@@ -163,11 +170,14 @@
 
     const componentID = ui.nextComponentId();
 
+    const isPassword = $derived(type === "password");
+    let isPasswordRevealed = $state(false);
+
     const showInvalid = $derived(isInputValid === 1 && hasBeenBlurred);
     const showValid = $derived(isInputValid === 2);
     // Passing the snippet only when there is something in it keeps `has-suffix` — and the
     // 34px of padding it reserves — off fields that need neither an icon nor a unit.
-    const hasSuffix = $derived(!!postValue || showInvalid || showValid);
+    const hasSuffix = $derived(!!postValue || showInvalid || showValid || isPassword);
 
     // Shared blur handling for both the input and the textarea.
     const onBlurControl = (ev: FocusEvent) => {
@@ -217,7 +227,18 @@
      the way the old chrome did by putting the icon inside the label. -->
 {#snippet validityAndUnit()}
     {#if postValue}<span class="text-sm">{postValue}</span>{/if}
-    {#if showInvalid}
+    {#if isPassword}
+        <!-- The reveal toggle takes the whole suffix on a password field: the slot reserves
+             34px, room for one glyph, and the invalid state still reads off the red border.
+             The suffix itself is pointer-events:none (it must not eat clicks meant for the
+             value), so the button re-enables them for its own box. -->
+        <button
+            type="button"
+            class="{isPasswordRevealed ? 'icon-[mdi--eye-off]' : 'icon-[mdi--eye]'} pointer-events-auto cursor-pointer text-[#6b6b8e] text-[20px]"
+            aria-label={ui.translate("Reveal password|Revelar contraseña")}
+            onclick={() => { isPasswordRevealed = !isPasswordRevealed; }}
+        ></button>
+    {:else if showInvalid}
         <i class="v-icon icon-[fa--exclamation-triangle] text-red-500"></i>
     {:else if showValid}
         <i class="v-icon icon-[fa--check] c-green"></i>
@@ -251,9 +272,10 @@
                 id={controlId}
                 class="{controlClass} {inputCss || ''}"
                 bind:value={inputValue}
-                type={type || "text"}
+                type={isPassword && isPasswordRevealed ? "text" : (type || "text")}
                 placeholder={ui.translate(placeholder || "")}
                 {disabled}
+                data-autofocus={focusOnOpen ? "" : undefined}
                 onkeyup={(ev) => { onKeyUp(ev); }}
                 onfocus={(ev) => {
                     focusValue = (ev.target as HTMLInputElement | HTMLTextAreaElement).value;

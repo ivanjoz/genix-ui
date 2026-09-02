@@ -8,6 +8,9 @@ import type { Snippet } from 'svelte';
     import { useUI } from '../runtime/index.js';
   const ui = useUI()
 
+  // Shared by the desktop input and the mobile picker so both show the same empty-state hint.
+  const defaultPlaceholder = "— select —|— seleccione —";
+
   interface SearchSelectProps<T,E> {
     saveOn?: T;
     save?: keyof T;
@@ -283,7 +286,7 @@ import type { Snippet } from 'svelte';
   }
 
   // noStyle strips the chrome so `css`/`inputCss` can restyle from scratch; useStyle=1 is
-  // the rounded grey search pill. Everything else gets the standard notched field.
+  // the unlabelled rounded search box. Everything else gets the standard notched field.
   const shellVariant = $derived(noStyle ? "bare" : useStyle === 1 ? "pill" : "field")
 
   const arrowDirectionClass = $derived(show ? "arrow-up is-open" : "arrow-down");
@@ -429,7 +432,7 @@ import type { Snippet } from 'svelte';
 >
   {#snippet children({ controlId, controlClass })}
     {#if !useLayerPicker}
-      <input id={controlId} class={`${controlClass} ${inputCss}`}
+      <input id={controlId} class={`${controlClass} placeholder:italic placeholder:text-[14px] ${inputCss}`}
         bind:this={inputRef}
         onkeyup={onKeyUp}
         onpaste={onKeyUp as any}
@@ -438,7 +441,7 @@ import type { Snippet } from 'svelte';
           ev.stopPropagation();
           onKeyDown(ev);
         }}
-        placeholder={showLoading ? "" : ui.translate(placeholder || ":: seleccione ::")}
+        placeholder={showLoading ? "" : ui.translate(placeholder || defaultPlaceholder)}
         disabled={isDisabled || isMobile}
         onfocus={(ev) => {
           ev.stopPropagation();
@@ -496,7 +499,7 @@ import type { Snippet } from 'svelte';
             </div>
           {:else}
             <!-- Apply the same single-line constraint to placeholder text. -->
-            <div class="fs15 mt-2 w-full truncate _10"><T text={placeholder || ""} /></div>
+            <div class="italic text-[14px] mt-2 w-full truncate _10"><T text={placeholder || defaultPlaceholder} /></div>
           {/if}
         </div>
       </div>
@@ -638,8 +641,11 @@ import type { Snippet } from 'svelte';
     color: rgb(196, 71, 71);
     text-decoration: underline;
   }
+  /* The mobile trigger paints its own placeholder text (it is a div, not an input, so
+     ::placeholder never applies). Read the same tokens FieldShell gives a real input,
+     otherwise the placeholder inherits the field colour and reads as the label's purple. */
   ._10 {
-    color: #6d5dad;
+    color: var(--input-placeholder-color, #8a8fb0);
   }
 
   .select-arrow {

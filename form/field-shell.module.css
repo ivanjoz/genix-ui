@@ -55,17 +55,12 @@
                                      --input-placeholder-color       #8a8fb0
                                      --input-prefix-color            #7d82ad
                                      --input-suffix-color            #585799
-     pill variant                    --input-pill-bg                 #f5f3fa
-                                     --input-pill-border-color       #47465521
-                                     --input-pill-border-color-hover #8d8ab630
-                                     --input-pill-shadow             full box-shadow value
-                                     --input-pill-shadow-hover       full box-shadow value
-                                     --input-pill-placeholder-color  #7f80a8
+     pill variant                    --input-pill-radius             16px
 
    The drop shadow exposes its COLOUR only, not the whole box-shadow: its geometry
    (+2px offset, -1px spread) is what keeps the shadow off the notched top edge, so it is
-   not a consumer's to change. The pill has no notch, so there both shadows are exposed
-   whole — rest and hover differ in blur and offset, not just in alpha. */
+   not a consumer's to change. The pill reads every other colour from the tokens above:
+   it is the same field, drawn round. */
 
 .field {
   position: relative;
@@ -381,52 +376,33 @@ textarea.inp {
   padding: 0;
 }
 
-/* ── variant: pill ─────────────────────────────────────────────────────────────────
-   The rounded grey search box: filter inputs and unlabelled selects. There is no label,
-   so there is no notch to cut and the border layer degrades to a plain hairline. */
+/* ── variant: pill ──────────────────────────────────────────────────────────
+   The unlabelled search box: filter inputs and unlabelled selects. It is the SAME chrome
+   as a labelled field — white fill, the hairline, the hover tint and the focus ring all
+   come from the base rules — with two differences and no others: a rounder radius, and no
+   notch to cut (there is no label). It used to be a grey rounded box with its own six
+   colour tokens, which is exactly what made a filter box read as a foreign control next to
+   the fields it sits beside.
+
+   The radius is the one thing declared here, so it is the one thing exposed as a token. */
 .field:global(.is-pill) {
   padding-top: 0;
 }
 
-.field:global(.is-pill) .box {
-  inset: 0;
-  border-radius: 16px;
-  background: var(--input-pill-bg, #f5f3fa);
-  /* Whole value, not just the colour: with no notch to protect, geometry is a consumer's
-     to change, and rest vs hover differ in offset and blur anyway. */
-  box-shadow: var(--input-pill-shadow, rgb(50 50 93 / 13%) 0 1px 3px 0, rgb(0 0 0 / 30%) 0 1px 3px -1px);
-}
-
-/* Declares the whole shadow rather than re-tinting --_line, which is also what keeps the
-   focus ring off the pill: the base rule's ring layer is dropped along with the value it
-   was declared in. */
+.field:global(.is-pill) .box,
 .field:global(.is-pill) .box::before {
-  inset: 0;
-  border-radius: 16px;
-  mask-image: none; /* nothing to notch */
-  box-shadow: inset 0 0 0 1px var(--input-pill-border-color, #47465521);
+  border-radius: var(--input-pill-radius, 16px);
 }
 
-.field:global(.is-pill):hover .box,
-.field:global(.is-pill):focus-within .box {
-  box-shadow: var(--input-pill-shadow-hover, rgb(50 50 93 / 16%) 0 2px 6px 0, rgb(0 0 0 / 22%) 0 1px 3px -1px);
+/* No label, so no gap to punch: the border layer degrades to a plain hairline, and the
+   ring the base rule declares alongside it survives untouched. */
+.field:global(.is-pill) .box::before {
+  mask-image: none;
 }
 
-.field:global(.is-pill):hover .box::before,
-.field:global(.is-pill):focus-within .box::before {
-  box-shadow: inset 0 0 0 1px var(--input-pill-border-color-hover, #8d8ab630);
-}
-
-.field:global(.is-pill) .row {
-  height: calc(var(--input-height, 38px) - 6px);
-}
-
+/* The arc eats the first few pixels of the box, so the value clears it. */
 .field:global(.is-pill) .inp {
-  padding: 0 10px;
-}
-
-.field:global(.is-pill) .inp::placeholder {
-  color: var(--input-pill-placeholder-color, #7f80a8);
+  padding: 0 12px;
 }
 
 /* ── adornments ────────────────────────────────────────────────────────────────────

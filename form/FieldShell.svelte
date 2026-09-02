@@ -20,7 +20,7 @@
     disabled?: boolean;
     css?: string;
     // field = the standard notched box · bare = no chrome, fills the parent cell
-    // (table cells that already draw their own borders) · pill = rounded grey search box
+    // (table cells that already draw their own borders) · pill = unlabelled rounded search box
     variant?: "field" | "bare" | "pill";
     // Content grows instead of being vertically centred (textarea, colour picker).
     autoHeight?: boolean;

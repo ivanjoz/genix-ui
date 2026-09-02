@@ -76,6 +76,8 @@ that don't justify their own folder.
 - `Virtualizer.svelte`, `VirtualCards.svelte` — virtualization primitives
   (used by tables, lists, card grids).
 - `HighlightText.svelte` — renders a string with substrings highlighted.
+- `Info.svelte` — note/hint box: light background with a colored left rule,
+  `yellow` or `green`, taking a translatable `text` or a children snippet.
 - `KeyValueStrip.svelte` — multi-cell label/value strip layout.
 - `LoadingBar.svelte` — animated indeterminate loading bar.
 - `RecordByIDText.svelte` — resolves a record by ID through the cache and

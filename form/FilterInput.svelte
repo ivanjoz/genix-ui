@@ -2,8 +2,8 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
   // Reusable filter text input with leading icon and per-instance debounce.
-  // Chrome comes from FieldShell's `pill` variant, so filter boxes match the fields they
-  // sit next to instead of carrying their own border and focus colour.
+  // Chrome comes from FieldShell's `pill` variant: the same white fill, hairline and
+  // purple focus ring as a labelled field, only rounder and without a label.
   import { Agent } from '../agent/registry'
   import FieldShell from './FieldShell.svelte'
 

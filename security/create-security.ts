@@ -1,7 +1,7 @@
 import { BROWSER } from 'esm-env';
 import { throttle } from '../utilities/ui.js';
 import { decrypt } from '../utilities/crypto.js';
-import { decodeStoredAccesosComputed, getAccesoNivelSearchRange, hasPackedAccesoInRange, normalizeAccesoNivel, wrapAccesosComputed } from './accesos.js';
+import { decodeStoredAccesosComputed, hasAcceso, hasSubAcceso, normalizeAccesoNivel, validateAccesosBlobs, wrapAccesosComputed } from './accesos.js';
 import type { CreateSecurityOptions, SecurityLoginResult, SecurityLoginState, SecurityMessages, SecurityRouteAccessEntry, SecurityRuntime } from './types.js';
 
 const DEFAULT_TOKEN_REFRESH_THRESHOLD_SECONDS = 40 * 60
@@ -56,7 +56,11 @@ export const createSecurity = <UserInfoType>(
     tokenExpTime: storageNamespace + 'TokenExpTime',
     tokenCreated: storageNamespace + 'TokenCreated',
     userInfo: storageNamespace + 'UserInfo',
-    accesos: storageNamespace + 'Accesos',
+    // V2 because the payload changed shape, not just content: it used to be little-endian
+    // uint16s and is now the raw big-endian byte blob. A stale value still decodes — into
+    // accesses nobody granted — so the key is bumped to discard it instead of misreading it.
+    accesos: storageNamespace + 'AccesosV2',
+    accesosSub: storageNamespace + 'AccesosSub',
     companyID: storageNamespace + 'CompanyID',
     refreshLock: storageNamespace + 'TokenRefreshLock',
   }
@@ -67,7 +71,8 @@ export const createSecurity = <UserInfoType>(
   // Decoded accesos are cached against the raw stored string, so another tab's login
   // is picked up without re-decoding on every single check.
   let cachedStoredAccesos = ''
-  let accesosComputed: Uint16Array = new Uint16Array()
+  let accesosComputed: Uint8Array = new Uint8Array()
+  let accesosSubComputed: Uint8Array = new Uint8Array()
   let accesoResultCache = new Map<number, boolean>()
   let userInfo: UserInfoType | null = null
   let tokenRefreshInterval: ReturnType<typeof setInterval> | null = null
@@ -76,12 +81,25 @@ export const createSecurity = <UserInfoType>(
   }
 
   const loadAccesosFromStorage = () => {
-    const storedAccesos = readStored(key.accesos)
+    // Both payloads under one cache marker: they are written together in one login and an access
+    // lives in exactly one of them, so reloading either alone could answer from a half-old pair.
+    const storedAccesos = readStored(key.accesos) + '.' + readStored(key.accesosSub)
     if (storedAccesos === cachedStoredAccesos) { return }
 
     cachedStoredAccesos = storedAccesos
-    accesosComputed = decodeStoredAccesosComputed(storedAccesos)
+    accesosComputed = decodeStoredAccesosComputed(readStored(key.accesos))
+    accesosSubComputed = decodeStoredAccesosComputed(readStored(key.accesosSub))
     accesoResultCache.clear()
+
+    // Ordering and framing are load-bearing for both readers, so a payload that fails validation
+    // is discarded whole rather than searched. It fails closed: every check then answers false and
+    // the session is treated as having no accesses.
+    const validationError = validateAccesosBlobs(accesosComputed, accesosSubComputed)
+    if (validationError) {
+      console.warn('[security] discarding the accesos payload:', validationError)
+      accesosComputed = new Uint8Array()
+      accesosSubComputed = new Uint8Array()
+    }
   }
 
   const loadUserInfoFromStorage = () => {
@@ -128,18 +146,41 @@ export const createSecurity = <UserInfoType>(
   const isTokenValid = (): boolean => {
     const companyID = readStoredInt(key.companyID)
     loadAccesosFromStorage()
-    return companyID > 0 && getToken(true).length > 0 && accesosComputed.length > 0
+    // Either payload counts: a user whose only accesses carry sub-accesses holds them all in the
+    // second one, and testing just the first would log them straight back out.
+    const holdsAnyAcceso = accesosComputed.length > 0 || accesosSubComputed.length > 0
+    return companyID > 0 && getToken(true).length > 0 && holdsAnyAcceso
+  }
+
+  // One cache for both checks, keyed on all three inputs. Keying on the access id alone — which a
+  // single-payload reader could get away with — would let the first answer about an access stand in
+  // for every later question about it, at another level or about a different sub-access.
+  const makeAccesoCacheKey = (accesoID: number, nivel: number, subAccesoID: number): number => {
+    return accesoID * 1000 + subAccesoID * 10 + nivel
   }
 
   const checkAcceso = (accesoID: number, nivel?: number): boolean => {
     loadAccesosFromStorage()
-    if (!accesosComputed.length || accesoID <= 0) { return false }
+    if (accesoID <= 0) { return false }
 
     const requestedNivel = normalizeAccesoNivel(nivel)
-    const cacheKey = accesoID * 10 + requestedNivel
+    const cacheKey = makeAccesoCacheKey(accesoID, requestedNivel, 0)
     if (!accesoResultCache.has(cacheKey)) {
-      const [rangeStart, rangeEnd] = getAccesoNivelSearchRange(accesoID, requestedNivel)
-      accesoResultCache.set(cacheKey, hasPackedAccesoInRange(accesosComputed, rangeStart, rangeEnd))
+      accesoResultCache.set(cacheKey, hasAcceso(accesosComputed, accesosSubComputed, accesoID, requestedNivel))
+    }
+    return accesoResultCache.get(cacheKey) || false
+  }
+
+  // checkSubAcceso answers about a flag inside an access, not about reaching a route: it says
+  // nothing about the level, so it is deliberately independent of checkAcceso and a caller that
+  // needs both asks both. "Todos" (id 1) satisfies every check on its access.
+  const checkSubAcceso = (accesoID: number, subAccesoID: number): boolean => {
+    loadAccesosFromStorage()
+    if (accesoID <= 0 || subAccesoID <= 0) { return false }
+
+    const cacheKey = makeAccesoCacheKey(accesoID, 0, subAccesoID)
+    if (!accesoResultCache.has(cacheKey)) {
+      accesoResultCache.set(cacheKey, hasSubAcceso(accesosSubComputed, accesoID, subAccesoID))
     }
     return accesoResultCache.get(cacheKey) || false
   }
@@ -161,7 +202,9 @@ export const createSecurity = <UserInfoType>(
   }
 
   const parseLogin = async (login: SecurityLoginResult, cipherKey: string) => {
-    const decryptedUserInfo = await decrypt(login.UserInfo, cipherKey)
+    // UserInfoPlain only ever comes from a local backend answering a client that sent no cipher
+    // key because it has no crypto.subtle to decrypt with (see makeCipherKey in services/login.ts).
+    const decryptedUserInfo = login.UserInfoPlain || await decrypt(login.UserInfo || '', cipherKey)
 
     localStorageOrShim.setItem(key.tokenCreated, String(nowUnix()))
     localStorageOrShim.setItem(key.userInfo, decryptedUserInfo)
@@ -169,6 +212,7 @@ export const createSecurity = <UserInfoType>(
     localStorageOrShim.setItem(key.tokenExpTime, String(login.TokenExpTime))
     localStorageOrShim.setItem(key.companyID, String(login.CompanyID))
     localStorageOrShim.setItem(key.accesos, wrapAccesosComputed(login.AccesosComputed || ''))
+    localStorageOrShim.setItem(key.accesosSub, wrapAccesosComputed(login.AccesosSubComputed || ''))
 
     loadUserInfoFromStorage()
     loadAccesosFromStorage()
@@ -180,7 +224,8 @@ export const createSecurity = <UserInfoType>(
     stopRefreshCheck()
 
     cachedStoredAccesos = ''
-    accesosComputed = new Uint16Array()
+    accesosComputed = new Uint8Array()
+    accesosSubComputed = new Uint8Array()
     accesoResultCache.clear()
     userInfo = null
 
@@ -268,6 +313,7 @@ export const createSecurity = <UserInfoType>(
     setUserInfo,
     parseLogin,
     checkAcceso,
+    checkSubAcceso,
     canAccessRoute,
     clearSession,
     setSessionRefresher: (nextRefreshSession) => { refreshSession = nextRefreshSession },

@@ -112,24 +112,28 @@
         {opt[keyName] as string}
       </button>
     {:else}
-      <div data-id="Option:{optId}"
+      <!-- Box and label are one control: clicking text that describes a checkbox ticks it. -->
+      <button data-id="Option:{optId}"
         data-selected={isSelected ? "true" : undefined}
-        class="flex items-center mr-10">
-        <button class="flex mr-4 pt-1 items-center p-0 lh-10 justify-center rounded-[4px] shrink-0 w-28 h-26 _1"
+        type="button"
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label={opt[keyName] as string}
+        class="_row flex items-center text-left mr-10"
+        onclick={ev => {
+          ev.stopPropagation()
+          onSelect(opt)
+        }}
+      >
+        <span class="flex mr-4 pt-1 items-center p-0 lh-10 justify-center rounded-[4px] shrink-0 w-28 h-26 _1"
           class:_2={isSelected}
-          aria-label={opt[keyName] as string}
-          onclick={ev => {
-            ev.stopPropagation()
-            onSelect(opt)
-          }}
         >
           {#if isSelected}
             <i class="icon-[fa--check]"></i>
           {/if}
-        </button>
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>{opt[keyName] as string}</label>
-      </div>
+        </span>
+        <span>{opt[keyName] as string}</span>
+      </button>
     {/if}
   {/each}
 
@@ -145,12 +149,21 @@
     background-color: #09cb70;
     border-color: #19965b;
   }
-  ._1:hover {
+  ._row {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+  }
+  ._row:hover ._1 {
     border: 2px solid #0987eb;
   }
-  ._1._2:hover {
+  ._row:hover ._1._2 {
     border: 2px solid #61778b;
     background-color: #98aec5;
+  }
+  ._row:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
   }
 
   ._button {

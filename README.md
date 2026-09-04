@@ -619,7 +619,7 @@ genix-ui/
 ```
 
 `@genix/ui/utilities` provides encoding/parsers (`checksum`,
-`base64ToUInt16`, `concatenateInts`), dates (`dateToFechaUnix`, `getFechaUnix`,
+`base64ToBytes`, `concatenateInts`), dates (`dateToFechaUnix`, `getFechaUnix`,
 `DateHelper`, `semanaFromCode`), object mapping (`simplifyObject`, `recreateObject`,
 `unmarshal`, backed by `@ivanjoz/minijson`), strings (`normalizeStringN`, `highlString`), `throttle`, and `decrypt`
 (AES-GCM). Safe to use anywhere, including outside Svelte.

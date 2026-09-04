@@ -2,8 +2,14 @@
 // `UserInfo` is the AES-GCM ciphered JSON of the host's own user type.
 export interface SecurityLoginResult {
   UserToken: string
-  UserInfo: string
+  // Exactly one of the two arrives: UserInfo AES-GCM-ciphered with the cipher key the client sent,
+  // or UserInfoPlain when it sent none. See parseLogin.
+  UserInfo?: string
+  UserInfoPlain?: string
   AccesosComputed?: string
+  // The accesses that carry at least one granted sub-access. Separate payload because which one an
+  // access is in is itself the "has sub-accesses" flag; see security/accesos.ts.
+  AccesosSubComputed?: string
   TokenExpTime: number
   CompanyID: number
 }
@@ -54,6 +60,9 @@ export interface SecurityRuntime<UserInfoType> {
   setUserInfo: (userInfo: UserInfoType) => void
   parseLogin: (login: SecurityLoginResult, cipherKey: string) => Promise<void>
   checkAcceso: (accesoID: number, nivel?: number) => boolean
+  // A flag inside an access the session already holds. Says nothing about the level: a caller that
+  // needs both asks both.
+  checkSubAcceso: (accesoID: number, subAccesoID: number) => boolean
   canAccessRoute: (route?: string | null) => boolean
   clearSession: () => void
   // Registered by the host login service, avoiding a circular import.

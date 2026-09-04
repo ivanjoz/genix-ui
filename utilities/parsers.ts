@@ -120,9 +120,9 @@ export const checksumBase64_6 = (content: string): string => {
 		.slice(0, 6)
 }
 
-export const base64ToUInt16 = (packedValuesBase64: string): Uint16Array => {
+export const base64ToBytes = (packedValuesBase64: string): Uint8Array => {
 	if (!packedValuesBase64) {
-		return new Uint16Array()
+		return new Uint8Array()
 	}
 
 	// Match the backend custom URL-safe base64 variant: "-" => "+", "_" => "/", "~" => "=".
@@ -137,22 +137,9 @@ export const base64ToUInt16 = (packedValuesBase64: string): Uint16Array => {
 	try {
 		packedValuesBinary = atob(paddedBase64)
 	} catch (decodeError) {
-		console.warn("[parsers] invalid uint16 base64 payload", decodeError)
-		return new Uint16Array()
+		console.warn("[parsers] invalid base64 payload", decodeError)
+		return new Uint8Array()
 	}
 
-	const packedValueBytes = Uint8Array.from(packedValuesBinary, (character) => character.charCodeAt(0))
-
-	if (packedValueBytes.length % 2 !== 0) {
-		console.warn("[parsers] invalid uint16 base64 payload length", packedValueBytes.length)
-		return new Uint16Array()
-	}
-
-	const packedUInt16Values = new Uint16Array(packedValueBytes.length / 2)
-	for (let byteIndex = 0; byteIndex < packedValueBytes.length; byteIndex += 2) {
-		// Read little-endian uint16 values to match the backend encoder.
-		packedUInt16Values[byteIndex / 2] = packedValueBytes[byteIndex] | (packedValueBytes[byteIndex + 1] << 8)
-	}
-
-	return packedUInt16Values
+	return Uint8Array.from(packedValuesBinary, (character) => character.charCodeAt(0))
 }

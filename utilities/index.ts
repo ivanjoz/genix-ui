@@ -1,5 +1,5 @@
 export {
-  base64ToUInt16,
+  base64ToBytes,
   checksum,
   checksumBase64_6,
   concatenateInts,

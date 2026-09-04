@@ -1,3 +1,26 @@
+## A checkbox is one control, and it takes a controlled value
+
+**Context** — `Checkbox` and `CheckboxOptions` drew a clickable box with a `<label>` beside it, and
+only the box was clickable. Clicking the word next to a checkbox is what everyone tries first, and
+the label is the larger target of the two. Separately, `Checkbox` could only bind through
+`saveOn`/`save`, so a value that is not a property of an object — a `Map` entry, a derived set —
+could not use it at all.
+
+**Decision** — Both components render one `<button role="checkbox" aria-checked>` wrapping the box
+and the text, so either half toggles. `Checkbox` gains an optional controlled mode: pass `checked`
+and `onToggle` and the caller owns the value; `saveOn`/`save` still works and is untouched when
+`checked` is `undefined`.
+
+**Rationale** — One element rather than a `<label for>` pair because these are not native inputs:
+`role="checkbox"` plus `aria-checked` on a button is the accessible spelling, gets keyboard
+activation for free, and needs no generated id to link the two halves. The hover rules moved from
+`._1:hover` to `._row:hover ._1` so hovering the text lights the box, which is the whole point.
+
+The controlled mode is what the sub-access row in `security/users-profiles` needed: its value lives
+in a `Map<accesoID, subAccesoID[]>` and its toggle rule is not "flip this one" — selecting "Todos"
+clears the rest. `saveOn` cannot express either, and the alternative was a second checkbox component
+next to this one.
+
 ## Password fields own the suffix slot with a reveal toggle
 
 **Context** — `type="password"` gave no way to check what was typed, which matters most where the value is pasted rather than remembered (`CompanyTab`'s Culqi live/test keys). The suffix slot is where an adornment would go, but it already carries `postValue` and the validity glyph, and `.field.has-suffix .inp` reserves 34px — room for exactly one.

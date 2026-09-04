@@ -2,7 +2,7 @@
 
 `createSecurity` owns the reusable half of session handling: token persistence and expiry,
 the cross-tab refresh lock, the periodic refresh checker, and access checks over the
-backend's bit-packed `AccesosComputed` payload. Everything app-specific — the route→access
+backend's two bit-packed grant payloads. Everything app-specific — the route→access
 catalog, which routes are public, user-facing copy, and where to go after logout — is
 injected, so the module has no host imports.
 
@@ -32,20 +32,46 @@ export const security = createSecurity<IUser>({
 ## Persisted keys
 
 All keys are prefixed with `storageNamespace`: `UserToken`, `TokenExpTime`, `TokenCreated`,
-`UserInfo`, `Accesos`, `CompanyID`, `TokenRefreshLock`. `clearSession()` removes all of them,
-stops the refresh checker, drops the in-memory caches, and then calls `onLogout`.
+`UserInfo`, `AccesosV2`, `AccesosSub`, `CompanyID`, `TokenRefreshLock`. `clearSession()` removes
+all of them, stops the refresh checker, drops the in-memory caches, and then calls `onLogout`.
+
+`AccesosV2` is a bump, not a rename: the payload used to be little-endian `uint16`s and is now the
+raw big-endian byte blob. A stale value still decodes — into accesses nobody granted — so the key
+changed to discard it rather than misread it.
 
 ## Access checks
 
-The backend packs each granted access as `(accesoID << 2) | (nivel - 1)` into a sorted
-`Uint16Array`, base64-encoded. `checkAcceso(accesoID, nivel)` binary-searches the
-`[requested nivel, nivel 4]` range, so a higher granted level satisfies a lower request.
-Results are memoized per `accesoID`/`nivel` and invalidated whenever the stored payload
-changes — which is how a login in another tab is picked up.
+The backend packs each granted access into a big-endian `u16` grant word,
+`[14 bits accesoID][2 bits nivel-1]`, and splits them across **two** base64 payloads:
 
-The stored payload is wrapped with a 4-character checksum (2 leading, 2 trailing chars).
-A tampered or truncated value decodes to an empty array instead of granting accesses;
-`decodeStoredAccesosComputed` and `wrapAccesosComputed` are exported for backend parity tests.
+| Payload | Holds | Shape |
+| --- | --- | --- |
+| `AccesosComputed` | accesses with **no** granted sub-access | grant words only, fixed 2-byte stride, binary searchable |
+| `AccesosSubComputed` | accesses with **at least one** | every grant word followed by its sub bytes, variable width, scanned linearly |
+
+Which payload an access is in *is* the "has sub-accesses" flag, which is what lets the grant word
+keep all 14 of its id bits. The consequence to keep in mind: **an access lives in exactly one
+payload**, so a lookup that misses the first must try the second. `checkAcceso` does; a hand-rolled
+check over `AccesosComputed` alone would deny a user something they hold.
+
+A higher granted level satisfies a lower request. Results are memoized per
+`(accesoID, nivel, subAccesoID)` — all three, because one answer about an access must not stand in
+for a later question about it at another level or about a different sub-access — and the cache is
+dropped whenever either stored payload changes, which is how a login in another tab is picked up.
+
+`checkSubAcceso(accesoID, subAccesoID)` reads a flag *inside* an access. It says nothing about the
+level, so a caller that needs both asks both. Sub-access id 1 is `"Todos"`: it is never declared in
+the backend catalog and satisfies every check on its access. That expansion happens here and in Go
+only — the `fareward` daemon returns the raw mask and holds no catalog.
+
+Both stored payloads are wrapped with a 4-character checksum (2 leading, 2 trailing chars), and
+both are structurally validated on load by `validateAccesosBlobs`: ordering must strictly increase,
+every sub-access run must terminate, and no entry in the sub payload may carry an empty mask. A
+payload that fails either check is discarded whole rather than searched, so every check then
+answers `false`. `decodeStoredAccesosComputed`, `wrapAccesosComputed`, `findAccesoNivel`,
+`findAccesoSubGrant`, `hasAcceso`, `hasSubAcceso` and `validateAccesosBlobs` are exported for
+backend parity tests — this is the third hand-written parser of that format, alongside
+`backend/core/accesos-blob.go` (the only encoder) and `fareward/src/limiter/access.rs`.
 
 `canAccessRoute(route)` returns `true` for public routes and for routes absent from the
 catalog; otherwise the route needs at least one matching access at level 1.

@@ -22,6 +22,8 @@ import type { Snippet } from 'svelte';
     keyName: keyof E;
     label?: string;
     placeholder?: string;
+    /** The placeholder stands in for a missing label: paint it in the label colour, not placeholder grey. */
+    placeholderAsLabel?: boolean;
     max?: number;
     onChange?: (e: E) => void;
     selected?: number | string;
@@ -38,6 +40,8 @@ import type { Snippet } from 'svelte';
     id?: number;
     useCache?: boolean;
     optionRenderer?: Snippet<[E, string[]]>;
+    /** Lay the dropdown out as N option cards per row. 1 keeps the plain vertical list. */
+    columns?: number;
     getSearchText?: (e: E) => string;
     useDividingLine?: boolean;
   }
@@ -50,6 +54,7 @@ import type { Snippet } from 'svelte';
     options = [],
     label,
     placeholder,
+    placeholderAsLabel = false,
     max = 200,
     onChange,
     selected = $bindable(),
@@ -68,6 +73,7 @@ import type { Snippet } from 'svelte';
     id,
     useCache = false,
     optionRenderer,
+    columns = 1,
     getSearchText,
     useDividingLine = false,
   }: SearchSelectProps<T,E> = $props();
@@ -91,7 +97,9 @@ import type { Snippet } from 'svelte';
   const isMobile = $derived(ui.state.deviceType === 3);
   const useLayerPicker = $derived(isMobile);
   const isDisabled = $derived(disabled || showLoading);
-  const useVirtualizedOptions = $derived(filteredOptions.length > 15);
+  // The virtual list emits one item per row, which a multi-column grid cannot lay out — a card
+  // dropdown pays for its columns by rendering every filtered option.
+  const useVirtualizedOptions = $derived(filteredOptions.length > 15 && columns <= 1);
   type SearchOptionID = number | string;
 
   // Keep id normalization centralized so all caches use the same key format.
@@ -291,6 +299,19 @@ import type { Snippet } from 'svelte';
 
   const arrowDirectionClass = $derived(show ? "arrow-up is-open" : "arrow-down");
 
+  // The italic 14px look marks the generic "— select —" fallback as filler text. A caller-supplied
+  // placeholder is real content, so it reads at the normal 15px upright size.
+  // placeholderAsLabel goes further: the field carries no label and the placeholder *is* the label,
+  // so it takes the label's colour instead of the washed-out placeholder grey.
+  const placeholderCss = $derived([
+    placeholder ? "placeholder:text-[15px]" : "placeholder:italic placeholder:text-[14px]",
+    placeholderAsLabel ? "_11" : "",
+  ].join(" "));
+  const mobilePlaceholderCss = $derived([
+    placeholder ? "text-[15px]" : "italic text-[14px]",
+    placeholderAsLabel ? "_12" : "_10",
+  ].join(" "));
+
   // The arrow is always there unless disabled, so the suffix almost always reserves its
   // 34px — which is what keeps a long option name from running under the arrow.
   const hasSuffix = $derived(isValid > 0 || !isDisabled);
@@ -432,7 +453,7 @@ import type { Snippet } from 'svelte';
 >
   {#snippet children({ controlId, controlClass })}
     {#if !useLayerPicker}
-      <input id={controlId} class={`${controlClass} placeholder:italic placeholder:text-[14px] ${inputCss}`}
+      <input id={controlId} class={`${controlClass} ${placeholderCss} ${inputCss}`}
         bind:this={inputRef}
         onkeyup={onKeyUp}
         onpaste={onKeyUp as any}
@@ -499,7 +520,7 @@ import type { Snippet } from 'svelte';
             </div>
           {:else}
             <!-- Apply the same single-line constraint to placeholder text. -->
-            <div class="italic text-[14px] mt-2 w-full truncate _10"><T text={placeholder || defaultPlaceholder} /></div>
+            <div class="{mobilePlaceholderCss} mt-2 w-full truncate"><T text={placeholder || defaultPlaceholder} /></div>
           {/if}
         </div>
       </div>
@@ -517,6 +538,10 @@ import type { Snippet } from 'svelte';
       style:height={useVirtualizedOptions ? '300px' : 'auto'}
       style:max-height={'300px'}
       style:overflow-y={useVirtualizedOptions ? 'hidden' : 'auto'}
+      style:display={columns > 1 ? 'grid' : undefined}
+      style:grid-template-columns={columns > 1 ? `repeat(${columns}, minmax(0, 1fr))` : undefined}
+      style:align-content={columns > 1 ? 'start' : undefined}
+      style:gap={columns > 1 ? '6px' : undefined}
       class:open-up={openUp}
       role="button" tabindex="0"
       onmousedown={(ev) => {
@@ -539,7 +564,7 @@ import type { Snippet } from 'svelte';
         {@const name = String(e[keyName])}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
-          class="flex ai-center _highlight{arrowSelected === i ? ' _selected' : ''}{useDividingLine ? ' _with_divider' : ''}"
+          class="flex ai-center _highlight{arrowSelected === i ? ' _selected' : ''}{useDividingLine ? ' _with_divider' : ''}{columns > 1 ? ' _card_option' : ''}"
           role="option"
           aria-selected={arrowSelected === i}
           tabindex="0"
@@ -606,6 +631,18 @@ import type { Snippet } from 'svelte';
     border-radius: 4px;
   }
 
+  /* A card option draws its own frame, padding and hover state, so the row is just a grid cell. */
+  ._highlight._card_option {
+    border-radius: 0;
+    display: block;
+    min-height: 0;
+    padding: 0;
+  }
+
+  ._highlight._card_option:hover {
+    background-color: transparent;
+  }
+
   ._highlight._with_divider {
     border-bottom: 1px solid #ececec;
     border-radius: 0;
@@ -646,6 +683,17 @@ import type { Snippet } from 'svelte';
      otherwise the placeholder inherits the field colour and reads as the label's purple. */
   ._10 {
     color: var(--input-placeholder-color, #8a8fb0);
+  }
+
+  /* placeholderAsLabel: the placeholder replaces the label, so it borrows the label's colour.
+     The scoping class Svelte appends is what outranks FieldShell's `.inp::placeholder`. */
+  ._11::placeholder {
+    color: #7F77A1;
+    opacity: 1;
+  }
+
+  ._12 {
+    color: #7F77A1;
   }
 
   .select-arrow {

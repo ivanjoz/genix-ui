@@ -6,7 +6,7 @@
   import { createTableVirtualizer } from './vtable-virtual.svelte';
   import type {
     ITableColumn, CellRendererSnippet, IMobileCardsListCell,
-    TableGridHeaderRendererSnippet,
+    TableGridCellAlign, TableGridHeaderRendererSnippet,
   } from "./types";
   import CellInput from '../vTable/CellInput.svelte';
   import CellSelect from '../vTable/CellSelect.svelte';
@@ -58,6 +58,8 @@
     mobileCardCss?: string
     getRowObject?: (row: Partial<T>) => Promise<T>
     cellInputType?: 'number';
+    // Collapses the header to its content height with no horizontal padding.
+    disableHeaderPadding?: boolean;
   }
 
   let {
@@ -81,7 +83,27 @@
     mobileCardCss = '',
     getRowObject,
     cellInputType,
+    disableHeaderPadding = false,
   }: VTableProps<T> = $props();
+
+  // Shared header look with TableGrid: bold 15px, centered unless the column declares an
+  // `align` (a right-aligned numeric column keeps its header over the digits), 6px sides.
+  // Each default is dropped when the column already declares that same utility, so a
+  // consumer asking for `text-[14px]` or a left header still wins.
+  function headerBaseCss(column: ITableColumn<T>) {
+    const declaredCss = `${column.headerCss || ''} ${column.headerInnerCss || ''}`;
+    const paddingCss = disableHeaderPadding || /px-|pr-|pl-/.test(declaredCss) ? '' : 'px-6';
+    const fontSizeCss = /text-\[|text-xs|text-sm|text-base|text-lg/.test(declaredCss) ? '' : 'text-[15px]';
+    const alignCss = /justify-/.test(declaredCss) ? '' : headerAlignCss(column.align);
+    return `font-bold ${fontSizeCss} ${paddingCss} ${alignCss}`;
+  }
+
+  // The header inner wrapper is a flex row, so alignment is `justify-*`, not `text-*`.
+  function headerAlignCss(align: TableGridCellAlign | undefined) {
+    if (align === 'right') return 'justify-end';
+    if (align === 'left') return 'justify-start';
+    return 'justify-center';
+  }
 
   // State
   let containerRef = $state<HTMLDivElement>();
@@ -496,11 +518,12 @@
         {#each processedColumns.level1 as column, columnIndex}
           <th class="vtable-header-cell {column.headerCss || ''}"
             class:hsc={(column.subcols||[]).length > 0}
+            class:_no-header-padding={disableHeaderPadding}
             style={column.headerStyle ? Object.entries(column.headerStyle).map(([k, v]) => `${k}: ${v}`).join('; ') : ''}
             colspan={column._colspan || 1}
             rowspan={column._colspan ? 1 : (processedColumns.hasSubcols ? 2 : 1)}
           >
-            <div class={column.headerInnerCss || ''}>
+            <div class="{headerBaseCss(column)} {column.headerInnerCss || ''}">
               {#if headerRenderer}
                 {@render headerRenderer(column, columnIndex)}
               {:else}
@@ -517,9 +540,10 @@
           {#each processedColumns.level2 as column, columnIndex}
             <th
               class="vtable-header-cell {column.headerCss || ''}"
+              class:_no-header-padding={disableHeaderPadding}
               style={column.headerStyle ? Object.entries(column.headerStyle).map(([k, v]) => `${k}: ${v}`).join('; ') : ''}
             >
-              <div class={column.headerInnerCss || ''}>
+              <div class="{headerBaseCss(column)} {column.headerInnerCss || ''}">
                 {#if headerRenderer}
                   {@render headerRenderer(column, columnIndex)}
                 {:else}
@@ -759,8 +783,6 @@
 
   .vtable-header-cell {
     height: 24px;
-    font-weight: 600;
-    font-size: 15px;
     text-align: left;
     border: none;
     border-right: 1px solid #e9ecef;
@@ -779,10 +801,17 @@
     border-bottom: 1px solid rgb(204, 204, 204);
     display: flex;
     align-items: center;
-    justify-content: center;
     line-height: 1.1;
-    padding: 0 4px;
     background-color: #f8f9fa;
+  }
+
+  /* `disableHeaderPadding`: header shrinks to its content, no side padding. */
+  .vtable-header-cell._no-header-padding {
+    height: auto;
+  }
+
+  .vtable-header-cell._no-header-padding > div {
+    min-height: 0;
   }
 
   .vtable-body {

@@ -54,6 +54,8 @@
     useRowRenderer?: (record: TRecord, rowIndex: number) => boolean;
     rowRenderer?: TableGridRowRendererSnippet<TRecord>;
     cellInputType?: 'number';
+    // Collapses the header to its content height with no horizontal padding.
+    disableHeaderPadding?: boolean;
   }
 
   interface TableGridPrefixContent {
@@ -86,6 +88,7 @@
     useRowRenderer,
     rowRenderer,
     cellInputType,
+    disableHeaderPadding = false,
   }: TableGridProps<TRecord> = $props();
 
   // Keep a stable filtered list so hidden columns never affect row rendering logic.
@@ -149,6 +152,20 @@
     if (align === 'center') return 'text-center';
     if (align === 'right') return 'text-right';
     return 'text-left';
+  };
+
+  // Shared header look with VTable: bold 15px, centered unless the column declares an
+  // `align` (a right-aligned numeric column keeps its header over the digits), 6px sides.
+  // Each default is dropped when `headerCss` already declares that same utility, so a
+  // consumer asking for `text-[14px]` or `text-left` still wins.
+  const getHeaderBaseClassName = (columnDefinition: ITableColumn<TRecord>) => {
+    const declaredCss = `${headerCss} ${columnDefinition.headerCss || ''}`;
+    const paddingCss = disableHeaderPadding || /px-|pr-|pl-/.test(declaredCss) ? '' : 'px-6';
+    const fontSizeCss = /text-\[|text-xs|text-sm|text-base|text-lg/.test(declaredCss) ? '' : 'text-[15px]';
+    const alignCss = /text-left|text-center|text-right/.test(declaredCss)
+      ? ''
+      : (columnDefinition.align ? getAlignClassName(columnDefinition.align) : 'text-center');
+    return `font-bold ${fontSizeCss} ${paddingCss} ${alignCss}`;
   };
 
   // Reuse the same shared card renderer as VTable/CardsList while keeping grid-specific align classes.
@@ -423,8 +440,9 @@
     <div class="table-grid-plain-scroll">
       <div class="table-grid-header table-grid-header-sticky {headerCss}" role="row">
         {#each visibleColumns as columnDefinition, columnIndex (columnDefinition.id || columnIndex)}
-          {@const headerPaddingCss = /px-|pr-|pl-/.test(columnDefinition.headerCss || "") ? "" : "px-6"}
-          <div class="table-grid-header-cell {headerPaddingCss} {getAlignClassName(columnDefinition.align)} {columnDefinition.headerCss || ''}"
+          {@const headerBaseCss = getHeaderBaseClassName(columnDefinition)}
+          <div class="table-grid-header-cell {headerBaseCss} {columnDefinition.headerCss || ''}"
+            class:_no-header-padding={disableHeaderPadding}
             role="columnheader"
           >
             {#if headerRenderer}
@@ -553,8 +571,9 @@
     <div class="table-grid-scroll-host use-virtual-scroll">
       <div class="table-grid-header table-grid-header-sticky {headerCss}" role="row">
         {#each visibleColumns as columnDefinition, columnIndex (columnDefinition.id || columnIndex)}
-          {@const headerPaddingCss = /px-|pr-|pl-/.test(columnDefinition.headerCss || "") ? "" : "px-6"}
-          <div class="table-grid-header-cell {headerPaddingCss} {getAlignClassName(columnDefinition.align)} {columnDefinition.headerCss || ''}"
+          {@const headerBaseCss = getHeaderBaseClassName(columnDefinition)}
+          <div class="table-grid-header-cell {headerBaseCss} {columnDefinition.headerCss || ''}"
+            class:_no-header-padding={disableHeaderPadding}
             role="columnheader"
           >
             {#if headerRenderer}
@@ -728,7 +747,6 @@
   }
 
   .table-grid-header {
-    border-bottom: 1px solid #e9ecef;
     background: #f8f9fa;
     position: relative;
     z-index: 2;
@@ -745,10 +763,12 @@
     padding-right: 0;
   }
 
+  /* Same header tokens as VTable: 36px tall, own bottom rule, #f8f9fa ground. */
   .table-grid-header-cell {
-    font-family: bold;
-    color: #495057;
-    border-right: 1px solid #edf2f7;
+    min-height: 36px;
+    border-right: 1px solid #e9ecef;
+    border-bottom: 1px solid rgb(204, 204, 204);
+    background-color: #f8f9fa;
     line-height: 1.1;
     display: grid;
     align-content: center;
@@ -757,6 +777,11 @@
 
   .table-grid-header-cell:last-child {
     border-right: none;
+  }
+
+  /* `disableHeaderPadding`: header shrinks to its content, no side padding. */
+  .table-grid-header-cell._no-header-padding {
+    min-height: 0;
   }
 
   .table-grid-body {

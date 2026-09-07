@@ -18,10 +18,13 @@
   interface SearchDualCardProps<T, TLeftOption, TRightOption> {
     saveOn?: T;
     saveLeft: keyof T;
-    saveRight: keyof T;
+    /** Unused while the right side is controlled through `rightChipIDs`. */
+    saveRight?: keyof T;
     css?: string;
     cardCss?: string;
     sharedLabel?: string;
+    /** Both selects are unlabelled: paint `leftLabel`/`rightLabel` in the label colour, not placeholder grey. */
+    placeholderAsLabel?: boolean;
     onChange?: (payload: {
       leftSelectedIDs: SearchOptionID[];
       rightSelectedIDs: SearchOptionID[];
@@ -32,12 +35,28 @@
     leftLabel?: string;
     leftOptionsCss?: string;
     leftInputCss?: string;
+    /** Left dropdown laid out as N option cards per row, rendered by `render1`. */
+    columns1?: number;
+    render1?: Snippet<[TLeftOption, string[]]>;
     rightOptions: TRightOption[];
     rightKeyId: keyof TRightOption;
     rightKeyName: keyof TRightOption;
     rightLabel?: string;
     rightOptionsCss?: string;
     rightInputCss?: string;
+    /** Right dropdown laid out as N option cards per row, rendered by `render2`. */
+    columns2?: number;
+    render2?: Snippet<[TRightOption, string[]]>;
+    /**
+     * Controlled right side. Set it when one chip does not map to one stored id — the caller owns
+     * the selection model, so the card shows exactly these ids, delegates removal to
+     * `onRightChipRemove`, and stops reading or writing `saveRight`.
+     */
+    rightChipIDs?: SearchOptionID[];
+    onRightChipRemove?: (optionID: SearchOptionID) => void;
+    /** Controlled right side: what picking an option out of the list means. Keyboard and the
+        agent's `select` both come through here, so leaving it unset makes them dead ends. */
+    onRightSelect?: (optionRecord: TRightOption) => void;
     selectedItem?: Snippet<[ISearchDualCardSelectedItem<TLeftOption | TRightOption>]>;
   }
 
@@ -48,6 +67,7 @@
     css = "",
     cardCss = "",
     sharedLabel,
+    placeholderAsLabel = false,
     onChange,
     leftOptions = [],
     leftKeyId,
@@ -55,14 +75,23 @@
     leftLabel,
     leftOptionsCss,
     leftInputCss,
+    columns1 = 1,
+    render1,
     rightOptions = [],
     rightKeyId,
     rightKeyName,
     rightLabel,
     rightOptionsCss,
     rightInputCss,
+    columns2 = 1,
+    render2,
+    rightChipIDs,
+    onRightChipRemove,
+    onRightSelect,
     selectedItem
   }: SearchDualCardProps<T, TLeftOption, TRightOption> = $props();
+
+  const rightIsControlled = $derived(!!rightChipIDs);
 
   let leftSelectedIDs = $state<SearchOptionID[]>([]);
   let rightSelectedIDs = $state<SearchOptionID[]>([]);
@@ -88,7 +117,8 @@
     ui.searchReferences.set(optionRecords, { idToRecord: optionById, valueToRecord: optionByName });
   }
 
-  function getSavedIDs(fieldName: keyof T): SearchOptionID[] {
+  function getSavedIDs(fieldName?: keyof T): SearchOptionID[] {
+    if (!fieldName) { return []; }
     const rawValue = saveOn?.[fieldName] as SearchOptionID[] | undefined;
     return Array.isArray(rawValue) ? [...rawValue] : [];
   }
@@ -103,7 +133,7 @@
     if (!saveOn) { return; }
 
     const nextLeftSelectedIDs = getSavedIDs(saveLeft);
-    const nextRightSelectedIDs = getSavedIDs(saveRight);
+    const nextRightSelectedIDs = rightIsControlled ? rightSelectedIDs : getSavedIDs(saveRight);
 
     if (
       areSameIDs(leftSelectedIDs, nextLeftSelectedIDs) &&
@@ -128,7 +158,9 @@
   function commitSelectedIDs() {
     if (saveOn) {
       saveOn[saveLeft] = [...leftSelectedIDs] as NonNullable<T>[keyof T];
-      saveOn[saveRight] = [...rightSelectedIDs] as NonNullable<T>[keyof T];
+      if (saveRight && !rightIsControlled) {
+        saveOn[saveRight] = [...rightSelectedIDs] as NonNullable<T>[keyof T];
+      }
     }
 
     console.debug("SearchDualCard::commitSelectedIDs", {
@@ -169,6 +201,11 @@
   function addRightSelectedID(optionRecord?: TRightOption) {
     if (!optionRecord) { return; }
 
+    if (rightIsControlled) {
+      onRightSelect?.(optionRecord);
+      return;
+    }
+
     const optionID = optionRecord[rightKeyId] as SearchOptionID;
     if (rightSelectedIDs.includes(optionID)) { return; }
 
@@ -179,6 +216,11 @@
 
   function removeSelectedID(source: SearchDualCardSource, optionID: SearchOptionID) {
     console.debug("SearchDualCard::removeSelectedID", { source, optionID });
+
+    if (source === "right" && rightIsControlled) {
+      onRightChipRemove?.(optionID);
+      return;
+    }
 
     if (source === "left") {
       leftSelectedIDs = leftSelectedIDs.filter((currentID) => currentID !== optionID);
@@ -208,7 +250,7 @@
       });
     }
 
-    for (const optionID of rightSelectedIDs) {
+    for (const optionID of rightChipIDs || rightSelectedIDs) {
       mergedSelectedItems.push({
         source: "right",
         id: optionID,
@@ -262,7 +304,7 @@
         const source = findSourceForId(id);
         if (!source) { return; }
         // The actual id type may be number; recover it from the matching list.
-        const list = source === "left" ? leftSelectedIDs : rightSelectedIDs;
+        const list = source === "left" ? leftSelectedIDs : (rightChipIDs || rightSelectedIDs);
         const matched = list.find((current) => String(current) === String(id));
         if (matched !== undefined) { removeSelectedID(source, matched); }
       },
@@ -279,10 +321,15 @@
       clearOnSelect={true}
       avoidIDs={leftSelectedIDs}
       placeholder={ui.translate(leftLabel)}
+      {placeholderAsLabel}
       css={`col-span-24 md:col-span-12 s1 ${leftInputCss || ""}`}
       optionsCss={leftOptionsCss}
+      columns={columns1}
+      optionRenderer={render1}
       onChange={addLeftSelectedID}
     />
+    <!-- `avoidIDs` stays empty while the right side is controlled: the caller's chips need not map
+         1:1 to options, so hiding "already selected" ones would hide options still worth editing. -->
     <SearchSelect
       options={rightOptions}
       keyId={rightKeyId}
@@ -290,8 +337,11 @@
       clearOnSelect={true}
       avoidIDs={rightSelectedIDs}
       placeholder={ui.translate(rightLabel)}
+      {placeholderAsLabel}
       css={`col-span-24 md:col-span-12 s1 ${rightInputCss || ""}`}
       optionsCss={rightOptionsCss}
+      columns={columns2}
+      optionRenderer={render2}
       onChange={addRightSelectedID}
     />
   </div>

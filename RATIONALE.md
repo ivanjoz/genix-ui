@@ -2,6 +2,33 @@
 
 Design decisions for the shared UI package, newest first.
 
+## One header look for `VTable` and `TableGrid`, and defaults that yield to `headerCss`
+
+**Context** — the two tables painted different headers: `VTable` a 36px-tall, bold-15px, centered
+cell with its own bottom rule; `TableGrid` a content-height cell with `color: #495057`, a dead
+`font-family: bold` and the bottom rule on the header *container*. `TableGrid` was told to adopt
+`VTable`'s look, with `disableHeaderPadding` recovering the compact header it had.
+
+**Decision** — the shared tokens (min-height 36px, `#f8f9fa` ground, `#e9ecef` right rule,
+`rgb(204,204,204)` bottom rule per cell, `font-bold text-[15px]`) now live in both components with
+the same values, and each emits them through one function — `headerBaseCss` / `getHeaderBaseClassName`.
+Those functions **skip a default when the column's (or the table's) `headerCss` already declares that
+utility family**: any `px-*`/`pl-*`/`pr-*` cancels the `px-6`, any `text-[…]`/`text-sm`-style class
+cancels `text-[15px]`, any `text-left|center|right` (`justify-*` in `VTable`) cancels the alignment.
+Header text now also follows an explicit `column.align` in `VTable`, which previously always centered.
+`disableHeaderPadding` drops the side padding and the 36px floor in both.
+
+**Rationale** — the guard exists because Tailwind decides between two classes of the same utility by
+its own output order, not by the order they appear in the `class` attribute. Emitting `text-[15px]`
+unconditionally would have silently beaten the `headerCss="text-[14px]"` that
+`ProductSupplyManagement` passes, and `text-center` would have beaten a consumer's `text-left`. The
+cost is a regex per header cell per render and two places to keep in sync — the alternative, a shared
+stylesheet, is worse here: Svelte's scoped-CSS specificity beats a single Tailwind utility outright,
+so consumers could no longer override anything with a class.
+
+Size and weight moved out of the components' CSS into Tailwind classes, per the project rule against
+`font-size`/`font-weight` in a CSS class.
+
 ## The security runtime reads two `Uint8Array` grant payloads, and caches on all three inputs
 
 **Context** — `checkAcceso` held the backend's grants as a sorted `Uint16Array` and binary-searched

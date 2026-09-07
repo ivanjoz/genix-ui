@@ -20,6 +20,7 @@ import { useUI } from '../runtime/index.js';
     children,
     css,
     title,
+    titleIcon,
     titleSide,
     titleCss,
     contentCss,
@@ -40,6 +41,8 @@ import { useUI } from '../runtime/index.js';
     children: any
     css?: string
     title?: string
+    /** Icon class rendered ahead of the title, sizing and colour included. */
+    titleIcon?: string
     titleSide?: Snippet
     titleCss?: string
     options?: [number, string, string[]?][]
@@ -199,6 +202,9 @@ import { useUI } from '../runtime/index.js';
   >
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-8 overflow-hidden mr-8">
+        {#if titleIcon}
+          <i class="{titleIcon} shrink-0"></i>
+        {/if}
         <div class="overflow-hidden text-nowrap {titleCss}">{ui.translate(title)}</div>
         {#if titleSide}
           <div class="shrink-0">
@@ -246,7 +252,7 @@ import { useUI } from '../runtime/index.js';
         onSelect={(e) => {
           selected = e[0]
         }}
-        css="mt-2"
+        css="mt-4 mb-6"
       />
     {/if}
     <div class="_4 grow-1 {contentCss}">{@render children()}</div>

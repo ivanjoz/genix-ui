@@ -22,6 +22,8 @@
     // field = the standard notched box · bare = no chrome, fills the parent cell
     // (table cells that already draw their own borders) · pill = unlabelled rounded search box
     variant?: "field" | "bare" | "pill";
+    // small = a 32px control for dense surfaces; the box fills it, so there is no notch room.
+    size?: "normal" | "small";
     // Content grows instead of being vertically centred (textarea, colour picker).
     autoHeight?: boolean;
     children: Snippet<[{ controlId: string; controlClass: string }]>;
@@ -41,6 +43,7 @@
     disabled,
     css,
     variant = "field",
+    size = "normal",
     autoHeight,
     children,
     prefix,
@@ -71,6 +74,7 @@
       showLabel ? "" : "no-label",
       variant === "bare" ? "is-bare" : "",
       variant === "pill" ? "is-pill" : "",
+      size === "small" ? "is-small" : "",
       invalid ? "is-invalid" : "",
       disabled ? "is-disabled" : "",
       prefix ? "has-prefix" : "",

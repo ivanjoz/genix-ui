@@ -13,12 +13,15 @@
     throttle: throttleMs = 150,
     icon = 'icon-[fa--filter]',
     label = '',
+    size = 'normal',
     value = $bindable(''),
   }: {
     css?: string
     placeholder?: string
     throttle?: number
     icon?: string
+    /** small = 32px tall, with a smaller icon to match. For layers and other dense surfaces. */
+    size?: 'normal' | 'small'
     /** Accessible name only — this control never draws a visible label. */
     label?: string
     value?: string
@@ -61,13 +64,14 @@
 </script>
 
 {#snippet filterIcon()}
-  <i class={`${icon} block leading-none`}></i>
+  <i class="{icon} block leading-none {size === 'small' ? 'text-[13px]' : ''}"></i>
 {/snippet}
 
 <!-- `label` is deliberately NOT passed to the shell: it is an accessible name, not a
      visible one, and forwarding it would grow a notch label on every filter toolbar. -->
 <FieldShell
   {css}
+  {size}
   variant="pill"
   prefix={filterIcon}
   data-id="FilterInput:{componentID}"

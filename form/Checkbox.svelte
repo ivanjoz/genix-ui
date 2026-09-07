@@ -6,13 +6,19 @@
     import T from "../misc/T.svelte";
 
   const {
-		 saveOn = $bindable(), save, css, label, useNumber, checked, onToggle
+		 saveOn = $bindable(), save, css, label, useNumber, checked, onToggle, underlineOnHover, size
 	}: {
     saveOn?: T
 		save?: keyof T
     css?: string
     label?: string
+    /* "tiny" is a 20px box for a checkbox packed into a dense row, where the default 28px one
+       is taller than the text line it sits in. */
+    size?: "normal" | "tiny"
     useNumber?: boolean /* save 0 | 1 instead of true | false */
+    /* Underline the label on hover. Clicking the text always toggles — this is what advertises it,
+       for a checkbox sitting in running text where the box alone does not read as the target. */
+    underlineOnHover?: boolean
     /* Controlled mode: the caller owns the value and this only reports the intent. For a value
        that is not a property of an object — a Map entry, a derived set — saveOn cannot express it. */
     checked?: boolean
@@ -81,14 +87,16 @@
     onSelect()
   }}
 >
-  <span class="flex mr-4 pt-1 items-center p-0 lh-10 justify-center rounded-[4px] shrink-0 w-28 h-26 _1"
+  <!-- The check glyph is sized in `em`, so the box's own font-size is what scales it with the box. -->
+  <span class="flex mr-4 pt-1 items-center p-0 lh-10 justify-center rounded-[4px] shrink-0 _1
+    {size === 'tiny' ? 'w-20 h-20 mb-1 text-[11px]' : 'w-28 h-26'}"
     class:_2={isSelected}
   >
     {#if isSelected}
       <i class="icon-[fa--check]"></i>
     {/if}
   </span>
-  <span><T text={label as string} /></span>
+  <span class:_3={underlineOnHover}><T text={label as string} /></span>
 </button>
 
 <style>
@@ -113,6 +121,9 @@
   ._row:hover ._1._2 {
     border: 2px solid #61778b;
     background-color: #98aec5;
+  }
+  ._row:hover ._3 {
+    text-decoration: underline;
   }
   ._row:focus-visible {
     outline: 2px solid #60a5fa;

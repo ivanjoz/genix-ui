@@ -1,3 +1,98 @@
+## `size="small"` is a `FieldShell` flag, not a `FilterInput` override
+
+**Context** — `FilterInput` needed a 32px variant. Its height is not its own: the row is
+`--input-height - 4` and the box starts 7px down, both owned by `field-shell.module.css`.
+
+**Decision** — `size?: "normal" | "small"` on `FieldShell`, which adds an `is-small` global class,
+and two rules beside the pill variant: `.row { height: 32px }` and `.box { inset: 0 }`. `FilterInput`
+forwards the prop and drops its icon to `text-[13px]`.
+
+**Rationale** — Setting `--input-height` from the caller would have shrunk the row while leaving the
+7px top inset, so the visible box would have lost twice the height asked for. That inset is clearance
+for a notch label, which a small field cannot spare and a pill never draws — hence `inset: 0`. Living
+on `FieldShell` means every field can take the size, not only this one. **Watch out:** the `.is-small`
+row rule ties with `.field.no-label .row` on specificity and wins only on source order.
+
+## `Checkbox` gets a `size` prop, and "tiny" is a 20px box
+
+**Context** — The default 28×26px box is taller than the 13px line it sits in when checkboxes are
+packed into a dense row — the sub-access rows of the users/profiles access editor. Callers were
+patching it from the outside with devtools-shaped overrides.
+
+**Decision** — `size?: "normal" | "tiny"`. `tiny` swaps `w-28 h-26` for `w-20 h-20 mb-1 text-[11px]`
+on the box span; everything else (border, checked colours, hover, label) is shared.
+
+**Rationale** — The `text-[11px]` is what shrinks the check glyph: the icon is sized in `em`, so the
+box's font-size scales its content without a second knob. Both are Tailwind classes, not CSS, because
+a font-size in a component stylesheet is what the project's frontend conventions forbid. A union
+rather than a boolean `tiny` so a third size does not need a second prop.
+
+## `LabelCell` is the read-only field, and it overlaps `LabelText`
+
+**Context** — The assets layer drew its four figures as a hand-rolled label/value pair, with the label
+painted from `--input-label-color` by a page-local `.stat-label` class so it read as a field label.
+The user layer's access tab needed the same thing for three identity fields it only displays.
+
+**Decision** — `LabelCell`: `label` (translated), `value`, an `emptyText` dash so a cell never
+collapses to a bare label, an optional `children` snippet for values a string cannot express, and
+`valueCss` defaulting to the assets figure style. The assets page now uses it and its `.stat-label`
+is gone.
+
+**Rationale** — Sits in `form/` rather than `misc/` because the point is that it matches a field: it
+reads the same `--input-label-color` token `FieldShell` paints its `<label>` with, so a theme
+override moves both together. **Known overlap:** `form/LabelText.svelte` is the same shape with a
+grey label and no empty handling, and `misc/KeyValueStrip.svelte` is a numbered-props variant of the
+same idea. Three components for one pattern is one too many — folding `LabelText` into `LabelCell` as
+a variant is the obvious cleanup, deliberately not done here because it touches unrelated callers.
+
+## A multi-column SearchSelect dropdown gives up virtualization
+
+**Context** — `optionRenderer` already let a caller draw an option however it likes, but the dropdown
+only ever stacked those renders one per row. A card-shaped option wants columns; a list of 60 access
+cards one per row is a scroll no one reads.
+
+**Decision** — `columns={n}` lays the dropdown out as a CSS grid of `n` equal tracks. Above 1 it
+turns virtualization off and adds `_card_option` to each row, which strips the row's padding,
+min-height and hover tint so the card's own frame is the only one drawn.
+
+**Rationale** — `SvelteVirtualList` emits one item per row and measures rows, so a grid inside it
+lays out wrong; chunking options into row-groups to keep it would add a second, always-wrong-by-one
+notion of "row" to the keyboard navigation. Rendering every filtered option is the honest trade for
+a list that is short precisely because it is a catalog. Left unsolved: arrow keys still move by one
+option, which in a grid reads as moving sideways.
+
+## SearchSelect `placeholderAsLabel` paints the placeholder in the label colour
+
+**Context** — An unlabelled `SearchSelect` uses its placeholder as the field's only identification,
+but the placeholder is painted `--input-placeholder-color` (#8a8fb0) — deliberately washed out, so
+it reads as absent text rather than as the field's name.
+
+**Decision** — New optional prop `placeholderAsLabel` (default `false`). When set, the placeholder
+takes `--input-label-color` (#6d5dad), the same token the notched label uses: class `_11` on the
+desktop `<input>` (`::placeholder`, with `opacity: 1` for Firefox) and `_12` in place of `_10` on the
+mobile picker's div.
+
+**Rationale** — A prop rather than inferring it from a missing `label`, because plenty of unlabelled
+selects are filters where the grey is correct. Reusing the label token rather than a literal keeps
+the two in step when a theme overrides it. The `::placeholder` override wins over FieldShell's
+`.inp::placeholder` purely on the scoping class Svelte appends — a lower-specificity trick that
+breaks if FieldShell ever raises its own selector.
+
+## SearchSelect italicises only the fallback placeholder
+
+**Context** — `SearchSelect` painted every placeholder as italic 14px, including one passed as a
+`placeholder` prop. That made a real caller-written hint ("PERFILES ::") look like the same greyed
+filler as the generic `— select —` fallback, and smaller than the surrounding field text.
+
+**Decision** — The italic/14px treatment now applies only when no `placeholder` prop is given. With a
+prop, the placeholder renders at 15px upright. Two `$derived` class strings (`placeholderCss` for the
+desktop `<input>`, `mobilePlaceholderCss` for the mobile picker's div) carry the branch, so the
+literal Tailwind classes stay in the file for the scanner.
+
+**Rationale** — Italic here means "nothing chosen and no guidance"; once the caller writes the hint
+it is content and should read like content. Cost is one more conditional class per render path, and
+callers who wanted the italic look must now drop the prop.
+
 ## A checkbox is one control, and it takes a controlled value
 
 **Context** — `Checkbox` and `CheckboxOptions` drew a clickable box with a `<label>` beside it, and

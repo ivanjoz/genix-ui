@@ -405,6 +405,20 @@ textarea.inp {
   padding: 0 12px;
 }
 
+/* ── size: small ────────────────────────────────────────────────────────────
+   A 32px control for dense surfaces — a filter inside a layer, next to a heading rather
+   than in a page toolbar. The box fills the whole height instead of starting 7px down:
+   that inset is clearance for a notch label, which is height a small field cannot spare
+   and a pill never uses. Must stay after `.field.no-label .row`, which it outranks only
+   by source order. */
+.field:global(.is-small) .row {
+  height: 32px;
+}
+
+.field:global(.is-small) .box {
+  inset: 0;
+}
+
 /* ── adornments ────────────────────────────────────────────────────────────────────
    Last on purpose: these share specificity with the variant rules above and must win,
    so the value can never run under a prefix icon or a suffix glyph. */

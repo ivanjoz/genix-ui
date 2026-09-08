@@ -487,6 +487,7 @@ Neither menu imports routing, security, or services; all policy arrives as props
 | `Imagehash` | Image with a thumbhash placeholder | `src`, `hash`, `size`, `folder`, `alt` |
 | `ImageUploader` **(ui)** | Convert (AVIF/WebP), queue, and upload images | `src`, `saveAPI`, `refreshRoutes`, `convertResolutions`, `useConvertAvif`, `folder`, `onChange`, `onUploaded`, `setDataToSend`, `hideForm`, `processName` |
 | `FileUploadSelector` **(ui)** | File picker with extension filtering | `selectedFile` (bindable), `accept`, `extensions`, `buttonLabel`, `onChange` |
+| `FileDropZone` **(ui)** | Drop area that also picks on click | `selectedFile` (bindable), `accept`, `extensions`, `label`, `hint`, `css`, `disabled`, `onChange` |
 
 ### `charts/`
 

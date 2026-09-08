@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from '../buttons/Button.svelte';
+  import FileDropZone from '../files/FileDropZone.svelte';
   import FileUploadSelector from '../files/FileUploadSelector.svelte';
   import HighlightText from '../misc/HighlightText.svelte';
   import Info from '../misc/Info.svelte';
@@ -16,6 +17,7 @@
   const cardItems = buildShowroomUsers(120);
 
   let selectedFile = $state<File | undefined>(undefined);
+  let droppedFile = $state<File | undefined>(undefined);
   let isPortalVisible = $state(false);
   let lastRendererClick = $state('—');
   // HTMLEditor pulls in RoosterJS, the heaviest import on the page, so it loads on demand.
@@ -113,6 +115,13 @@
   <FileUploadSelector bind:selectedFile extensions={['xlsx', 'pdf', 'csv']}
     buttonLabel="Select file|Seleccionar archivo" />
   <div class="text-xs text-gray-500 mt-8">selected: {selectedFile?.name || '—'}</div>
+</ShowroomBlock>
+
+<ShowroomBlock name="FileDropZone" note="drag & drop or click — local pick only, nothing is uploaded here">
+  <FileDropZone bind:selectedFile={droppedFile} extensions={['pfx', 'p12']}
+    label="Drop the certificate here or click to select it|Suelte el certificado aquí o haga clic para seleccionarlo"
+    hint="A .pfx or .p12 file|Un archivo .pfx o .p12" css="max-w-400" />
+  <div class="text-xs text-gray-500 mt-8">dropped: {droppedFile?.name || '—'}</div>
 </ShowroomBlock>
 
 <ShowroomBlock name="HTMLEditor" note="RoosterJS rich text bound with saveOn/save · loaded on demand">

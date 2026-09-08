@@ -6,6 +6,7 @@ import {
 	type serviceHttpProps,
 } from '../cache/index.js'
 import { normalizeStringN } from '../utilities/index.js'
+import { registerPageCachedService } from './page-services-registry.js'
 
 export interface INewIDToID {
 	ID: number
@@ -109,6 +110,9 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 			console.warn(`[GetHandler] Route access denied: ${this.route}`)
 			return false
 		}
+		// Every read path funnels through here, so the current page owns this route whether the
+		// records end up coming from IndexedDB or from the server.
+		registerPageCachedService(this.route, this.module)
 		return true
 	}
 

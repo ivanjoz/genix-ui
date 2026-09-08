@@ -2,6 +2,54 @@
 
 Design decisions for the shared UI package, newest first.
 
+## FileDropZone stays out of the agent registry
+
+**Context** — every clickable component in the package registers a handle (`Button`, `Checkbox`,
+`OptionsStrip`), so the automation agent can drive it. A drop zone is clickable too, and the
+obvious move was to register a `click` that opens the native file picker.
+
+**Decision** — `FileDropZone` registers nothing, like the `FileUploadSelector` it sits next to.
+
+**Rationale** — the agent cannot supply a `File`: it has no path into the page's filesystem, and the
+native picker it would open is an OS dialog outside the tab. A registered handle would therefore be
+a handle that always fails, and worse, it would leave the browser blocked on a modal dialog nothing
+in the session can dismiss. The cost is that an agent reading the page sees the zone in the
+screenshot and not in the registry — the documented signal for "this component forgot to register".
+Whoever wires an upload flow that an agent must complete has to give it a different entry point (a
+route that accepts base64), not a handle here.
+
+## The page owns the routes it read, recorded at read time and not at construction
+
+**Context** — the header refresh button had to force the *current page's* services to re-fetch from
+the server on the next reload. Nothing knew which routes a page depends on: a page served entirely
+from IndexedDB issues no request, so request telemetry sees nothing, and a `GetHandler` subclass
+cannot register itself in its own constructor either — `route` is a subclass field, still `''` while
+`super()` runs.
+
+**Decision** — `http/page-services-registry.ts` keys a `Map` by `pathname`, and the entry is written
+from `GetHandler.canFetch()` and from the cached branch of `GET()` — i.e. on every *read attempt*,
+whichever layer answers it. `markPageServicesForRefresh()` (runtime) reads the current pathname's
+set and sends action 24 per module. The registry is in-memory only: the durable part is the
+`forceNetwork` flag the service worker writes to IndexedDB, which is what actually survives the
+reload.
+
+**Rationale** — recording at read time is what makes "no matter if it used the local cache or called
+the server" work, and it self-corrects: a fresh load of a page re-runs its reads and re-registers
+them under that page. The cost is a shared service instantiated on page A and then merely *read from
+memory* on page B — B never calls `canFetch()` for it, so B's set misses it until a load that starts
+on B. It also means a page must have been visited in this session before its refresh can mark
+anything; a route the button never saw is silently not marked, which the console reports as a
+0-match.
+
+Action 24 grew an `exact` flag (`refreshRoutesByPrefix` → `markRoutesForRefresh`). POST keeps prefix
+matching, where invalidating `products` is *meant* to drag `products-stock` along; the button asks
+for exact matching so a page refresh does not force routes the page never read. Marking only sets
+`forceNetwork`, so the forced request still carries the watermark and the server answers with the
+delta — the button fixes "the cache decided nothing changed", it is not a full re-download.
+
+`AppHeader.handleReload` wrote `localStorage['force_sync_cache_until']`, a key no code has ever
+read; the button was a plain `location.reload()`. That write is gone.
+
 ## One header look for `VTable` and `TableGrid`, and defaults that yield to `headerCss`
 
 **Context** — the two tables painted different headers: `VTable` a 36px-tall, bold-15px, centered

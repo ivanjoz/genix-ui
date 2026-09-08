@@ -384,23 +384,28 @@ export const verifyRouteMemoryState = async (routeRef: IDeltaCacheRouteRef): Pro
   await resetCacheRouteRow(persistedRouteRow, persistedRouteRow.__version__ || routeRef.version)
 }
 
-export const refreshRoutesByPrefix = async (
-  dbName: string, module: string, routes: string[]
+export const markRoutesForRefresh = async (
+  dbName: string, module: string, routes: string[], matchExactRoute = false
 ): Promise<number> => {
-  // Prefix matching preserves the existing refreshRoutes contract used by POST handlers.
+  // Prefix matching preserves the refreshRoutes contract used by POST handlers, where "products"
+  // is meant to also invalidate everything derived from it. The page refresh button asks for exact
+  // matching instead: it marks the routes the page actually read, and nothing else.
   const database = getDeltaCacheDatabase(dbName)
   const routeRows = await database.cacheRoutes
     .where('module')
     .equals(module)
     .toArray()
 
-  // [REFRESH-DBG] If `storedRoutes` doesn't contain the requested prefix, the route was never cached
+  // [REFRESH-DBG] If `storedRoutes` doesn't contain the requested route, it was never cached
   // under this module/db yet, so nothing gets marked (the silent 0-match case).
-  console.log("[REFRESH-DBG] refreshRoutesByPrefix:", { dbName, module, requested: routes, storedRoutes: routeRows.map((r) => r.route) })
+  console.log("[REFRESH-DBG] markRoutesForRefresh:", { dbName, module, requested: routes, matchExactRoute, storedRoutes: routeRows.map((r) => r.route) })
 
   let updatedRoutesCount = 0
   for (const routeRow of routeRows) {
-    if (!routes.some((routePrefix) => routeRow.route.startsWith(routePrefix))) {
+    const isRequested = matchExactRoute
+      ? routes.includes(routeRow.route)
+      : routes.some((routePrefix) => routeRow.route.startsWith(routePrefix))
+    if (!isRequested) {
       continue
     }
     routeRow.forceNetwork = true

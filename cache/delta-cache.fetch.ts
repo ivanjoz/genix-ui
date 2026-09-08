@@ -13,8 +13,8 @@ import {
   listEnvironmentCacheStats,
   makeDeltaCacheDatabaseName,
   makeEmptyLastSync,
+  markRoutesForRefresh,
   readCachedRouteResponse,
-  refreshRoutesByPrefix,
   replaceRouteRecordRows,
   resetCacheRouteRow,
   saveCacheRouteRow,
@@ -22,7 +22,7 @@ import {
   stripRowMeta,
   verifyRouteMemoryState,
 } from './delta-cache.idb';
-import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync, WatermarkField } from './delta-cache.types';
+import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync, IRefreshDeltaRoutesArgs, WatermarkField } from './delta-cache.types';
 import type { serviceHttpProps } from './service-http.types.js';
 import { parseObject } from './parse-object.js';
 import { parsePsvResponse } from './psv-parse';
@@ -1067,12 +1067,13 @@ export const clearDeltaEnvironmentCache = async (args: { __enviroment__: string,
   return { ok: 1, deletedRoutes }
 }
 
-export const refreshDeltaRoutes = async (args: { __enviroment__: string, __companyID__?: number, module: string, routes: string[] }) => {
+export const refreshDeltaRoutes = async (args: IRefreshDeltaRoutesArgs) => {
   console.log("Setting ForceNetwork for routes:", args.routes)
-  const routesUpdated = await refreshRoutesByPrefix(
+  const routesUpdated = await markRoutesForRefresh(
     makeScopedDeltaDBName(args),
     args.module || "a",
-    args.routes || []
+    args.routes || [],
+    args.exact
   )
   console.log(`ForceNetwork = true for routes: ${args.routes.join(", ")} | In ${routesUpdated} routes`)
   return { ok: 1, routesUpdated }

@@ -5,8 +5,10 @@ import {
   type GroupCacheGetter,
 } from '../cache/group-cache.fetch.js';
 import { unmarshal } from '@ivanjoz/minijson';
+import { registerPageCachedService } from './page-services-registry.js';
 
 export * from './get-handler.svelte.js';
+export * from './page-services-registry.js';
 export type { AxiosProgressEvent };
 
 export interface IHttpStatus {
@@ -267,6 +269,8 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       if (!runtime.fetchCached) {
         throw new Error('[http] Cached GET requested without a fetchCached adapter');
       }
+      // A cached GET reads the same delta-cache rows a GetHandler does, so the page owns it too.
+      registerPageCachedService(props.route, props.module || 'a');
       const cacheRequest = {
         routeParsed,
         route: props.route,

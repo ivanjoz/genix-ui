@@ -61,6 +61,16 @@ export interface ICacheRecordRowSingle {
 
 export type ICacheRecordRow = ICacheRecordRowMulti | ICacheRecordRowSingle
 
+// Action 24: mark cached routes so their next read bypasses the cache and hits the server.
+// `exact` off means prefix matching, which is what a POST needs to invalidate derived routes.
+export interface IRefreshDeltaRoutesArgs {
+  __enviroment__: string
+  __companyID__?: number
+  module: string
+  routes: string[]
+  exact?: boolean
+}
+
 export interface IRequestLogRow {
   id: number /* unix milliseconds timestamp */
   route: string

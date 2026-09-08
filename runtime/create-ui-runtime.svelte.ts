@@ -7,6 +7,7 @@ import { configureExcelRuntime } from '../excel/runtime.js';
 import { createImageConverter } from '../files/image-converter.js';
 import { createInMemoryImageStore } from '../files/in-memory-images.svelte.js';
 import {
+  configurePageServicesRegistry,
   createHttpClient,
   type GetHandlerRuntime,
 } from '../http/index.js';
@@ -53,6 +54,9 @@ export const createUiRuntime = <UserInfoType = unknown>(
     notify: options.notify,
     getCompanyID: options.getCompanyID,
   });
+
+  // Cached reads are attributed to the page that was open when they happened.
+  configurePageServicesRegistry(getPathname);
 
   const images = createInMemoryImageStore();
   const imageConverter = createImageConverter({ notifyFailure });

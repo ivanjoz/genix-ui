@@ -1,5 +1,6 @@
 export { createUiRuntime } from './create-ui-runtime.svelte.js';
 export { createFieldPersistence } from './field-persistence.js';
+export { markPageServicesForRefresh } from './refresh-page-services.js';
 export { useUI, provideUi } from './context.js';
 export { default as UiProvider } from './UiProvider.svelte';
 export type {

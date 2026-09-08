@@ -10,7 +10,12 @@ import {
   setDeltaRouteForceNetwork,
   triggerDeltaForceFetchWindow,
 } from '../cache/index.js';
-import type { ICacheSyncUpdate, IGetCacheSubObject, serviceHttpProps } from '../cache/index.js';
+import type {
+  ICacheSyncUpdate,
+  IGetCacheSubObject,
+  IRefreshDeltaRoutesArgs,
+  serviceHttpProps,
+} from '../cache/index.js';
 import { HandlersMap } from './service-worker-cache';
 
 export type { ICacheSyncUpdate, IGetCacheSubObject }
@@ -63,7 +68,7 @@ HandlersMap.set(23, async (args: { __enviroment__: string, __companyID__?: numbe
 })
 
 // Action 24 marks matching routes for refresh without deleting their rows.
-HandlersMap.set(24, async (args: { __enviroment__: string, __companyID__?: number, module: string, routes: string[] }) => {
+HandlersMap.set(24, async (args: IRefreshDeltaRoutesArgs) => {
   return await refreshDeltaRoutes(args)
 })
 

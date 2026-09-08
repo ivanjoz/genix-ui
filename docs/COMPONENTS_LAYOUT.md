@@ -29,6 +29,7 @@ Anything whose primary purpose is rendering quantitative graphics.
 ### `files/` — file selection, upload, image rendering
 Components that handle binary assets (upload, preview, hash-based loading).
 - `FileUploadSelector.svelte` — file selector with upload trigger.
+- `FileDropZone.svelte` — drag & drop area, picks on click too.
 - `ImageUploader.svelte` — image-specific uploader with previews.
 - `Imagehash.svelte` — hash-based progressive image renderer.
 

@@ -12,7 +12,11 @@ import type {
   IRequestLogRow,
 } from './delta-cache.types'
 
-const CACHE_DB_VERSION = 5
+// v6 drops every cached route on upgrade. The watermark a route stores changed shape — one number
+// whose meaning lived in a separate field, now the `upv`/`upd` pair that every sync sends — and a
+// v5 row read under the new shape would offer a timestamp as a write sequence, which the backend
+// answers with nothing at all. Re-syncing once is the cheap half of that trade.
+const CACHE_DB_VERSION = 6
 
 const deltaCacheDatabasesByName = new Map<string, DeltaCacheDatabase>()
 const routeMemoryByLookupKey = new Map<string, ICacheRouteRow>()
@@ -48,6 +52,10 @@ class DeltaCacheDatabase extends Dexie {
       requestLogs: '&id,route',
       groupRows: '[queryShape+key],[queryShape+id+upc],queryShape',
       routeData: '&key',
+    }).upgrade(async (transaction) => {
+      await transaction.table('cacheRoutes').clear()
+      await transaction.table('cacheRecords').clear()
+      await transaction.table('cacheRecordsSingle').clear()
     })
   }
 }

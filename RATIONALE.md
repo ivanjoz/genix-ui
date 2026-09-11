@@ -2,6 +2,67 @@
 
 Design decisions for the shared UI package, newest first.
 
+## `disableVirtualizer` turns off the desktop window only
+
+**Context** — The prop has to neutralize four things: the attach effect, the `setCount`
+bookkeeping, the spacer `<tr>`s and the per-row `use:virtualizer.observeRow` action — and a Svelte
+action cannot be attached conditionally.
+
+**Decision** — `use:observeRow` now goes through a local wrapper that returns nothing when the prop
+is set, `visibleRowIndices` falls back to every index, and both spacers are wrapped in `{#if
+!disableVirtualizer}`. The mobile card view is untouched: `MobileCardsVirtualList` keeps its own
+virtualization.
+
+**Rationale** — Wrapping the action is the only way to keep one `<tr>` template for both modes; the
+alternative was a duplicated `{#if}` branch of the entire row markup. Mobile stays virtualized
+because its list is a different component with its own measuring, and a consumer asking for "a
+plain table" is talking about the table it can see. Cost: the prop's name promises slightly more
+than it does on a phone, hence this entry.
+
+## VTable's `onRowHover` action anchors to the last cell, not the row
+
+**Context** — A row action that only shows on hover has to be positioned against the row's right
+edge, but `position: absolute` inside a `<tr>` is not a reliable containing block: `position:
+relative` on a table row is honoured unevenly, and the rows here are already driven by a
+virtualizer that measures each `<tr>`.
+
+**Decision** — `onRowHover` is a `Snippet<[record, rowIndex]>` rendered inside the **last** flat
+column's `<td>`, which gets `position: relative` only when the prop is present. Visibility is pure
+CSS (`.vtable-row:hover .vtable-row-hover-action`), so there is no mouseenter/mouseleave handler
+and no per-row state. Mobile card view ignores the prop.
+
+**Rationale** — A `<td>` is a dependable containing block and its right edge is the row's right
+edge anyway, so the anchor costs nothing and avoids the `<tr>` quirk. The wrapper sits flush
+(`right: 0`) and carries no inset or transition: spacing is a margin class on whatever the consumer
+renders, and the reveal is instant. The cost: the action overlaps
+the last column's content instead of reserving space for itself — consumers that need the value
+readable under it give the action its own background — and a consumer whose remove affordance must
+survive the mobile card view cannot use this prop.
+
+## The client sends both watermarks and stops guessing which one the route speaks
+
+**Context** — a route's watermark field was inferred from the records of its first response (`upv`
+if they carried it, `upd` otherwise) and persisted on the route row. A route that inferred wrong —
+because its first sync returned no records, or because the row predates its table's delta index —
+sent a watermark its handler does not read. The handler saw none, answered with the whole table, the
+cache merged it, and nothing reported an error: a 1.2 MB payload on every refresh, indefinitely.
+`resetCacheRouteRow` did not clear the field either, so a `ver` bump carried the dead choice across.
+
+**Decision** — Both watermarks travel on every sync, as one param per response key shaped
+`"<upv>.<upd>"` (`up` for a bare-array route). `updatedStatus` holds an `{upv, upd}` pair per key,
+both halves advancing independently. The detection, the persisted `watermarkFields` and
+`WatermarkField` are gone; the backend reads its half through `req.GetUpVersion()` /
+`req.GetUpdated()`. The cache schema goes to v6, which drops every route row on upgrade.
+
+**Rationale** — The bug was never `upv` vs `upd`, it was that the *client* decided. Sending both
+moves the decision to the only side that knows — the handler that writes the query — for ~15 bytes a
+request. A one-way `upd → upv` upgrade would have healed the stuck rows too, but it keeps the
+inference alive, and with it the rule that a timestamp-watermarked route must never ship `upv` in its
+records: one added column in a `Select` and a storefront starts full-syncing. The schema bump is what
+makes the switch safe — a v5 row holds a single number whose meaning lived in the field that no
+longer exists, and read as a `upv` it would offer a timestamp as a write sequence, which the backend
+answers with nothing at all. One full re-sync per browser is the price.
+
 ## FileDropZone stays out of the agent registry
 
 **Context** — every clickable component in the package registers a handle (`Button`, `Checkbox`,

@@ -42,18 +42,38 @@ Set `doNothingOnSameValue: true` on a service to get the old behaviour back: an 
 discards the delta. Only correct when the watermark moves on every write (a `upv` delta index), and
 worth it only for routes where re-persisting an identical payload costs real IndexedDB writes.
 
-## Watermark: `upv`, not `upd`
+## The watermark is a pair: `"<upv>.<upd>"`
 
-A table with a `db.TypeDelta` index watermarks its sync on `upv` (`updated_version`), the record's
-write sequence number, and the client sends it back as the `upv` query parameter. `upd` remains the
-human-facing timestamp and is still the fallback watermark for routes whose table has not moved to a
-delta index yet — see `getRecordUpdateValue` in `delta-cache.fetch.ts`.
+Every sync sends **both** watermarks of a response key in one query param, `upv` first:
 
-Why a sequence and not a timestamp: several writes can land in the same second, so a client that
-syncs mid-second gets a watermark that hides records it never received. The ORM assigns `upv` from a
-per-partition counter, so it is strictly increasing and never collides. That makes the server's
-`>= watermark + 1` bound exact — the boundary rows are not re-sent on every poll, which is what a
-timestamp watermark had to do to stay correct.
+```
+GET products?company-id=1&up=21.394157968
+GET warehouse-product-stock?warehouse-id=1&ProductStock=5.394161574&up=5.394161574
+```
+
+`upv` (`updated_version`) is the record's write sequence number, `upd` its updated timestamp. The
+param is named after the response key; a route whose response is a bare array has no key of its own
+and sends `up`. A multi-key route also sends `up` last, carrying the lowest pair of all its keys, for
+a handler that takes a single watermark.
+
+The client never decides which of the two bounds the query — the handler does, by reading
+`req.GetUpVersion()` or `req.GetUpdated()` (both accept a response key: `req.GetUpVersion("ProductStock")`).
+A missing param, or a zero half, is a first sync.
+
+Why a sequence and not a timestamp, wherever the table supports it: several writes can land in the
+same second, so a client that syncs mid-second gets a watermark that hides records it never received.
+The ORM assigns `upv` from a per-partition counter, so it is strictly increasing and never collides.
+That makes the server's `>= watermark + 1` bound exact — the boundary rows are not re-sent on every
+poll, which is what a timestamp watermark had to do to stay correct. A table with no `db.TypeDelta`
+index has no `upv`, and its handler reads the timestamp half.
+
+### Why both, instead of the right one
+
+The client used to pick: it inferred the field from whether the records carried `upv` and persisted
+that guess on the route row. A route that guessed wrong stayed wrong — it sent a watermark its
+handler does not read, was answered with the whole table, merged it happily, and reported nothing.
+The only symptom was a full payload on every sync, forever. Sending both costs ~15 bytes per request
+and deletes the entire failure mode: there is nothing left to infer.
 
 ### Known limitation: concurrent writers
 

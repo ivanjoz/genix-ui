@@ -1,7 +1,7 @@
 <script lang="ts" generics="T">
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { createTableVirtualizer } from './vtable-virtual.svelte';
   import type {
@@ -60,6 +60,14 @@
     cellInputType?: 'number';
     // Collapses the header to its content height with no horizontal padding.
     disableHeaderPadding?: boolean;
+    // Renders every row and drops the virtualizer: a plain <table> that the container
+    // scrolls natively. For short, always-small datasets (a cart, a form's detail lines)
+    // where measured-height bookkeeping buys nothing. Desktop view only.
+    disableVirtualizer?: boolean;
+    // Row action revealed on hover: rendered absolutely over the right end of the row,
+    // inside the last cell. Visibility is pure CSS (`.vtable-row:hover`), so no
+    // mouseenter/mouseleave handler and no per-row state.
+    onRowHover?: Snippet<[T, number]>;
   }
 
   let {
@@ -84,6 +92,8 @@
     getRowObject,
     cellInputType,
     disableHeaderPadding = false,
+    disableVirtualizer = false,
+    onRowHover,
   }: VTableProps<T> = $props();
 
   // Shared header look with TableGrid: bold 15px, centered unless the column declares an
@@ -310,7 +320,7 @@
 
   // Bind the virtualizer to the scroll container once it's mounted (desktop view).
   $effect(() => {
-    if (isMobileView) { return; }
+    if (isMobileView || disableVirtualizer) { return; }
     if (!containerRef) { return; }
     const ok = virtualizer.attach();
     if (!ok) { return; }
@@ -322,13 +332,22 @@
   // a different record.
   $effect(() => {
     const nextCount = filteredData.length;
+    if (disableVirtualizer) { return; }
     untrack(() => virtualizer.setCount(nextCount));
   });
 
+  // Svelte action on each <tr>. With the virtualizer off there is no window to
+  // measure, so the row is not observed at all.
+  function observeRow(element: HTMLElement, rowIndex: number) {
+    if (disableVirtualizer) { return; }
+    return virtualizer.observeRow(element, rowIndex);
+  }
+
   // Indices of rows inside the current visible window (with overscan). Driven by
   // the virtualizer's reactive range; scrolling updates this without bumping any
-  // global table version.
+  // global table version. With the virtualizer off, every row is rendered.
   const visibleRowIndices = $derived.by(() => {
+    if (disableVirtualizer) { return filteredData.map((_, i) => i); }
     const { start, end } = virtualizer.range;
     const indices: number[] = [];
     for (let i = start; i < end; i++) { indices.push(i); }
@@ -488,6 +507,7 @@
 <div bind:this={containerRef}
   data-id={shouldRegisterTable ? `Table:${componentID}` : undefined}
   class="vtable-container {css}" class:_14={isMobileView}
+  class:_selectable={!!isSelected}
   style="max-height: {isMobileView ? effectiveMobileHeight : maxHeight}; overflow: {isMobileView ? 'hidden' : 'auto'};"
 >
   {#if isMobileView}
@@ -567,15 +587,14 @@
           </td>
         </tr>
       {:else}
-        {@const range = virtualizer.range}
-        {@const topSpacerHeight = Math.max(2, range.offsetAtStart)}
-        {@const bottomSpacerHeight = Math.max(2, virtualizer.totalSize - range.offsetAtEnd)}
-
-        <!-- Top spacer pushes the first rendered row to its real Y offset and
-             preserves the 2px breathing room previously held by .vtable-edge-spacer. -->
-        <tr class="vtable-virtual-spacer" aria-hidden="true" style="height: {topSpacerHeight}px;">
-          <td colspan={processedColumns.flatColumns.length}></td>
-        </tr>
+        {#if !disableVirtualizer}
+          <!-- Top spacer pushes the first rendered row to its real Y offset and
+               preserves the 2px breathing room previously held by .vtable-edge-spacer. -->
+          <tr class="vtable-virtual-spacer" aria-hidden="true"
+            style="height: {Math.max(2, virtualizer.range.offsetAtStart)}px;">
+            <td colspan={processedColumns.flatColumns.length}></td>
+          </tr>
+        {/if}
 
         {#each visibleRowIndices as rowIndex (`${rowIndex}-${rowVersions.get(rowIndex) || 0}`)}
           {@const record = filteredData[rowIndex]}
@@ -585,7 +604,7 @@
             {@const selected = resolvedRecord ? isRowSelected(resolvedRecord, rowIndex) : false}
 
           <tr class="vtable-row"
-            use:virtualizer.observeRow={rowIndex}
+            use:observeRow={rowIndex}
             data-id={onRowClick ? `Row:${componentID}:${buildRowID(rowIndex)}` : undefined}
             data-selected={selected ? "true" : undefined}
             class:vtable-row-even={rowIndex % 2 === 0}
@@ -607,9 +626,11 @@
                 {@const cssFinal = [css, !/px-|pr-|pl-/.test(css) && "px-6", column.align === 'right' && 'text-right'].filter(Boolean).join(" ")}
                 {@const cellInteractionsDisabled = column.disableCellInteractions?.(resolvedRecord, rowIndex)}
                 {@const isAgentClickCell = !!column.onCellClick && !cellInteractionsDisabled && !column.onCellEdit && !column.onCellSelect}
+                {@const isRowHoverCell = !!onRowHover && j === processedColumns.flatColumns.length - 1}
 
                 <td class="{cssFinal}"
                 	class:clickable-cell={!!column.onCellClick && !cellInteractionsDisabled}
+                  class:vtable-row-hover-anchor={isRowHoverCell}
                   data-id={isAgentClickCell ? `${componentID}:${buildCellID(rowIndex, j)}` : undefined}
                   data-cell-type={isAgentClickCell ? 'CellClick' : undefined}
                   style={column.cellStyle ? Object.entries(column.cellStyle).map(([k, v]) => `${k}: ${v}`).join('; ') : ''}
@@ -700,6 +721,11 @@
                       {/if}
                     </div>
                   {/if}
+                  {#if isRowHoverCell && onRowHover}
+                    <div class="vtable-row-hover-action">
+                      {@render onRowHover(resolvedRecord, rowIndex)}
+                    </div>
+                  {/if}
                 </td>
               {/each}
             {/if}
@@ -707,11 +733,14 @@
           {/if}
         {/each}
 
-        <!-- Bottom spacer extends the table to totalSize so scrollHeight reflects
-             the entire dataset, not just the rendered window. -->
-        <tr class="vtable-virtual-spacer" aria-hidden="true" style="height: {bottomSpacerHeight}px;">
-          <td colspan={processedColumns.flatColumns.length}></td>
-        </tr>
+        {#if !disableVirtualizer}
+          <!-- Bottom spacer extends the table to totalSize so scrollHeight reflects
+               the entire dataset, not just the rendered window. -->
+          <tr class="vtable-virtual-spacer" aria-hidden="true"
+            style="height: {Math.max(2, virtualizer.totalSize - virtualizer.range.offsetAtEnd)}px;">
+            <td colspan={processedColumns.flatColumns.length}></td>
+          </tr>
+        {/if}
       {/if}
     </tbody>
   </table>
@@ -739,7 +768,13 @@
     border: 1px solid #dee2e6;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    /* No inner top inset: prevents body rows from peeking above sticky header while scrolling */
+  }
+
+  /* Side inset so the 2px outline of a selected row is not clipped by the scroll container.
+     Only a table that declares `isSelected` can paint that outline, so a plain table keeps
+     its rows flush with the border. No top inset either way: it would let body rows peek
+     above the sticky header while scrolling. */
+  .vtable-container._selectable:not(._14) {
     padding: 0 2px;
   }
 
@@ -867,6 +902,30 @@
 
   .vtable-cell:last-child {
     border-right: none;
+  }
+
+  /* Hover row action: the last cell is the positioning context, so the action sits at the
+     right end of the row and overlaps that cell's content instead of widening the table. */
+  .vtable-row-hover-anchor {
+    position: relative;
+  }
+
+  /* Anchored flush to the row's right edge: any inset is the consumer's to set on what
+     it renders in the snippet (a margin class), so the component holds no spacing. */
+  .vtable-row-hover-action {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .vtable-row:hover .vtable-row-hover-action {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   ._edit-icon {

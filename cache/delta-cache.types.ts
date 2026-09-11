@@ -2,11 +2,7 @@ export type CacheRecordID = string | number
 
 export interface ILastSync {
   fetchTime: number
-  updatedStatus: { [key: string]: number }
-  // Which field each response key watermarks on, detected from the records of the first fetch and
-  // reused from then on. `upv` (the write sequence of a db.TypeDelta table) when the records carry
-  // it, `upd` (the updated timestamp) otherwise.
-  watermarkFields?: Record<string, WatermarkField>
+  updatedStatus: { [key: string]: IWatermarkPair }
   fetchedRecordsCount: number
   fetchedBytes: number
   forceNetwork?: boolean
@@ -40,9 +36,21 @@ export interface ICacheRouteRow extends ILastSync {
   isSingle?: boolean
 }
 
-// A route watermarks on the write sequence when its table has a delta index, and on the timestamp
-// otherwise. Both names double as the query param the value is sent back as.
-export type WatermarkField = 'upv' | 'upd'
+// Both watermarks a response key can be synced on: `upv` is the write sequence of a db.TypeDelta
+// table, `upd` the updated timestamp. The client keeps both and sends both — which one bounds the
+// query is the backend's decision, not something the client infers from the records it received.
+export interface IWatermarkPair {
+  upv: number
+  upd: number
+}
+
+// The two numbers travel as one query param per response key, `"<upv>.<upd>"`. A single-array route
+// has no response key of its own, so it sends them under `up`.
+export const watermarkParamOfDefaultKey = 'up'
+
+export const formatWatermarkPair = (watermark: IWatermarkPair): string => {
+  return `${watermark.upv || 0}.${watermark.upd || 0}`
+}
 
 export interface ICacheRecordRowMulti {
   _r: number

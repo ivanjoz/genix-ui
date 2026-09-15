@@ -11,6 +11,31 @@ export type ChatRole = 'user' | 'assistant';
 /** Estado de una acción que el agente ejecutó mientras respondía. */
 export type ChatActivityState = 'running' | 'ok' | 'error';
 
+/**
+ * Lo que hace falta para **pintar** un adjunto. Todo menos el nombre es
+ * opcional porque también sirve para los que aún no se han mandado: un archivo
+ * recién soltado en el composer no tiene URL hasta que el host lo sube.
+ */
+export interface ChatAttachmentView {
+  name: string;
+  /** Tamaño en bytes. Omitido u `0` no pinta el peso. */
+  bytes?: number;
+  /** Decide cómo se pinta: miniatura (`image`) o chip con icono. */
+  kind?: 'image' | 'pdf' | 'file';
+  /** Dónde se abre al pulsarlo, y de dónde sale la miniatura. */
+  url?: string;
+}
+
+/**
+ * Un adjunto que ya existe en el hilo: el host lo guardó y sabe todo de él.
+ * Esto es lo que viaja en un `ChatMessageItem`.
+ */
+export interface ChatAttachmentRef extends ChatAttachmentView {
+  bytes: number;
+  kind: 'image' | 'pdf' | 'file';
+  url: string;
+}
+
 export interface ChatMessageItem {
   kind: 'message';
   id: string;
@@ -18,6 +43,8 @@ export interface ChatMessageItem {
   text: string;
   /** El texto todavía está llegando: se renderiza plano, sin parsear Markdown. */
   streaming?: boolean;
+  /** Archivos que se mandaron con el mensaje. */
+  attachments?: ChatAttachmentRef[];
 }
 
 export interface ChatActivityItem {

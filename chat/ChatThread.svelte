@@ -53,6 +53,7 @@
       <ChatMessage
         role={item.role}
         text={item.text}
+        attachments={item.attachments}
         streaming={item.streaming}
         content={messageContent}
       />

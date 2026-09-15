@@ -1,10 +1,13 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { ChatRole } from './chat.types';
+  import ChatAttachments from './ChatAttachments.svelte';
+  import type { ChatAttachmentRef, ChatRole } from './chat.types';
 
   interface Props {
     role: ChatRole;
     text: string;
+    /** Archivos que se mandaron con el mensaje, encima del texto. */
+    attachments?: ChatAttachmentRef[];
     /** Mientras llega texto se muestra plano: re-parsear en cada delta es
         cuadrático y además parpadea con la sintaxis a medio cerrar. */
     streaming?: boolean;
@@ -17,14 +20,26 @@
     css?: string;
   }
 
-  let { role, text, streaming = false, content, css = '' }: Props = $props();
+  let {
+    role,
+    text,
+    attachments = [],
+    streaming = false,
+    content,
+    css = '',
+  }: Props = $props();
   const rich = $derived(Boolean(content) && !streaming && role === 'assistant');
 </script>
 
 <div class={'chat-msg chat-msg-' + role + ' ' + css} data-role={role}>
+  {#if attachments.length}
+    <div class="chat-msg-files" class:chat-msg-files-alone={!text}>
+      <ChatAttachments files={attachments} />
+    </div>
+  {/if}
   {#if rich}
     {@render content?.(text)}
-  {:else}
+  {:else if text}
     <div class="chat-plain">{text}</div>
   {/if}
   {#if streaming}<span class="chat-caret"></span>{/if}
@@ -48,6 +63,15 @@
   .chat-msg-assistant {
     background: var(--white, #ffffff);
     border: 1px solid #e2e5ef;
+  }
+
+  .chat-msg-files {
+    margin-bottom: 7px;
+  }
+
+  /* Un mensaje que es solo el archivo: sin texto debajo no hay nada que separar. */
+  .chat-msg-files-alone {
+    margin-bottom: 0;
   }
 
   .chat-plain {

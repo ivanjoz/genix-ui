@@ -26,6 +26,20 @@ Anything whose primary purpose is rendering quantitative graphics.
 - `ChartCanvas.svelte` — canvas-rendered chart primitive.
 - `CellHorizontalBars.svelte` — inline bar visualization for table cells.
 
+### `chat/` — conversación con un agente (auto-contenido)
+Hilo de mensajes, chips de actividad y caja de redacción. Sub-paquete con sus
+propios tipos (`chat.types.ts`), **sin dependencias externas** y agnóstico del
+transporte: el host traduce sus eventos (SSE, WebSocket, lo que sea) a
+`ChatItem[]`, pasa `onSend`/`onStop`, y si quiere Markdown o resaltado aporta el
+snippet `messageContent` — el parser es suyo, no del paquete. Trátalo como una
+unidad, igual que `vTable/`.
+- `ChatThread.svelte` — lista del hilo, con auto-scroll que respeta al usuario.
+- `ChatMessage.svelte` — burbuja por rol; texto plano salvo que el host pase
+  el snippet de render enriquecido.
+- `ToolActivity.svelte` — chip de acción ejecutada (`running` / `ok` / `error`).
+- `ChatComposer.svelte` — textarea auto-expansible + enviar/detener.
+- `chat.types.ts` — `ChatItem`, `ChatMessageItem`, `ChatActivityItem`.
+
 ### `files/` — file selection, upload, image rendering
 Components that handle binary assets (upload, preview, hash-based loading).
 - `FileUploadSelector.svelte` — file selector with upload trigger.

@@ -91,8 +91,44 @@
     disableHeaderPadding = false,
   }: TableGridProps<TRecord> = $props();
 
-  // Keep a stable filtered list so hidden columns never affect row rendering logic.
-  const visibleColumns = $derived(columns.filter((columnDefinition) => !columnDefinition.hidden));
+  // Two header levels, the same `subcols` contract VTable uses: a column carrying subcolumns becomes
+  // a group label and its subcolumns become the real grid tracks. Placement is explicit — the
+  // group sits on row 1 spanning its tracks, its subcolumns on row 2 — because auto-placement
+  // leaves holes as soon as one column has no subcolumns and has to span both rows.
+  const processedColumns = $derived.by(() => {
+    const headerGroups: {
+      column: ITableColumn<TRecord>, startTrack: number, trackSpan: number, hasOwnSubcols: boolean,
+    }[] = [];
+    const subHeaders: { column: ITableColumn<TRecord>, startTrack: number }[] = [];
+    const flatColumns: ITableColumn<TRecord>[] = [];
+    let nextTrack = 1;
+
+    for (const columnDefinition of columns) {
+      if (columnDefinition.hidden) { continue; }
+      const visibleSubcols = (columnDefinition.subcols || []).filter((subcol) => !subcol.hidden);
+
+      headerGroups.push({
+        column: columnDefinition,
+        startTrack: nextTrack,
+        trackSpan: visibleSubcols.length || 1,
+        hasOwnSubcols: visibleSubcols.length > 0,
+      });
+
+      for (const subcol of visibleSubcols) {
+        subHeaders.push({ column: subcol, startTrack: nextTrack });
+        flatColumns.push(subcol);
+        nextTrack++;
+      }
+      if (visibleSubcols.length === 0) {
+        flatColumns.push(columnDefinition);
+        nextTrack++;
+      }
+    }
+
+    return { headerGroups, subHeaders, flatColumns, hasSubcols: subHeaders.length > 0 };
+  });
+  // Keep a stable flattened list so hidden columns never affect row rendering logic.
+  const visibleColumns = $derived(processedColumns.flatColumns);
   // Reuse a `VTable`-style mobile contract so existing column definitions can opt into cards incrementally.
   const mobileColumns = $derived.by(() => {
     return visibleColumns
@@ -359,8 +395,10 @@
 
   // Register when there is any row interaction OR any column with cell editing
   // / selection. Without one of those there's nothing for the agent to drive.
+  // Read the flattened columns: under a two-level header the editable cells are the subcolumns,
+  // and the group that carries them has no handlers of its own.
   const hasInteractiveCell = $derived(
-    columns.some((column) => column.onCellEdit || column.onCellSelect),
+    visibleColumns.some((column) => column.onCellEdit || column.onCellSelect),
   );
   // Mobile branch hands the agent over to MobileCardsVirtualList (CardList type),
   // so skip registering a Table here to avoid a ghost handle with no rows.
@@ -404,6 +442,41 @@
   });
 </script>
 
+<!-- One header for both branches: the plain scroll and the virtualized one render the same row,
+     and a second level appears only when some column declares `subcols`. -->
+{#snippet tableHeaderRow()}
+  <div class="table-grid-header table-grid-header-sticky {headerCss}" role="row">
+    {#each processedColumns.headerGroups as headerGroup, groupIndex (headerGroup.column.id || groupIndex)}
+      {@const headerBaseCss = getHeaderBaseClassName(headerGroup.column)}
+      <div class="table-grid-header-cell {headerBaseCss} {headerGroup.column.headerCss || ''}"
+        class:_no-header-padding={disableHeaderPadding}
+        style="grid-column: {headerGroup.startTrack} / span {headerGroup.trackSpan}; grid-row: {processedColumns.hasSubcols && !headerGroup.hasOwnSubcols ? '1 / span 2' : '1'};"
+        role="columnheader"
+      >
+        {#if headerRenderer}
+          {@render headerRenderer(headerGroup.column, groupIndex)}
+        {:else}
+          <T text={getHeaderContent(headerGroup.column)}/>
+        {/if}
+      </div>
+    {/each}
+    {#each processedColumns.subHeaders as subHeader, subHeaderIndex (subHeader.column.id || `sub_${subHeaderIndex}`)}
+      {@const headerBaseCss = getHeaderBaseClassName(subHeader.column)}
+      <div class="table-grid-header-cell {headerBaseCss} {subHeader.column.headerCss || ''}"
+        class:_no-header-padding={disableHeaderPadding}
+        style="grid-column: {subHeader.startTrack}; grid-row: 2;"
+        role="columnheader"
+      >
+        {#if headerRenderer}
+          {@render headerRenderer(subHeader.column, subHeaderIndex)}
+        {:else}
+          <T text={getHeaderContent(subHeader.column)}/>
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
 <div data-id={shouldRegisterTable ? `Table:${componentID}` : undefined}
   class="table-grid-shell {css}"
   class:table-grid-shell-mobile={isMobileView}
@@ -438,21 +511,7 @@
     </div>
   {:else if !useVirtualScroll}
     <div class="table-grid-plain-scroll">
-      <div class="table-grid-header table-grid-header-sticky {headerCss}" role="row">
-        {#each visibleColumns as columnDefinition, columnIndex (columnDefinition.id || columnIndex)}
-          {@const headerBaseCss = getHeaderBaseClassName(columnDefinition)}
-          <div class="table-grid-header-cell {headerBaseCss} {columnDefinition.headerCss || ''}"
-            class:_no-header-padding={disableHeaderPadding}
-            role="columnheader"
-          >
-            {#if headerRenderer}
-              {@render headerRenderer(columnDefinition, columnIndex)}
-            {:else}
-              <T text={getHeaderContent(columnDefinition)}/>
-            {/if}
-          </div>
-        {/each}
-      </div>
+      {@render tableHeaderRow()}
 
       <div data-id={onRowClick ? `TableBody:${componentID}` : undefined} style="display: contents;">
       {#if data.length === 0}
@@ -569,21 +628,7 @@
     {@const topSpacerHeight = range.offsetAtStart}
     {@const bottomSpacerHeight = Math.max(0, virtualizer.totalSize - range.offsetAtEnd)}
     <div class="table-grid-scroll-host use-virtual-scroll">
-      <div class="table-grid-header table-grid-header-sticky {headerCss}" role="row">
-        {#each visibleColumns as columnDefinition, columnIndex (columnDefinition.id || columnIndex)}
-          {@const headerBaseCss = getHeaderBaseClassName(columnDefinition)}
-          <div class="table-grid-header-cell {headerBaseCss} {columnDefinition.headerCss || ''}"
-            class:_no-header-padding={disableHeaderPadding}
-            role="columnheader"
-          >
-            {#if headerRenderer}
-              {@render headerRenderer(columnDefinition, columnIndex)}
-            {:else}
-              <T text={getHeaderContent(columnDefinition)}/>
-            {/if}
-          </div>
-        {/each}
-      </div>
+      {@render tableHeaderRow()}
 
       <div class="table-grid-body" data-id={onRowClick ? `TableBody:${componentID}` : undefined}>
         <div class="table-grid-virtual-spacer" aria-hidden="true" style="height: {topSpacerHeight}px;"></div>

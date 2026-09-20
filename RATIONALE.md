@@ -2,6 +2,45 @@
 
 Design decisions for the shared UI package, newest first.
 
+## TableGrid reads `subcols`, so a group label can sit over its columns
+
+**Context** — `VTable` has had two-level headers for a while (`subcols` + `colspan`/`rowspan` on
+`<th>`), and `TableGrid` has had `useRowRenderer` for full-width section rows. A calendar needs
+both at once: a weekday label over its Día / Compra / Venta columns, and a month separator row.
+Neither component could do it alone.
+
+**Decision** — `TableGrid` now understands the same `subcols` contract. A `processedColumns`
+derived flattens the subcolumns into the grid tracks — which is what every body row, the mobile
+cards and `grid-template-columns` already consumed as `visibleColumns` — and keeps two header
+lists beside it. Both branches (plain scroll and virtualized) render one shared `tableHeaderRow`
+snippet instead of a copy each.
+
+**Rationale** — Placement is explicit (`grid-column: <start> / span <n>` on the group,
+`grid-row: 2` on its subcolumns) rather than left to auto-placement, because a table that mixes
+grouped and plain columns needs the plain ones to span both header rows, and auto-placement leaves
+a hole in row 2 the moment it has to do that. `hasInteractiveCell` moved to the flattened list in
+the same pass: under a two-level header the editable cells are the subcolumns, so reading the
+top-level columns left the agent without a Table handle.
+
+## Every VTable cell is a positioning context, not all but the last
+
+**Context** — `.vtable-row > td:not(:last-of-type)` carried both the column separator and
+`position: relative`. The exclusion only ever made sense for the border, but it took the
+positioning with it, so the last column was the one cell in the table that was not a containing
+block. `CellInput` renders its editor absolutely at `top/left: 0, width/height: 100%`, so in the
+last column that editor resolved against the table and covered it whole: the cell's own value was
+painted across the grid and the click target swallowed every other cell. It only showed up now
+because the exchange rate maintainer is the first table whose last column is editable.
+
+**Decision** — Split the rule: `position`, `display` and `vertical-align` apply to every
+`td`, and `:not(:last-of-type)` keeps only `border-right`.
+
+**Rationale** — It is what `TableGrid` and `TableTree` already do — both set `position: relative`
+on every cell and drop only the border on the last one — so this removes a divergence rather than
+inventing a rule. The last cell gaining a containing block also fixes `_edit-icon`, which was
+escaping the same way, and costs nothing for `.vtable-row-hover-anchor`, which was already setting
+`position: relative` on that very cell.
+
 ## `disableVirtualizer` turns off the desktop window only
 
 **Context** — The prop has to neutralize four things: the attach effect, the `setCount`

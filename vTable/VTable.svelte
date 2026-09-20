@@ -891,13 +891,19 @@
     background: transparent;
   }
 
-  .vtable-row > td:not(:last-of-type) {
+  /* Every cell is a positioning context, TableGrid and TableTree included: CellInput's editor is
+     absolute, so a cell that is not one lets the editor anchor to the table and cover it whole.
+     Only the separator is dropped on the last column. */
+  .vtable-row > td {
     display: table-cell;
     text-overflow: ellipsis;
    /*  white-space: nowrap; */
     vertical-align: middle;
-    border-right: 1px solid #f1f3f5;
     position: relative;
+  }
+
+  .vtable-row > td:not(:last-of-type) {
+    border-right: 1px solid #f1f3f5;
   }
 
   .vtable-cell:last-child {

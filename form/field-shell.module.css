@@ -429,3 +429,59 @@ textarea.inp {
 .field:global(.has-suffix) .inp {
   padding-right: 34px;
 }
+
+/* An *interactive* prefix — a selector, not a glyph — joins the flex row instead of
+   floating over it. The default adornment is absolute and pointer-events:none, which is
+   right for an icon and wrong for a control: it needs its clicks back, and it needs real
+   width, because its label changes with the choice ("DNI" and "Pasaporte" do not reserve
+   the same space). Laying it out in the row is what makes the value start after it at any
+   width, with no measuring and no padding token to keep in sync.
+
+   It fills the box's full height and carries a divider, so it reads as a segment of the
+   field rather than a chip floating inside it. `overflow: hidden` is what clips its tint
+   to the box's rounded corner — without it the segment paints a square over the arc.
+
+   After .has-prefix on purpose: same specificity, so source order is what drops the 30px
+   of padding that rule reserves for the floating variant. */
+.field:global(.has-interactive-prefix) .prefix {
+  /* relative, not static: the divider below is positioned against it. `left` has to be
+     zeroed with it — the base .prefix rule sets `left: 9px` for the absolute variant, which
+     a relative box would apply as a 9px shove instead of a position. */
+  position: relative;
+  left: 0;
+  pointer-events: auto;
+  align-self: stretch;
+  /* No `overflow: hidden` here, deliberately. Clipping the segment is the obvious way to
+     round its fill, but it also rasterizes the caret against this box — and the caret is
+     3D-transformed and mask-drawn, so it comes out with its tip shaved off. The fill is
+     rounded on the control itself instead, which needs no clipping container at all. */
+  /* A labelled field's row starts at the 13px padding while the box starts at its 7px
+     inset, so the segment climbs the 6px difference to meet the box's top edge. */
+  margin-top: -6px;
+}
+
+/* The divider belongs to the control, not to the shell: it is two ticks in the caret's own
+   column, so it is drawn by the consumer that knows where its caret is. See `.caret-slot`
+   in Input.svelte. */
+
+/* No label, no overhang: `.no-label .box` is inset 0 and the row already spans it, so the
+   climb above would push the segment out through the top of the field. */
+.field:global(.no-label):global(.has-interactive-prefix) .prefix {
+  margin-top: 0;
+}
+
+/* The hairline (and the focus ring it shares a shadow with) has to outrank the segment.
+   `.row` paints after `.box` — later sibling, both z-index auto — so the segment's hover
+   fill lands on top of the border and erases the arc down the field's left edge. `.box`
+   creates no stacking context, so lifting just this layer puts the line back on top
+   without raising the box's own fill over the value. Scoped to the modifier: no field
+   without an interactive prefix has anything painting over its border to begin with. */
+.field:global(.has-interactive-prefix) .box::before {
+  z-index: 1;
+}
+
+/* Much tighter than the 30px .has-prefix reserves for a floating glyph: the segment already
+   occupies its own width, so this is only the gap between it and the value. */
+.field:global(.has-interactive-prefix) .inp {
+  padding-left: 3px;
+}

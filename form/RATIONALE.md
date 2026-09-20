@@ -1,3 +1,68 @@
+## A left option's `label` shortens the collapsed selector only
+
+**Context** — `ILeftOption` gained an optional `label` so a long catalog name stops eating the
+field it qualifies: at the till, "Carné de extranjería" pushed "Nº Documento" out of the input.
+The option text appears in two places — the collapsed button and the open list.
+
+**Decision** — The button renders `label || name`; the open list renders `name (label)`. The
+agent handle's `getOptions` / `getValue` keep returning the name alone.
+
+**Rationale** — An abbreviation is readable *once you know what it stands for*, so the list has to
+teach it: the row pairs the two, and the chip is then the short form of something the user has
+already read. The agent is left on names because "F.ID" is not something a model should have to
+decode. The cost is that the chip and the row for the same option read differently, which is the
+normal behaviour of a collapsed control.
+
+## `Input`'s left selector takes its derive rule as a prop
+
+**Context** — The till needs a document-type picker inside the *Documento / RUC* field, and the
+type it shows has to follow the number being typed: eleven digits is a RUC, eight a DNI. That
+rule is Peruvian tax law, and this is a generic component library.
+
+**Decision** — `leftOptions` renders the selector, `saveLeft` names the key it writes, and
+`deriveLeftOption` is a **callback the caller supplies**. `Input` calls it on every keystroke and
+stops calling it for good once the user picks an option themselves.
+
+**Rationale** — Building the rule in would put SUNAT in a component library that also ships to
+projects with no Peru in them. Passing it keeps genix-ui ignorant and makes the rule unit-testable
+where it belongs, next to the catalog it names. The stickiness is the part worth stating: without
+it, a cashier who picks *Pasaporte* would watch it flip back to DNI on the next keystroke, which
+is how a picker becomes a thing users fight.
+
+## An interactive prefix joins the flex row instead of floating over it
+
+**Context** — `.prefix` is `position: absolute; pointer-events: none`, and `.has-prefix .inp`
+reserves a fixed 30px for it. Both are right for a decorative glyph and wrong for a control: a
+selector needs its clicks, and its width changes with the choice — "DNI" and "Pasaporte" do not
+reserve the same space.
+
+**Decision** — A `has-interactive-prefix` modifier makes `.prefix` `position: static` with
+`pointer-events: auto`, and drops the reserved padding to 4px. The prefix then takes real width in
+the row that `FieldShell` already lays out as flex.
+
+**Rationale** — The obvious alternative was to measure the prefix and publish its width as a
+custom property for `.inp` to pad by. That is a `ResizeObserver`, a token and a re-render to keep
+two numbers agreeing — to reproduce what flex does for free. The cost is one more global modifier
+class in `field-shell.module.css`, which has to sit after `.has-prefix` to win on source order.
+
+The segment fills the box's full height and stays **transparent until hover**: a permanent fill
+reads as a separate chip glued to the field. Reaching the box's top edge needs a `-6px` climb on a
+labelled field (the row starts at the 13px padding, the box at its 7px inset) and none at all on
+`.no-label`, where `.box` is inset 0 — hence the two rules.
+
+## The left selector's dropdown reuses `angle.svg`, and drops its border to do it
+
+**Context** — The dropdown needed the same pointer every other popover in the app has, the one
+`ButtonLayer` draws under the header icons.
+
+**Decision** — Same asset and the same clipped 24×18 window as `ButtonLayer`, and the panel trades
+its 1px `border` for that component's hairline ring in the `box-shadow`.
+
+**Rationale** — A second CSS triangle would have drifted from the shared one the first time either
+changed. The border had to go with it, not for taste: `angle.svg` carries its own 34%-opacity
+outline and paints white inside, so a solid border draws a line straight across the triangle's base
+and detaches it from the panel. The ring sits under the triangle instead of through it.
+
 ## `size="small"` is a `FieldShell` flag, not a `FilterInput` override
 
 **Context** — `FilterInput` needed a 32px variant. Its height is not its own: the row is

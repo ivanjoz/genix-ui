@@ -2,7 +2,7 @@
 	interface Props {
 		children?: import('svelte').Snippet;
 		target?: HTMLElement;
-		zIndex?: number
+		zIndex?: number | string
 	}
 	
 	let { children, target = undefined, zIndex }: Props = $props();

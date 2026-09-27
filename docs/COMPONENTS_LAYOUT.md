@@ -94,6 +94,9 @@ that don't justify their own folder.
 - `Info.svelte` — note/hint box: light background with a colored left rule,
   `yellow` or `green`, taking a translatable `text` or a children snippet.
 - `KeyValueStrip.svelte` — multi-cell label/value strip layout.
+- `Label.svelte` — non-interactive colored pill (`blue`, `green`, `red`,
+  `orange`, `yellow`, `purple`, `gray`) with a translatable `text`, for tagging
+  a value inline (a currency, a status).
 - `LoadingBar.svelte` — animated indeterminate loading bar.
 - `RecordByIDText.svelte` — resolves a record by ID through the cache and
   renders its display text.

@@ -328,7 +328,8 @@
 {/snippet}
 
 {#if isOpen}
-	<Portal>
+	<!-- The Portal wrapper is the stacking context, so the modal's layer is set on it -->
+	<Portal zIndex="var(--modal-zindex)">
 		<div data-id="Modal:{componentID}"
 			class="_1 fixed top-0 left-0 flex items-center justify-center"
 			bind:this={modalDiv}
@@ -369,7 +370,7 @@
 						</div>
 					</div>
 				{/if}
-				<div class="w-full grow py-6 px-2 relative md:px-10 {bodyCss}">
+				<div class="w-full grow py-12 px-2 relative md:px-14 {bodyCss}">
 					{#if useFileImportWithErrors}
 						<div
 							class="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-8 mb-8"

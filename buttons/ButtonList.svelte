@@ -115,7 +115,8 @@
     padding: 4px 0;
   }
 
-  .bl-item {
+  /* The items are child <Button> components, so their class must escape Svelte's scoping. */
+  .bl-content :global(.bl-item) {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -129,11 +130,7 @@
     white-space: nowrap;
   }
 
-  .bl-item:hover {
+  .bl-content :global(.bl-item:hover) {
     background-color: #f3f0ff;
-  }
-
-  .bl-item i {
-    color: #6b7280;
   }
 </style>

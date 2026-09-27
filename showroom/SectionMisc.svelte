@@ -4,6 +4,7 @@
   import FileUploadSelector from '../files/FileUploadSelector.svelte';
   import HighlightText from '../misc/HighlightText.svelte';
   import Info from '../misc/Info.svelte';
+  import Label from '../misc/Label.svelte';
   import LoadingBar from '../misc/LoadingBar.svelte';
   import Portal from '../misc/Portal.svelte';
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
@@ -63,6 +64,18 @@
       <T text="Register it here.|Regístrelo aqui." />
     </a>
   </Info>
+</ShowroomBlock>
+
+<ShowroomBlock name="Label" note="non-interactive colored pill · 7 colors">
+  <div class="flex flex-wrap gap-8">
+    <Label text="Soles" color="blue" />
+    <Label text="Dollars|Dólares" color="green" />
+    <Label text="Canceled|Anulado" color="red" />
+    <Label text="Pending|Pendiente" color="orange" />
+    <Label text="Draft|Borrador" color="yellow" />
+    <Label text="Internal|Interno" color="purple" />
+    <Label text="Archived|Archivado" color="gray" />
+  </div>
 </ShowroomBlock>
 
 <ShowroomBlock name="LoadingBar" note="indeterminate progress, with and without a label">

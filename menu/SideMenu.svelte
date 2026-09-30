@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { MenuGroup, MenuItem } from './types.js';
 
 	let {
@@ -15,6 +16,7 @@
 		mobileLogoSrc = '',
 		desktopBrandName = '',
 		mobileBrandName = '',
+		header,
 	}: {
 		model: MenuGroup[];
 		activePath: string;
@@ -27,6 +29,9 @@
 		mobileLogoSrc?: string;
 		desktopBrandName?: string;
 		mobileBrandName?: string;
+		/** Replaces the logo + brand block, desktop and mobile. Receives `isMobile`. On desktop, give
+		 *  `side-menu-expanded-only` to whatever must hide while the menu is collapsed. */
+		header?: Snippet<[boolean]>;
 	} = $props();
 
 	const filteredMenus = $derived.by(() => {
@@ -151,17 +156,21 @@
 				<div class="w-full h-full rounded-[8px]"></div>
 			</div>
 		{/if}
-		<div class="_1 flex items-center z-10">
-			{#if desktopLogoSrc}
-				<img class="w-42 h-42 shrink-0" src={desktopLogoSrc} alt={desktopBrandName}>
-			{/if}
-			{#if desktopBrandName}
-				<div class="_2 white ff-bold h2 -m-3 whitespace-nowrap">{desktopBrandName}</div>
-			{/if}
-			{#if useTopMinimalMenu}
-				<i class="icon-[fa--chevron-down] ml-4 text-gray-400 text-xs hover-indicator shrink-0"></i>
-			{/if}
-		</div>
+		{#if header}
+			<div class="w-full min-w-0 px-6 z-10">{@render header(false)}</div>
+		{:else}
+			<div class="_1 flex items-center z-10">
+				{#if desktopLogoSrc}
+					<img class="w-42 h-42 shrink-0" src={desktopLogoSrc} alt={desktopBrandName}>
+				{/if}
+				{#if desktopBrandName}
+					<div class="_2 white ff-bold h2 -m-3 whitespace-nowrap">{desktopBrandName}</div>
+				{/if}
+				{#if useTopMinimalMenu}
+					<i class="icon-[fa--chevron-down] ml-4 text-gray-400 text-xs hover-indicator shrink-0"></i>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<!-- Menu Items -->
@@ -255,13 +264,17 @@
 	<!-- Mobile Menu Panel -->
 	<aside class="mobile-menu-panel" bind:this={mobileMenuPanel}>
 		<!-- Mobile Header -->
-		<div class="mobile-header h-48 flex items-center px-6 justify-between">
-			<div class="mobile-header-logo">
-				{#if mobileLogoSrc}
-					<img src={mobileLogoSrc} alt={mobileBrandName} class="size-36" />
-				{/if}
-				<span class="logo-text">{mobileBrandName}</span>
-			</div>
+		<div class="mobile-header h-48 flex items-center gap-8 px-6 justify-between">
+			{#if header}
+				<div class="flex-1 min-w-0">{@render header(true)}</div>
+			{:else}
+				<div class="mobile-header-logo">
+					{#if mobileLogoSrc}
+						<img src={mobileLogoSrc} alt={mobileBrandName} class="size-36" />
+					{/if}
+					<span class="logo-text">{mobileBrandName}</span>
+				</div>
+			{/if}
 			<button
 				class="close-button size-32"
 				aria-label="Close menu"
@@ -330,6 +343,10 @@
 	}
 	.d-menu:hover ._2, .d-menu.useTopMinimalMenu ._2 {
 		display: block;
+	}
+	/* Hook for the caller's `header` snippet: hover state is CSS-only, the snippet cannot see it. */
+	.d-menu:not(:hover):not(.useTopMinimalMenu) :global(.side-menu-expanded-only) {
+		display: none;
 	}
 	.hover-indicator {
 		transition: transform 0.3s;

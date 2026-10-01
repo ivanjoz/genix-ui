@@ -4,10 +4,10 @@ import type { GetHandlerRuntime, HttpClient } from '../http/index.js';
 import type { CreateSecurityOptions, SecurityRuntime } from '../security/index.js';
 import type { FieldPersistence } from './field-persistence.js';
 
-// The runtime already knows the tenant and how to notify, so hosts configure only policy.
+// The runtime already knows the tenant, so hosts configure only policy.
 export type UiSecurityOptions = Omit<
   CreateSecurityOptions,
-  'notify' | 'getCompanyID' | 'storageNamespace'
+  'getCompanyID' | 'storageNamespace'
 > & { storageNamespace?: string };
 
 export type UiLanguage = 1 | 2;
@@ -60,13 +60,6 @@ export interface UiHttpRequest {
   route: string;
   refreshRoutes?: string[];
   onUploadProgress?: (progress: UiUploadProgress) => void;
-}
-
-export interface UiNotificationAdapter {
-  failure: (message: string) => void;
-  success: (message: string) => void;
-  warning?: (message: string) => void;
-  info?: (message: string) => void;
 }
 
 export interface UiImageAdapter {
@@ -124,7 +117,6 @@ export interface UiRuntime {
   translate: <Value>(value: Value, language?: UiLanguage) => Value;
   nextComponentId: () => number;
   makeCdnRoute: (...segments: string[]) => string;
-  notify: UiNotificationAdapter;
   images: UiImageStore;
   imageConverter: ImageConverter;
   fieldPersistence: FieldPersistence;
@@ -174,7 +166,6 @@ export interface CreateUiRuntimeOptions {
   storageNamespace?: string;
   nextComponentId?: UiRuntime['nextComponentId'];
   makeCdnRoute?: UiRuntime['makeCdnRoute'];
-  notify?: Partial<UiNotificationAdapter>;
   addProcess?: UiUploadAdapter['addProcess'];
   updateProcess?: UiUploadAdapter['updateProcess'];
 }

@@ -61,7 +61,7 @@ three pieces they render unstyled:
 @plugin "@iconify/tailwind4" { prefix: "icon"; scale: 1; }
 
 /* Tailwind must scan the package source for class names. */
-@source "../packages/genix-ui/{buttons,cards,charts,editor,files,form,layers,menu,misc,navigation,runtime,vTable}/**/*.svelte";
+@source "../packages/genix-ui/{buttons,cards,charts,editor,files,form,layers,menu,misc,navigation,notify,runtime,vTable}/**/*.svelte";
 
 @theme {
   /* One Tailwind spacing unit is ONE PIXEL. `h-4` is 4px, not 1rem. */
@@ -86,7 +86,6 @@ Put every host parameter in a single module — this is the only configuration e
 // libs/ui-runtime.svelte.ts
 import { createUiRuntime } from '@genix/ui';
 import { Env } from '$core/env';
-import { Notify } from '$libs/helpers';
 import type { IUser } from '$core/types/common';
 
 const isPublicRoute = (route: string) => route === '/' || route === '/welcome';
@@ -102,7 +101,6 @@ export const ui = createUiRuntime<IUser>({
   getWorkerUrl: () => '/sw.js',
   getPathname: () => location.pathname,
   navigate: (target) => goto(target),
-  notify: Notify,                           // { failure, success, warning?, info? }
   security: {
     storageNamespace: 'myapp',
     onLogout: () => goto('/welcome'),
@@ -144,16 +142,37 @@ An app with several independent mount trees (admin + public storefront, an embed
 builder canvas) calls `provideUi` in each one. SSR apps must create the runtime at the
 request/app boundary — it holds mutable Svelte state.
 
-### 3. Mount the mobile overlay singletons once
+### 3. Mount the overlay singletons once
 
 `DateInput` and `SearchSelect` delegate to full-screen pickers on mobile by writing to
 `ui.state.mobileDateLayer` / `ui.state.mobileSearchLayer`. Those two components take **no
 props** and must exist once in the tree, or mobile pickers silently never open.
 
+`NotifyHost` renders toasts, the blocking loading overlay and the destructive confirm
+dialog. Without it, every notification — including the package's own HTTP and session
+errors — is silently dropped.
+
 ```svelte
 <TopLayerSelector />
 <TopLayerDatePicker />
+<NotifyHost />
 ```
+
+Notify from anywhere, components or plain `.ts` services (strings may be `"EN|ES"`):
+
+```ts
+import { confirmWarn, hideLoading, notifyFailure, notifySuccess, showLoading } from '@genix/ui/notify';
+
+showLoading('Saving...|Guardando...');       // call again to update the message
+try { await save(); notifySuccess('Saved|Guardado'); }
+catch (error) { notifyFailure(error); }       // accepts Error, { error }, { message } or string
+hideLoading();
+
+if (await confirmWarn({ title: 'Delete item|Eliminar item', message: 'Are you sure?|¿Está seguro?' })) { remove(); }
+```
+
+Stacking reads `--loading-zindex` (400), `--confirm-zindex` (410) and `--toast-zindex` (420),
+all above `--modal-zindex`.
 
 ### 4. Wire the data layer
 
@@ -203,7 +222,6 @@ marked; everything else has a working default.
 | `applicationName` | — | Shown in Excel metadata and process labels. |
 | `defaultLanguage` | — | `1` Spanish (default), `2` English. |
 | `translate` | — | Resolver for `"EN\|ES"` strings; defaults to the built-in splitter. |
-| `notify` | — | `{ failure, success, warning?, info? }`; defaults to `console.error`. |
 | `makeCdnRoute` | — | Builds image/asset URLs; defaults to joining segments with `/`. |
 | `getPathname` | — | Current path; defaults to `location.pathname`. |
 | `getToken` | — | Override only if tokens live outside the security runtime. |
@@ -228,7 +246,6 @@ What the returned runtime exposes:
 | `ui.fieldPersistence` | Component values stored by environment + company + component id |
 | `ui.uploads` | Upload adapter (`get`, `post`, `convertImage`, `addProcess`, `updateProcess`) used by `ImageUploader` |
 | `ui.translate` | `"EN\|ES"` resolution |
-| `ui.notify` | Normalized notification adapter |
 | `ui.openModal` / `closeModal` / `closeAllModals` / `openSideLayer` | Overlay control |
 | `ui.resolveRecord(apiRoute, id)` | Lazy by-ID record lookup (used by `RecordByIDText`) |
 

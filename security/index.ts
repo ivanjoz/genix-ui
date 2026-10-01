@@ -18,7 +18,6 @@ export type {
   SecurityLoginResult,
   SecurityLoginState,
   SecurityMessages,
-  SecurityNotifier,
   SecurityRouteAccessEntry,
   SecurityRuntime,
 } from './types.js';

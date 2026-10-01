@@ -5,6 +5,7 @@ import {
 	type IMinimalRecord,
 	type serviceHttpProps,
 } from '../cache/index.js'
+import { notifyFailure } from '../notify/notify.svelte.js'
 import { normalizeStringN } from '../utilities/index.js'
 import { registerPageCachedService } from './page-services-registry.js'
 
@@ -37,7 +38,6 @@ export interface GetHandlerRuntime {
 	canAccessRoute?: (route: string) => boolean
 	verifyRouteMemoryState?: () => boolean
 	normalizeName?: (name: unknown) => string
-	notifyFailure?: (message: string) => void
 }
 
 export class GetHandler<T extends GetHandlerRecord = any> {
@@ -103,7 +103,7 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 	private canFetch(): boolean {
 		if (!(this.runtime.isBrowser?.() ?? BROWSER)) return false
 		if (!this.route) {
-			this.runtime.notifyFailure?.('No route was specified for the cached service.')
+			notifyFailure('No route was specified for the cached service.')
 			return false
 		}
 		if (this.runtime.canAccessRoute && !this.runtime.canAccessRoute(this.route)) {
@@ -141,7 +141,7 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 
 	async syncIDs(ids: number[]): Promise<void> {
 		if (!this.routeByID) {
-			this.runtime.notifyFailure?.(`[GetHandler] Missing routeByID for: ${this.route}`)
+			notifyFailure(`[GetHandler] Missing routeByID for: ${this.route}`)
 			return
 		}
 

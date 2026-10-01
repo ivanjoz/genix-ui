@@ -1,4 +1,5 @@
 import { BROWSER } from 'esm-env';
+import { notifyFailure, notifyWarning } from '../notify/notify.svelte.js';
 import { throttle } from '../utilities/ui.js';
 import { decrypt } from '../utilities/crypto.js';
 import { decodeStoredAccesosComputed, hasAcceso, hasSubAcceso, normalizeAccesoNivel, validateAccesosBlobs, wrapAccesosComputed } from './accesos.js';
@@ -38,7 +39,6 @@ export const createSecurity = <UserInfoType>(
   const {
     storageNamespace,
     onLogout,
-    notify,
     isPublicRoute,
     getCompanyID,
     tokenRefreshThresholdSeconds = DEFAULT_TOKEN_REFRESH_THRESHOLD_SECONDS,
@@ -118,7 +118,7 @@ export const createSecurity = <UserInfoType>(
     }
     if (!expTime || currentUnix > expTime) {
       if (!silent) {
-        notify?.failure?.(messages.sessionExpired)
+        notifyFailure(messages.sessionExpired)
         clearSession()
       }
       return ''
@@ -126,9 +126,9 @@ export const createSecurity = <UserInfoType>(
     // Warn once (throttled) as the session approaches its expiration.
     const secondsToExpire = expTime - currentUnix
     if (secondsToExpire < 60 * 5) {
-      throttle(() => { notify?.warning?.(messages.sessionExpiresIn(5)) }, EXPIRY_WARNING_THROTTLE_MS)
+      throttle(() => { notifyWarning(messages.sessionExpiresIn(5)) }, EXPIRY_WARNING_THROTTLE_MS)
     } else if (secondsToExpire < 60 * 15) {
-      throttle(() => { notify?.warning?.(messages.sessionExpiresIn(15)) }, EXPIRY_WARNING_THROTTLE_MS)
+      throttle(() => { notifyWarning(messages.sessionExpiresIn(15)) }, EXPIRY_WARNING_THROTTLE_MS)
     }
     return userToken
   }

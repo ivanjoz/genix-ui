@@ -1,4 +1,5 @@
 import type { IGetCacheSubObject, serviceHttpProps } from '../cache/index.js';
+import { notifyFailure } from '../notify/notify.svelte.js';
 import { getServiceWorkerRuntime } from './runtime.js';
 
 let tempID = parseInt(String(Math.floor(Date.now()/1000)).substring(4))
@@ -328,7 +329,7 @@ export const fetchCacheParsed = async (args: serviceHttpProps): Promise<any> => 
       errMessage = (response.error as any).error || response.error
     }
     console.log("errMessage", errMessage)
-    getServiceWorkerRuntime().notifyFailure(String(errMessage))
+    notifyFailure(errMessage)
     return null
   }
 

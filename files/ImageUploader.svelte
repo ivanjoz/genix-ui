@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
+  import { notifyFailure } from '../notify/notify.svelte.js';
   const ui = useUI();
 import { untrack } from 'svelte';
 import type { UiInMemoryImage } from '../runtime/index.js';
@@ -146,11 +147,11 @@ const convertImageFile = async (
 // Reserve the final ID, show the image immediately, then convert/upload in the background.
 const confirmImage = async () => {
   if(!imageSrc.base64){
-    ui.notify.failure("No hay nada que enviar.")
+    notifyFailure("No hay nada que enviar.")
     return
   }
   if(!saveAPI){
-    ui.notify.failure("No se configuró el endpoint para guardar la imagen.")
+    notifyFailure("No se configuró el endpoint para guardar la imagen.")
     return
   }
   const fileToUpload = imageFile
@@ -168,7 +169,7 @@ const confirmImage = async () => {
     console.log("ImageUploader (Reserved ID)::", reserved)
   } catch (error) {
     isReserving = false
-    ui.notify.failure('Error al reservar el id de imagen: ' + String(error))
+    notifyFailure('Error al reservar el id de imagen: ' + String(error))
     return
   }
   isReserving = false
@@ -226,7 +227,7 @@ const confirmImage = async () => {
       entry.status = 'error'; entry.error = String(error)
       ui.uploads.updateProcess(processID, '', ui.translate('Upload failed|Error al subir') + `: ${String(error)}`, 0)
       console.error("image upload failed::", finalName, error)
-      ui.notify.failure('Error guardando la imagen: ' + String(error))
+      notifyFailure('Error guardando la imagen: ' + String(error))
       throw error
     }
     ui.uploads.updateProcess(processID, '', ui.translate('Image uploaded|Imagen subida'), 2)
@@ -279,7 +280,7 @@ const onFileChange = async (ev: Event) => {
     imageSrc = { src: "", base64: base64, types: [], description: imageSrc.description }
     onChange?.(imageSrc, confirmImage)
   } catch (error) {
-    ui.notify.failure('Error procesando la imagen: ' + String(error))
+    notifyFailure('Error procesando la imagen: ' + String(error))
     progress = 0
   }
 }

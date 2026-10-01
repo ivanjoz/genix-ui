@@ -23,18 +23,12 @@ export interface SecurityMessages {
   sessionExpiresIn: (minutes: number) => string
 }
 
-export interface SecurityNotifier {
-  failure?: (message: string) => void
-  warning?: (message: string) => void
-}
-
 export interface CreateSecurityOptions {
   // Prefix for every persisted key, so several apps can share one origin.
   storageNamespace: string
   // Called after the session is cleared: the host decides where to send the user.
   onLogout?: () => void
   messages?: Partial<SecurityMessages>
-  notify?: SecurityNotifier
   // Resolves which access ids unlock a frontend route. No catalog → route is open.
   // Apps whose catalog must stay out of a public bundle register it after creation
   // with setRouteAccessResolver instead of importing it here.

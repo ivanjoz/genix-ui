@@ -25,6 +25,7 @@
     "menu",
     "misc",
     "navigation",
+    "notify",
     "runtime",
     "security",
     "service-worker",
@@ -65,6 +66,11 @@
       "types": "./excel/index.ts",
       "svelte": "./excel/index.ts",
       "default": "./excel/index.ts"
+    },
+    "./notify": {
+      "types": "./notify/index.ts",
+      "svelte": "./notify/index.ts",
+      "default": "./notify/index.ts"
     },
     "./charts": {
       "types": "./charts/index.ts",

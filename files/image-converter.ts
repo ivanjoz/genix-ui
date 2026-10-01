@@ -1,10 +1,11 @@
+import { notifyFailure } from '../notify/notify.svelte.js'
+
 export type ImageFileType = 'webp' | 'avif' | 'jpg'
 
 export interface ImageConverterOptions {
 	maxWorkers?: number
 	timeoutMs?: number
 	maxResolution?: number
-	notifyFailure?: (message: string) => void
 }
 
 export interface ImageConverter {
@@ -39,7 +40,6 @@ export const createImageConverter = (
 	const maxWorkers = options.maxWorkers ?? 4
 	const timeoutMs = options.timeoutMs ?? 8000
 	const maxResolution = options.maxResolution ?? 2000
-	const notifyFailure = options.notifyFailure ?? console.error
 	let nextRequestId = 0
 
 	const configureWorker = (slot: WorkerSlot) => {

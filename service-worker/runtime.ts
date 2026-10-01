@@ -6,7 +6,6 @@ export interface ServiceWorkerRuntime {
 	verifyRouteMemoryState: () => boolean
 	reportFetch: (requestID: number, event: { url: string } | 0) => void
 	reportProgress: (bytesLength: number) => void
-	notifyFailure: (message: string) => void
 }
 
 // The RPC client is browser-global; the host injects application routing and UI reporting once.
@@ -18,7 +17,6 @@ let serviceWorkerRuntime: ServiceWorkerRuntime = {
 	verifyRouteMemoryState: () => false,
 	reportFetch: () => {},
 	reportProgress: () => {},
-	notifyFailure: (message) => console.error(message),
 }
 
 export const configureServiceWorkerRuntime = (

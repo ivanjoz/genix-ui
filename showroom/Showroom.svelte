@@ -11,6 +11,7 @@
   import SectionForm from './SectionForm.svelte';
   import SectionMisc from './SectionMisc.svelte';
   import SectionNavigation from './SectionNavigation.svelte';
+  import SectionNotify from './SectionNotify.svelte';
   import SectionOverlays from './SectionOverlays.svelte';
   import SectionTables from './SectionTables.svelte';
 
@@ -34,6 +35,7 @@
     [3, 'Navigation'],
     [4, 'Tables'],
     [5, 'Overlays'],
+    [8, 'Notify'],
     [6, 'Charts'],
     [7, 'Misc'],
   ];
@@ -43,7 +45,7 @@
      something when this is dropped somewhere that has no page container to flip. -->
 <div class={surfaceCss}>
   <div class="flex flex-wrap items-center gap-12 mb-12">
-    <!-- 7 tabs exceed the 3-option guidance for Page header options, so the tab bar
+    <!-- 8 tabs exceed the 3-option guidance for Page header options, so the tab bar
          lives in the body. No useMobileGrid here: the strip only has grid-cols classes
          up to 5 options, and horizontal scroll handles the overflow on mobile. -->
     <OptionsStrip selected={tab} options={tabOptions}
@@ -62,6 +64,7 @@
   {#if tab === 3}<SectionNavigation />{/if}
   {#if tab === 4}<SectionTables />{/if}
   {#if tab === 5}<SectionOverlays />{/if}
+  {#if tab === 8}<SectionNotify />{/if}
   {#if tab === 6}<SectionCharts />{/if}
   {#if tab === 7}<SectionMisc />{/if}
 </div>

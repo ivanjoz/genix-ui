@@ -12,7 +12,6 @@ export type {
   UiImageStore,
   UiInMemoryImage,
   UiInMemoryImageStatus,
-  UiNotificationAdapter,
   UiPageOption,
   UiRecordReference,
   UiRuntime,

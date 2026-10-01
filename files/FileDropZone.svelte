@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
+  import { notifyFailure } from '../notify/notify.svelte.js';
   const ui = useUI();
 
 interface IFileDropZoneProps {
@@ -62,7 +63,7 @@ const acceptFile = (file: File | undefined): void => {
     normalizedExtensions.includes(extractExtension(file.name));
 
   if (!isExtensionAllowed) {
-    ui.notify.failure(
+    notifyFailure(
       ui.translate('Extension not allowed. Allowed:|Extensión no permitida. Permitidas:') +
         ' ' + normalizedExtensions.join(', ')
     );

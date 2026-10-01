@@ -5,6 +5,7 @@ import {
   type GroupCacheGetter,
 } from '../cache/group-cache.fetch.js';
 import { unmarshal } from '@ivanjoz/minijson';
+import { notifyFailure, notifySuccess } from '../notify/notify.svelte.js';
 import { registerPageCachedService } from './page-services-registry.js';
 
 export * from './get-handler.svelte.js';
@@ -55,10 +56,6 @@ export interface HttpClientRuntime {
   makeRoute: (route: string) => string;
   getToken: () => string;
   transformResponse?: (response: any) => any;
-  notify?: {
-    failure?: (message: string) => void;
-    success?: (message: string) => void;
-  };
   onUnauthorized?: () => void;
   startRequest?: (route: string) => number;
   finishRequest?: (requestId: number) => void;
@@ -129,8 +126,6 @@ const setResponseMetadata = (headers: Headers, status: IHttpStatus): void => {
 export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
   // Genix compact responses are decoded by default; lower-level clients may override this.
   const transformResponse = runtime.transformResponse ?? unmarshal;
-  const notifyFailure = runtime.notify?.failure ?? ((message) => console.error(message));
-  const notifySuccess = runtime.notify?.success ?? (() => {});
 
   const buildHeaders = (contentType?: string, route?: string): Record<string, string> => {
     const contentTypes: Record<string, string> = { json: 'application/json' };

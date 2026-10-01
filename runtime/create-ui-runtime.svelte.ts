@@ -37,7 +37,6 @@ export const createUiRuntime = <UserInfoType = unknown>(
   options: CreateUiRuntimeOptions,
 ): UiRuntime & { security: SecurityRuntime<UserInfoType> } => {
   const verifyRouteMemoryState = options.verifyRouteMemoryState ?? (() => false);
-  const notifyFailure = options.notify?.failure ?? ((message: string) => console.error(message));
   const defaultLanguage = options.defaultLanguage ?? 1;
   const getPathname = options.getPathname
     ?? (() => (BROWSER ? window.location.pathname : ''));
@@ -51,7 +50,6 @@ export const createUiRuntime = <UserInfoType = unknown>(
       ?? options.storageNamespace
       ?? options.applicationName
       ?? 'app',
-    notify: options.notify,
     getCompanyID: options.getCompanyID,
   });
 
@@ -59,7 +57,7 @@ export const createUiRuntime = <UserInfoType = unknown>(
   configurePageServicesRegistry(getPathname);
 
   const images = createInMemoryImageStore();
-  const imageConverter = createImageConverter({ notifyFailure });
+  const imageConverter = createImageConverter();
   const fieldPersistence = createFieldPersistence({
     getCompanyID: options.getCompanyID,
     getEnvironment: options.getEnvironment,
@@ -79,13 +77,11 @@ export const createUiRuntime = <UserInfoType = unknown>(
     verifyRouteMemoryState,
     reportFetch: options.reportFetch ?? (() => {}),
     reportProgress: options.reportProgress ?? (() => {}),
-    notifyFailure,
   });
 
   const http = createHttpClient({
     makeRoute: options.makeRoute,
     getToken: options.getToken ?? (() => security.getToken()),
-    notify: options.notify,
     onUnauthorized: options.onUnauthorized ?? (() => security.clearSession()),
     startRequest: options.startRequest,
     finishRequest: options.finishRequest,
@@ -111,7 +107,6 @@ export const createUiRuntime = <UserInfoType = unknown>(
     // checks the current path rather than the service route.
     canAccessRoute: options.canAccessRoute ?? (() => security.canAccessRoute(getPathname())),
     verifyRouteMemoryState,
-    notifyFailure,
   };
 
   const state = $state<UiState>({
@@ -140,12 +135,6 @@ export const createUiRuntime = <UserInfoType = unknown>(
     nextComponentId: options.nextComponentId ?? (() => ++componentIdCounter),
     makeCdnRoute: options.makeCdnRoute ?? ((...segments) =>
       segments.filter(Boolean).join('/')),
-    notify: {
-      failure: options.notify?.failure ?? ((message) => console.error(message)),
-      success: options.notify?.success ?? (() => {}),
-      warning: options.notify?.warning,
-      info: options.notify?.info,
-    },
     images,
     imageConverter,
     fieldPersistence,

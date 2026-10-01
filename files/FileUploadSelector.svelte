@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
+  import { notifyFailure } from '../notify/notify.svelte.js';
   const ui = useUI();
 import pdfFileIconRaw from '../assets/pdf-icon.svg?raw';
 import excelFileIconRaw from '../assets/excel-icon.svg?raw';
@@ -93,7 +94,7 @@ const handleFileSelection = (event: Event) => {
   const extensionIsValid = !hasExtensionRestriction || normalizedExtensions.includes(selectedExtension);
 
   if (!extensionIsValid) {
-    ui.notify.failure(`Extensión no permitida. Permitidas: ${normalizedExtensions.join(', ')}`);
+    notifyFailure(`Extensión no permitida. Permitidas: ${normalizedExtensions.join(', ')}`);
     inputElement.value = '';
     return;
   }

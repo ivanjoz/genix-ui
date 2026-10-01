@@ -62,14 +62,14 @@
   {disabled}
   onclick={triggerClick}
 >
-  {#if icon}<i class="{icon}{name ? ' icon-lead' : ''}"></i>{/if}
-  {#if name}<span class={hideNameOnMobile ? 'hidden md:inline' : ''}><T text={name} /></span>{/if}
-  {#if iconRight}<i class="{iconRight}{name ? ' icon-trail' : ''}"></i>{/if}
+  {#if icon}<i class={icon}></i>{/if}
+  {#if name}<span class="{hideNameOnMobile ? 'hidden md:inline' : ''}{icon ? ' label-after-icon' : ''}{iconRight ? ' label-before-icon' : ''}"><T text={name} /></span>{/if}
+  {#if iconRight}<i class={iconRight}></i>{/if}
 </button>
 
 <style>
-  /* Separate the icons from the label. The margin is conditional on a label existing,
-     so icon-only and round buttons keep their exact centered geometry. */
-  .icon-lead { margin-right: 5px; }
-  .icon-trail { margin-left: 5px; }
+  /* Separate the icons from the label. The margin lives on the label, so it disappears with it:
+     icon-only buttons, and hideNameOnMobile buttons on mobile, keep the icon centered. */
+  .label-after-icon { margin-left: 5px; }
+  .label-before-icon { margin-right: 5px; }
 </style>

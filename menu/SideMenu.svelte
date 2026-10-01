@@ -135,13 +135,11 @@
 </script>
 
 <!-- Desktop Menu -->
+<!-- Only `width` transitions: content keeps its layout and the growing edge reveals it. -->
 <div class="d-menu fixed left-0 top-0 bg-linear-to-b from-gray-900 via-gray-900 to-gray-950
-		text-white shadow-xl z-300 hidden md:block"
-	class:h-screen={!useTopMinimalMenu}
+		text-white shadow-xl z-300 hidden md:block
+		{useTopMinimalMenu ? '' : 'h-screen transition-[width] ease-in-out duration-200'}"
 	class:useTopMinimalMenu
-	class:transition-all={!useTopMinimalMenu}
-	class:ease-in-out={!useTopMinimalMenu}
-	class:duration-200={!useTopMinimalMenu}
 	role="navigation"
 	aria-label="Main navigation"
 >
@@ -154,7 +152,9 @@
 			</div>
 		{/if}
 		{#if header}
-			<div class="w-full min-w-0 px-6 z-10">{@render header(false)}</div>
+			<!-- Laid out at the expanded width even while collapsed: the menu's overflow clips it and
+			     the expansion only reveals it, so nothing inside reflows or slides during the animation. -->
+			<div class="w-(--menu-max-width) shrink-0 px-6 z-10">{@render header(false)}</div>
 		{:else}
 			<div class="_1 flex items-center z-10">
 				{#if desktopLogoSrc}
@@ -171,14 +171,14 @@
 	</div>
 
 	<!-- Menu Items -->
-	<div class="flex-1 transition-all duration-300 w-full">
+	<div class="flex-1 w-full">
 		{#each filteredMenus as menu}
 			{@const isOpen = menuOpen[0] === menu.id}
 			{@const optionsCount = menu.options?.length || 0}
 			{@const menuHeight = isOpen ? `${optionsCount * 38 + 48}px` : '48px'}
 			{@const menuName = translate(menu.name)}
 
-			<div class="overflow-hidden transition-all duration-400 mb-1"
+			<div class="overflow-hidden transition-[height] duration-400 mb-1"
 				style="height: {menuHeight}"
 			>
 				<!-- Menu Header -->
@@ -203,7 +203,7 @@
 					<!-- Arrow icon (only visible when expanded) -->
 					{#if menu.options && menu.options.length > 0}
 						<span
-							class="menu-arrow absolute right-8 transition-all duration-300"
+							class="menu-arrow absolute right-8 transition-[opacity,rotate] duration-300"
 							class:rotate-180={isOpen}
 						>
 							<i class="icon-[fa--angle-down]"></i>
@@ -213,12 +213,12 @@
 
 				<!-- Submenu Options -->
 				{#if menu.options && isOpen}
-					<div class="transition-all duration-200">
+					<div>
 						{#each menu.options as option}
 							{@const isActive = option.route === activePath}
 							{@const optionName = translate(option.name)}
 							<a class="submenu-option w-full flex items-center px-0 py-10 relative
-								hover:bg-indigo-600/20 transition-all duration-150
+								hover:bg-indigo-600/20 transition-colors duration-150
 								border-l-2 border-transparent
 								{isActive ? 'is-selected bg-indigo-600/30 border-indigo-400 text-white' : 'text-gray-300'}"
 								href={option.route || '/'}
@@ -345,9 +345,30 @@
 	.d-menu:hover ._2, .d-menu.useTopMinimalMenu ._2 {
 		display: block;
 	}
-	/* Hook for the caller's `header` snippet: hover state is CSS-only, the snippet cannot see it. */
+	/* Hooks for the caller's `header` snippet: hover state is CSS-only, the snippet cannot see it.
+	   Expanded-only content fades instead of leaving the layout, so showing it never reflows the
+	   header. It appears with a short delay, once the edge has revealed most of it. */
+	.d-menu :global(.side-menu-expanded-only) {
+		transition: opacity 120ms ease-out 80ms;
+	}
 	.d-menu:not(:hover):not(.useTopMinimalMenu) :global(.side-menu-expanded-only) {
-		display: none;
+		opacity: 0;
+		transition: none;
+	}
+	/* Collapsed, a `.side-menu-reveal` element is clipped to the collapsed menu minus the header's
+	   6px padding on each side, with rounded corners (8px = `rounded-lg`); the expansion opens the clip in
+	   step with the menu's width. An animation, not a transition, so the caller's own `transition`
+	   (e.g. `transition-colors`) is not overridden. Clip-path repaints, it does not trigger layout. */
+	.d-menu:not(.useTopMinimalMenu) :global(.side-menu-reveal) {
+		clip-path: inset(0 calc(100% - var(--menu-min-width) + 12px) 0 0 round 8px);
+	}
+	.d-menu:not(.useTopMinimalMenu):hover :global(.side-menu-reveal) {
+		clip-path: inset(0 0 0 0 round 8px);
+		animation: side-menu-reveal 200ms ease-in-out;
+	}
+	@keyframes side-menu-reveal {
+		from { clip-path: inset(0 calc(100% - var(--menu-min-width) + 12px) 0 0 round 8px); }
+		to { clip-path: inset(0 0 0 0 round 8px); }
 	}
 	.hover-indicator {
 		transition: transform 0.3s;
@@ -362,9 +383,35 @@
 		overflow: hidden;
 	}
 
+	/* Never scroll horizontally: mid-expansion the full-width header and labels overflow the
+	   still-narrow menu, which would otherwise flash a horizontal scrollbar. */
 	.d-menu:hover {
 		width: var(--menu-max-width);
-		overflow: auto;
+		overflow-x: hidden;
+		overflow-y: auto;
+	}
+
+	/* Right-edge fade into the menu's own background, so text being revealed dissolves instead of
+	   being cut flush at the edge. Shown only while the menu expands, then fades out; opacity only. */
+	.d-menu:not(.useTopMinimalMenu)::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 16px;
+		background-image: inherit;
+		mask-image: linear-gradient(to right, transparent, black);
+		pointer-events: none;
+		z-index: 20;
+		opacity: 0;
+	}
+	.d-menu:not(.useTopMinimalMenu):hover::after {
+		animation: side-menu-edge-fade 320ms ease-out;
+	}
+	@keyframes side-menu-edge-fade {
+		0%, 65% { opacity: 1; }
+		100% { opacity: 0; }
 	}
 
 	.d-menu.useTopMinimalMenu {

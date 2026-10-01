@@ -421,7 +421,11 @@ $effect(() => {
     outline-offset: 0;
   }
 
+  /* Flex-centered: an inline icon would sit on the text baseline, above the circle's middle. */
   ._5 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
     background-color: #e06868;
     color: #fff;

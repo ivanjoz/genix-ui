@@ -2,6 +2,17 @@
 
 Design decisions for the shared UI package, newest first.
 
+## `Button`'s icon/label gap is a margin on the label
+
+**Context** — With `hideNameOnMobile`, the label was hidden on mobile but the icon kept its 5px
+`margin-right`, so an icon-only button rendered off-centre.
+
+**Decision** — The gap moved from the icon (`icon-lead`/`icon-trail`) to the label span
+(`label-after-icon`/`label-before-icon`).
+
+**Rationale** — The margin is now hidden together with the label, so the button needs no media
+query that would have to repeat the host's `md` breakpoint (749px in berryapps).
+
 ## SideMenu animates the mobile drawer from any change to `open`
 
 **Context** — The drawer only slid on close. Only SideMenu's own close buttons started the view

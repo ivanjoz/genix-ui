@@ -133,7 +133,7 @@ $effect(() => {
           ui.state.mobileSearchLayer = null
         }}
       >
-        <i class="icon-[mdi--close-thick] h1"></i>
+        <i class="icon-[mdi--close-thick] text-[22px]"></i>
       </button>
     </div>
   </div>
@@ -229,7 +229,11 @@ $effect(() => {
     outline: 1px solid rgb(150, 152, 255);
     outline-offset: 0;
   }
+  /* Flex-centered: an inline icon would sit on the text baseline, above the circle's middle. */
   ._5 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
     background-color: #e06868;
     color: #fff;

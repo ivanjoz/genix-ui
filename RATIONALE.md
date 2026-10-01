@@ -2,6 +2,34 @@
 
 Design decisions for the shared UI package, newest first.
 
+## SideMenu animates the mobile drawer from any change to `open`
+
+**Context** — The drawer only slid on close. Only SideMenu's own close buttons started the view
+transition, and hosts open it by writing the bound `open` (berryapps' header burger).
+
+**Decision** — The DOM follows an internal `drawerShownOpen`. An `$effect` on `open` updates it
+inside `document.startViewTransition` (with `flushSync`), so the old snapshot is the previous
+state. The internal close paths now just set `open = false`.
+
+**Rationale** — Fixed in the library, not in each host, so no caller can bypass the animation.
+Cost: the drawer DOM trails `open` by one transition frame.
+
+## Delete and layer-close icons come from `mdi`, not `fa`
+
+**Context** — FA4's `fa--trash` (striped can) and `fa--close` (heavy X) looked bulky; a more
+minimal delete icon and a thinner close X were requested for modals and layers.
+
+**Decision** — Every `fa--trash` became `mdi--delete`. `fa--close` became `mdi--close-thick` only
+in `layers/` (Modal, Layer, TopLayerSelector, TopLayerDatePicker). The other X icons (file chips,
+side/mobile menu, chat attachments) still use `fa--close` / `fa--times`. `mdi--delete` only fills
+18 of its 24 grid units, so the host's `tailwind.css` zooms its mask to 133%. The icon keeps its
+1em box, so buttons keep their size.
+
+**Rationale** — `@iconify-json/mdi` is already installed, so this adds no dependency. Keeping the
+change to the layer close buttons stays within what was asked. The costs: the X icons now look
+different between layers and those other widgets, and the delete zoom lives in the host app's CSS,
+not in genix-ui.
+
 ## TableGrid reads `subcols`, so a group label can sit over its columns
 
 **Context** — `VTable` has had two-level headers for a while (`subcols` + `colspan`/`rowspan` on

@@ -78,7 +78,7 @@ import { useUI } from '../runtime/index.js';
 
   const contentWidth = $derived.by(() => {
    	const layerWidth = ui.state.sideLayerSize ? ui.state.sideLayerSize + 'px' : ''
-   
+
     return ui.state.sideLayerId > 0 && ui.state.sideLayerSize > 0 && ui.state.deviceType !== 3
       ? `calc(var(--page-width) - ${layerWidth || '0'} - 8px)`
       : undefined
@@ -224,7 +224,7 @@ import { useUI } from '../runtime/index.js';
           </div>
         {/if}
         {#if onDelete}
-          <Button color="red" icon="icon-[fa--trash]" label={ui.translate("Delete|Eliminar")} css="mr-10 lh-10"
+          <Button color="red" icon="icon-[mdi--delete]" label={ui.translate("Delete|Eliminar")} css="mr-10 lh-10"
             onClick={onDelete} />
         {/if}
         {#if onSave}
@@ -232,7 +232,7 @@ import { useUI } from '../runtime/index.js';
             name={ui.translate(saveButtonName || 'Guardar')} css="mr-10 lh-10"
             label={ui.translate("Save|Guardar")} onClick={onSave} />
         {/if}
-        <Button color="yellow" icon="icon-[fa--close]" label={ui.translate("Close|Cerrar")} onClick={() => {
+        <Button color="yellow" icon="icon-[mdi--close-thick] text-[22px]" label={ui.translate("Close|Cerrar")} onClick={() => {
           closeLayer()
           if (onClose) {
             if (ui.state.deviceType === 3) {
@@ -260,7 +260,9 @@ import { useUI } from '../runtime/index.js';
 {/if}
 
 {#if type == 'content'}
-  <div data-id="Layer:{componentID}" class="w-page" style:width={contentWidth}>
+  <!-- While a side layer is open it shrinks and clips its children, which keep their full width
+       (see .w-page-clipped in app.css), so the content is cut before the layer without reflowing. -->
+  <div data-id="Layer:{componentID}" class="w-page" class:w-page-clipped={!!contentWidth} style:width={contentWidth}>
     {@render children()}
   </div>
 {/if}

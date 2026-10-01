@@ -592,7 +592,7 @@
                           ev.stopPropagation();
                           colDef.buttonDeleteHandler?.(rowRecord);
                         }}>
-                          <i class="icon-[fa--trash]"></i>
+                          <i class="icon-[mdi--delete]"></i>
                         </button>
                       {/if}
                     </div>
@@ -709,7 +709,7 @@
                             ev.stopPropagation();
                             colDef.buttonDeleteHandler?.(rowRecord);
                           }}>
-                            <i class="icon-[fa--trash]"></i>
+                            <i class="icon-[mdi--delete]"></i>
                           </button>
                         {/if}
                       </div>

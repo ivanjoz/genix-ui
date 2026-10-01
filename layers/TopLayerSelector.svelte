@@ -133,7 +133,7 @@ $effect(() => {
           ui.state.mobileSearchLayer = null
         }}
       >
-        <i class="icon-[fa--close] h1"></i>
+        <i class="icon-[mdi--close-thick] h1"></i>
       </button>
     </div>
   </div>

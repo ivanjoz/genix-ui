@@ -348,7 +348,7 @@
               cell.buttonDeleteHandler?.(record);
             }}
           >
-            <i class="icon-[fa--trash]"></i>
+            <i class="icon-[mdi--delete]"></i>
           </button>
         {/if}
       </div>
@@ -392,7 +392,7 @@
                 buttonDeleteHandler(resolvedRecord, recordIndex);
               }}
             >
-              <i class="icon-[fa--trash]"></i>
+              <i class="icon-[mdi--delete]"></i>
             </button>
           {/if}
 

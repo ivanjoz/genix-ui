@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { flushSync, untrack, type Snippet } from 'svelte';
 	import type { MenuGroup, MenuItem } from './types.js';
 
 	let {
@@ -17,6 +17,7 @@
 		desktopBrandName = '',
 		mobileBrandName = '',
 		header,
+		footer,
 	}: {
 		model: MenuGroup[];
 		activePath: string;
@@ -32,6 +33,8 @@
 		/** Replaces the logo + brand block, desktop and mobile. Receives `isMobile`. On desktop, give
 		 *  `side-menu-expanded-only` to whatever must hide while the menu is collapsed. */
 		header?: Snippet<[boolean]>;
+		/** Pinned to the bottom of the mobile drawer, under the menu groups. Mobile only. */
+		footer?: Snippet;
 	} = $props();
 
 	const filteredMenus = $derived.by(() => {
@@ -93,42 +96,36 @@
 
 		await onNavigate(route);
 
-		if (open) {
-			toggleMobileMenu(true);
-		}
-
+		open = false;
 		menuOpen = [menuId, route];
 	}
 
-	// Animation duration in milliseconds - should match CSS animation duration
-	const ANIMATION_DURATION = 350;
+	// What the drawer DOM shows. It trails `open` by one view transition, so the drawer slides
+	// both ways whoever flips `open` (the caller's burger button, a bound store, the close button):
+	// the old snapshot is taken while the DOM still shows the previous state.
+	let drawerShownOpen = $state(false);
 
-	const toggleMobileMenu = (close?: boolean) => {
-		if(!mobileMenuPanel){ return }
-		mobileMenuPanel.style.setProperty("view-transition-name", "mobile-side-menu")
-
-		setTimeout(() => {
-			mobileMenuPanel.style.setProperty("view-transition-name", "")
-		}, ANIMATION_DURATION)
-
-		if (open || close) {
-			if (document.startViewTransition) {
-				document.startViewTransition(() => {
-					open = false;
-				});
-			} else {
-				open = false;
-			}
-		} else {
-			if (document.startViewTransition) {
-				document.startViewTransition(() => {
-					open = true;
-				});
-			} else {
-				open = true;
-			}
+	$effect(() => {
+		const nextOpen = open;
+		if (untrack(() => drawerShownOpen) === nextOpen) { return }
+		if (!document.startViewTransition || !mobileMenuPanel) {
+			drawerShownOpen = nextOpen;
+			return
 		}
-	}
+
+		// The backdrop gets its own name too, so it leaves the root snapshot: the root then cross-fades
+		// two identical images and the dimming fades once, in step with the slide.
+		mobileMenuPanel.style.setProperty("view-transition-name", "mobile-side-menu");
+		mobileMenuBackdrop.style.setProperty("view-transition-name", "mobile-side-menu-backdrop");
+		const transition = document.startViewTransition(() => {
+			drawerShownOpen = nextOpen;
+			flushSync();
+		});
+		transition.finished.finally(() => {
+			mobileMenuPanel?.style.setProperty("view-transition-name", "");
+			mobileMenuBackdrop?.style.setProperty("view-transition-name", "");
+		});
+	});
 
 	$effect(() => {
 		if (activePath) {
@@ -256,10 +253,17 @@
 </div>
 
 <!-- Mobile Menu -->
-<div class="mobile-menu-wrapper md:hidden {open ? 'is-open' : ''}" role="dialog" aria-modal="true">
+<div class="mobile-menu-wrapper md:hidden {drawerShownOpen ? 'is-open' : ''}" role="dialog" aria-modal="true">
 	<!-- Backdrop -->
 	<button type="button" class="mobile-menu-backdrop" aria-label="Close menu"
-		onclick={() => toggleMobileMenu(true)} bind:this={mobileMenuBackdrop}></button>
+		onclick={() => { open = false }} bind:this={mobileMenuBackdrop}></button>
+
+	<!-- Close button over the backdrop, beside the panel. A sibling of the panel, not a child:
+	     the panel scrolls (overflow-y: auto) and would clip it. -->
+	<button type="button" class="mobile-menu-close" aria-label="Close menu"
+		onclick={() => { open = false }}>
+		<i class="icon-[mdi--close]"></i>
+	</button>
 
 	<!-- Mobile Menu Panel -->
 	<aside class="mobile-menu-panel" bind:this={mobileMenuPanel}>
@@ -275,13 +279,6 @@
 					<span class="logo-text">{mobileBrandName}</span>
 				</div>
 			{/if}
-			<button
-				class="close-button size-32"
-				aria-label="Close menu"
-				onclick={() => toggleMobileMenu(true)}
-			>
-				<i class="icon-[fa--close]"></i>
-			</button>
 		</div>
 
 		<!-- Mobile Menu Items -->
@@ -329,6 +326,10 @@
 				</div>
 			{/each}
 		</div>
+
+		{#if footer}
+			<div class="mobile-footer px-8 py-6">{@render footer()}</div>
+		{/if}
 	</aside>
 </div>
 
@@ -470,15 +471,16 @@
 	.mobile-menu-backdrop {
 		position: absolute;
 		inset: 0;
+		/* No backdrop-filter and no CSS opacity transition: the view transition fades the backdrop's
+		   snapshot. A blur re-renders the whole viewport every frame and, inside the snapshot, samples
+		   empty pixels at the viewport edges (light lines on the right and bottom). */
 		background-color: rgb(0 0 0 / 0.5);
-		backdrop-filter: blur(2px);
 		opacity: 0;
 		cursor: pointer;
 		border: none;
 		padding: 0;
 		z-index: 1;
 		pointer-events: none;
-		transition: opacity 0.35s ease-in-out;
 	}
 
 	.mobile-menu-wrapper.is-open .mobile-menu-backdrop {
@@ -519,6 +521,11 @@
 		background: white;
 	}
 
+	.mobile-footer {
+		border-top: 1px solid #e5e7eb;
+		background: white;
+	}
+
 	.mobile-header-logo {
 		display: flex;
 		align-items: center;
@@ -533,20 +540,36 @@
 		letter-spacing: 0.5px;
 	}
 
-	.close-button {
+	/* Outlined, no solid fill: reads as "close" on the dimmed backdrop without competing with the menu. */
+	.mobile-menu-close {
+		position: absolute;
+		top: 56px;
+		left: calc(78vw + 12px);
+		z-index: 3;
+		width: 40px;
+		height: 40px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		border-radius: 50%;
-		background: #f3f4f6;
-		color: #374151;
-		border: none;
+		border: 1.5px solid rgb(255 255 255 / 0.55);
+		background: transparent;
+		color: rgb(255 255 255 / 0.9);
+		font-size: 20px;
 		cursor: pointer;
-		transition: all 0.2s;
+		opacity: 0;
+		pointer-events: none;
+		transition: background-color 0.2s;
 	}
 
-	.close-button:hover {
-		background: #e5e7eb;
+	.mobile-menu-wrapper.is-open .mobile-menu-close {
+		opacity: 1;
+		pointer-events: all;
+	}
+
+	.mobile-menu-close:hover,
+	.mobile-menu-close:active {
+		background-color: rgb(255 255 255 / 0.15);
 	}
 
 	/* Mobile Menu Content */
@@ -742,5 +765,11 @@
 	/* Prevent the default fade out on OLD snapshot */
 	::view-transition-image-pair(mobile-side-menu) {
 		isolation: auto;
+	}
+
+	/* The backdrop keeps the default cross-fade, timed like the slide */
+	::view-transition-group(mobile-side-menu-backdrop) {
+		animation-duration: 0.35s;
+		animation-timing-function: ease-in-out;
 	}
 </style>

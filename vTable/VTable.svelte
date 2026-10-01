@@ -716,7 +716,7 @@
                           ev.stopPropagation()
                           column.buttonDeleteHandler?.(resolvedRecord)
                         }}>
-                          <i class="icon-[fa--trash]"></i>
+                          <i class="icon-[mdi--delete]"></i>
                         </button>
                       {/if}
                     </div>

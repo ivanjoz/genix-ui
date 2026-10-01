@@ -270,8 +270,36 @@
   height: calc(var(--input-height, 38px) - 6px);
 }
 
+/* Same height as a labelled field's box (--input-height: 7px inset to the bottom of its
+   13px + (height - 6px) footprint), so an unlabelled filter lines up with the labelled
+   fields beside it instead of reading 4px flatter. */
 .field:global(.no-label) .row {
-  height: calc(var(--input-height, 38px) - 4px);
+  height: var(--input-height, 38px);
+}
+
+/* ── mobile ─────────────────────────────────────────────────────────────────────────
+   On a phone the label read as climbing off the top of the field: the line crossed it
+   below its visual middle. The box starts 2px higher (inset 5px, line at 5px) so the line
+   runs through the label text's middle; the footprint and the label stay put, so only the
+   box grows 2px. The unlabelled row grows the same 2px to keep matching it. Placed before
+   the size/adornment rules, which share this specificity and must still win. */
+@media (max-width: 749px) {
+  .box {
+    top: 5px;
+  }
+
+  .field:global(.no-label) .row {
+    height: calc(var(--input-height, 38px) + 2px);
+  }
+
+  /* The suffix (select chevron, validity glyph) centres on the row, which starts 8px below
+     the box's top edge, so it sat 4px under the box's centre. Stretching it from the box's
+     top edge to the bottom centres it on the box the user sees. A textarea keeps its
+     top-aligned suffix; an unlabelled row already spans the box. */
+  .field:not(:global(.no-label)) .row:not(:global(.is-textarea)) .suffix {
+    top: -8px;
+    bottom: 0;
+  }
 }
 
 /* Textarea grows with `rows` — the old fixed-height wrapper made that prop a no-op. */
@@ -458,6 +486,13 @@ textarea.inp {
   /* A labelled field's row starts at the 13px padding while the box starts at its 7px
      inset, so the segment climbs the 6px difference to meet the box's top edge. */
   margin-top: -6px;
+}
+
+/* Mobile starts the box at 5px (see the mobile block above), so the climb is 8px. */
+@media (max-width: 749px) {
+  .field:global(.has-interactive-prefix) .prefix {
+    margin-top: -8px;
+  }
 }
 
 /* The divider belongs to the control, not to the shell: it is two ticks in the caret's own

@@ -493,7 +493,7 @@ Neither menu imports routing, security, or services; all policy arrives as props
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `SideMenu` | Grouped sidebar with access filtering and branding | `model: MenuGroup[]`, `activePath`, `open` (bindable), `canAccess`, `translate`, `onNavigate`, `useTopMinimalMenu`, `desktopLogoSrc`, `mobileLogoSrc`, `desktopBrandName`, `mobileBrandName`, `header` (snippet receiving `isMobile`; replaces logo + brand, and hides its `.side-menu-expanded-only` descendants while the desktop menu is collapsed) |
+| `SideMenu` | Grouped sidebar with access filtering and branding | `model: MenuGroup[]`, `activePath`, `open` (bindable), `canAccess`, `translate`, `onNavigate`, `useTopMinimalMenu`, `desktopLogoSrc`, `mobileLogoSrc`, `desktopBrandName`, `mobileBrandName`, `header` (snippet receiving `isMobile`; replaces logo + brand, and hides its `.side-menu-expanded-only` descendants while the desktop menu is collapsed), `footer` (snippet pinned to the bottom of the mobile drawer; mobile only) |
 | `MobileMenu` | Full-screen mobile item list | `items: MobileMenuItem[]`, `open` (bindable), `onSelect`, `closeLabel` |
 
 ### `files/` — images and uploads

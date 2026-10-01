@@ -1,3 +1,18 @@
+## Unlabelled fields match the labelled box height at each width; mobile breaks at 749px
+
+**Context** — An unlabelled field's box was `--input-height - 4` (38px) against a labelled box of
+`--input-height` (42px), so filters read flat beside fields. On mobile the labelled box also starts
+2px higher (inset 5px) so the line crosses the label's middle, which makes it 44px there only.
+
+**Decision** — The unlabelled row is `--input-height` on desktop and `--input-height + 2px` below
+749px: equal to the labelled box at both widths, not a fixed 44px everywhere. The breakpoint is
+`max-width: 749px`, the same cut as `deviceType` (`innerWidth < 750`) and `Layer.svelte`.
+
+**Rationale** — The point is that a filter lines up with the fields beside it, and those differ by
+width now. The label itself did not move, so a labelled value on mobile sits 4px under the box's
+centre instead of 3px. Cost: one more breakpoint the shell has to agree with, and the interactive
+prefix's climb (`-6px` → `-8px`) needs its own mobile rule.
+
 ## A left option's `label` shortens the collapsed selector only
 
 **Context** — `ILeftOption` gained an optional `label` so a long catalog name stops eating the
@@ -66,7 +81,7 @@ and detaches it from the panel. The ring sits under the triangle instead of thro
 ## `size="small"` is a `FieldShell` flag, not a `FilterInput` override
 
 **Context** — `FilterInput` needed a 32px variant. Its height is not its own: the row is
-`--input-height - 4` and the box starts 7px down, both owned by `field-shell.module.css`.
+`--input-height` (unlabelled) and the box starts 7px down, both owned by `field-shell.module.css`.
 
 **Decision** — `size?: "normal" | "small"` on `FieldShell`, which adds an `is-small` global class,
 and two rules beside the pill variant: `.row { height: 32px }` and `.box { inset: 0 }`. `FilterInput`

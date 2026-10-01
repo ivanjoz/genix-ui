@@ -137,7 +137,7 @@ import { Agent } from '../agent/registry';
             doOnChange()
           }}
         >
-          <i class="icon-[fa--trash]"></i>
+          <i class="icon-[mdi--delete]"></i>
         </button>
       </div>
     {/each}

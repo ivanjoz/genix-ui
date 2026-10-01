@@ -44,7 +44,7 @@
     <Button icon="icon-[fa--floppy-o]" color="blue" onClick={() => { lastAction = 'Icon only'; }} />
     <Button icon="icon-[fa--plus]" color="green" useCircle
       onClick={() => { lastAction = 'Circle'; }} />
-    <Button icon="icon-[fa--trash]" color="red" useCircle
+    <Button icon="icon-[mdi--delete]" color="red" useCircle
       onClick={() => { lastAction = 'Circle delete'; }} />
     <Button name="Disabled" color="blue" icon="icon-[fa--ban]" disabled onClick={() => {}} />
     <Button name="Hidden on mobile|Oculto en móvil" color="purple" icon="icon-[fa--mobile]"

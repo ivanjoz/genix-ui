@@ -368,7 +368,7 @@
                 removeSelected();
               }}
             >
-              <i class="icon-[fa--trash]"></i>
+              <i class="icon-[mdi--delete]"></i>
             </button>
           </div>
         {:else}
@@ -383,7 +383,7 @@
                 removeSelected();
               }}
             >
-              <i class="icon-[fa--trash]"></i>
+              <i class="icon-[mdi--delete]"></i>
             </button>
           </div>
         {/if}

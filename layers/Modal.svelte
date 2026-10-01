@@ -305,7 +305,7 @@
 			onclick={handleDelete}
 			aria-label={ui.translate("Delete|Eliminar")}
 		>
-			<i class="icon-[fa--trash]"></i>
+			<i class="icon-[mdi--delete]"></i>
 		</button>
 	{/if}
 	{#if onSave}
@@ -323,7 +323,7 @@
 		onclick={handleClose}
 		aria-label={ui.translate("Close|Cerrar")}
 	>
-		<i class="icon-[fa--close]"></i>
+		<i class="icon-[mdi--close-thick] text-[22px]"></i>
 	</button>
 {/snippet}
 
@@ -402,7 +402,7 @@
 									onclick={closeErrorsView}
 									aria-label={ui.translate("Close errors|Cerrar errores")}
 								>
-									<i class="icon-[fa--close]"></i>
+									<i class="icon-[mdi--close-thick]"></i>
 								</button>
 								<div class="ff-bold text-red-700 mb-2">
 									{ui.translate("Import validations|Validaciones de importación")}

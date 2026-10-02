@@ -305,7 +305,7 @@
       {#each week.weekDays as day}
         {@const isOutMonth = day.monthKey !== monthSelected}
         {@const isSelected = day.unixDay === dateSelected}
-        {@const isFocused = day.unixDay === dateFocus}
+        {@const isFocused = day.unixDay === dateFocus && !isSelected}
         {@const isToday = dateTodayUnix === day.unixDay}
         <button
           class="relative dp-day text-[14px] text-center flex items-center justify-center p-0 bg-transparent border-0 {isOutMonth ? 'is-out' : ''} {isSelected ? 'selected' : ''} {isFocused ? 'focused' : ''}"
@@ -465,6 +465,7 @@
     font-weight: 600;
   }
 
+  /* Never combined with .selected (see isFocused): this light background would hide the selected day's white text. */
   .dp-day.focused {
     background-color: #e8e7f5;
     outline: 2px solid #9794d6;

@@ -94,10 +94,12 @@
 			applyActiveStylesInstant(optionElement);
 		}
 
-		await onNavigate(route);
-
+		// Close the drawer before navigating, not after: onNavigate can await a route chunk for
+		// seconds, and the full-screen drawer would hide the caller's page loader all that time.
 		open = false;
 		menuOpen = [menuId, route];
+
+		await onNavigate(route);
 	}
 
 	// What the drawer DOM shows. It trails `open` by one view transition, so the drawer slides

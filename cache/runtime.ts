@@ -2,10 +2,11 @@ export interface CacheGetRequest {
 	route: string
 }
 
+// Same names as SvelteKit 3's goto() options, so a host can pass goto as navigate.
 export interface CacheNavigateOptions {
-	noScroll?: boolean
-	replaceState?: boolean
-	keepFocus?: boolean
+	replace?: boolean
+	// false keeps the scroll position and focus (SvelteKit 2's noScroll + keepFocus).
+	reset?: boolean
 }
 
 export interface CacheRuntime {
@@ -22,7 +23,7 @@ let cacheRuntime: CacheRuntime = {
 	get: () => Promise.reject(new Error('Cache GET adapter is not configured.')),
 	navigate: (target, options) => {
 		if (typeof location === 'undefined') { return }
-		options?.replaceState ? location.replace(target) : location.assign(target)
+		options?.replace ? location.replace(target) : location.assign(target)
 	},
 }
 

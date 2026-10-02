@@ -50,9 +50,7 @@ export const loadRouteRecordFromQueryParam = async <T = any>(
     console.warn('[route-data] load:not-found — clearing url param', { paramName, key, dbName })
     // Strip the dangling param so refreshing the page doesn't re-trigger the lookup.
     url.searchParams.delete(paramName)
-    await getCacheRuntime().navigate(url.pathname + (url.search || '') + url.hash, {
-      noScroll: true, replaceState: true, keepFocus: true,
-    })
+    await getCacheRuntime().navigate(url.pathname + (url.search || '') + url.hash, { replace: true, reset: false })
     return { err: 'Not Found' }
   }
   console.debug('[route-data] load:ok', { paramName, key })
@@ -66,7 +64,7 @@ export const setRouteRecordQueryParam = async (paramName: string, key: string): 
   url.searchParams.set(paramName, key)
   const target = url.pathname + url.search + url.hash
   console.debug('[route-data] setQueryParam', { paramName, key, target })
-  await getCacheRuntime().navigate(target, { noScroll: true, replaceState: false, keepFocus: true })
+  await getCacheRuntime().navigate(target, { replace: false, reset: false })
   console.debug('[route-data] setQueryParam:done', { href: window.location.href })
 }
 
@@ -79,7 +77,7 @@ export const clearRouteRecordQueryParam = async (paramName: string = 'rec'): Pro
   url.searchParams.delete(paramName)
   const target = url.pathname + (url.search || '') + url.hash
   console.debug('[route-data] clearQueryParam', { paramName, target })
-  await getCacheRuntime().navigate(target, { noScroll: true, replaceState: true, keepFocus: true })
+  await getCacheRuntime().navigate(target, { replace: true, reset: false })
 }
 
 // Re-export the IDB-level delete in case a caller needs to forget a stored entry explicitly.

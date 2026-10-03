@@ -24,6 +24,55 @@
     onToggle?.(!show)
   }
 
+  // Native-like drag on the header: the panel follows the finger and snaps open/closed on release.
+  // The header has touch-action:none, so the browser never turns this gesture into scroll or pull-to-refresh.
+  let panelElement: HTMLDivElement
+  let dragOffsetPx = $state<number | null>(null) // null = not dragging
+  let dragStartY = 0
+  let dragStartTime = 0
+  let panelTravelPx = 0
+  let suppressNextClick = false
+
+  const onHeaderPointerDown = (event: PointerEvent) => {
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+    dragStartY = event.clientY
+    dragStartTime = event.timeStamp
+    panelTravelPx = panelElement.offsetHeight - closedHeightPx
+    suppressNextClick = false
+    dragOffsetPx = 0
+  }
+
+  const onHeaderPointerMove = (event: PointerEvent) => {
+    if (dragOffsetPx !== null) { dragOffsetPx = event.clientY - dragStartY }
+  }
+
+  // Snap by flick velocity first, then by distance; a tiny movement is a tap, left to onclick.
+  const onHeaderPointerUp = (event: PointerEvent) => {
+    if (dragOffsetPx === null) { return }
+    const movedPx = event.clientY - dragStartY
+    const velocityPxPerMs = movedPx / Math.max(1, event.timeStamp - dragStartTime)
+    dragOffsetPx = null
+    if (Math.abs(movedPx) < 6) { return }
+    suppressNextClick = true
+    const shouldOpen = Math.abs(velocityPxPerMs) > 0.5
+      ? velocityPxPerMs < 0
+      : show ? movedPx < panelTravelPx / 3 : -movedPx > panelTravelPx / 3
+    if (shouldOpen !== show) { onToggle?.(shouldOpen) }
+  }
+
+  const onHeaderClick = () => {
+    if (suppressNextClick) { suppressNextClick = false; return }
+    toggleLayer()
+  }
+
+  // While dragging, the transform tracks the finger, clamped between open (0) and closed (travel).
+  const dragStyle = $derived.by(() => {
+    if (dragOffsetPx === null) { return '' }
+    const baseOffsetPx = show ? 0 : panelTravelPx
+    const translateYPx = Math.min(panelTravelPx, Math.max(0, baseOffsetPx + dragOffsetPx))
+    return `transform:translateY(${translateYPx}px);transition:none;`
+  })
+
   const componentID = ui.nextComponentId()
 
   $effect(() => {
@@ -48,15 +97,20 @@
   ></button>
 
   <div
+    bind:this={panelElement}
     class="mobile-layer-panel"
     class:is-open={show}
-    style={`--mobile-layer-closed-height:${closedHeightPx}px;`}
+    style={`--mobile-layer-closed-height:${closedHeightPx}px;${dragStyle}`}
   >
     <button
       class="mobile-layer-header"
       aria-expanded={show}
       aria-label={show ? ui.translate('Hide panel|Ocultar panel') : ui.translate('Show panel|Mostrar panel')}
-      onclick={toggleLayer}
+      onclick={onHeaderClick}
+      onpointerdown={onHeaderPointerDown}
+      onpointermove={onHeaderPointerMove}
+      onpointerup={onHeaderPointerUp}
+      onpointercancel={() => { dragOffsetPx = null }}
     >
       <div class="mobile-layer-handle"></div>
       <div class="mobile-layer-title-row">
@@ -124,6 +178,8 @@
     border-bottom: 1px solid rgb(226 232 240);
     background: linear-gradient(180deg, rgb(248 250 252) 0%, rgb(255 255 255) 100%);
     text-align: left;
+    touch-action: none;
+    user-select: none;
   }
 
   .mobile-layer-handle {
@@ -155,6 +211,8 @@
   .mobile-layer-body {
     height: calc(100% - 58px);
     overflow: auto;
+    /* Scroll stops at the cart's edges instead of chaining to the page (and triggering pull-to-refresh). */
+    overscroll-behavior: contain;
     background: white;
   }
 

@@ -194,9 +194,10 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 		const recordsToKeep: T[] = []
 
 		for (const record of records) {
-			// ss=0 is the shared tombstone convention for cached Svelte services.
+			// ss=0 is the shared tombstone convention for cached Svelte services. The API's minijson
+			// skips zero values, so a deleted record arrives without `ss` at all.
 			this.recordsMap.set(record.ID, record)
-			const shouldRemoveByStatus = this.inferRemoveFromStatus && record.ss === 0
+			const shouldRemoveByStatus = this.inferRemoveFromStatus && !record.ss
 			const normalizedRecordName = normalizeName(this.makeName(record))
 
 			if (shouldRemoveByStatus) {

@@ -183,7 +183,8 @@ const mergeFetchedRecordsIntoCache = async <T extends IMinimalRecord>(
 		}
 		fetchedRecord._fch = fetchedAtSeconds
 		if (typeof fetchedRecord.upv !== "number") fetchedRecord.upv = 0
-		if (typeof fetchedRecord.ss !== "number") fetchedRecord.ss = 1
+		// The API's minijson skips zero values: a record without `ss` is a deleted one (ss = 0).
+		if (typeof fetchedRecord.ss !== "number") fetchedRecord.ss = 0
 		tableCache.set(fetchedRecord.ID, fetchedRecord)
 		logDebugCacheRecord("server record merged into memory", apiRoute, fetchedRecord.ID, fetchedRecord)
 		mergedRecords.set(fetchedRecord.ID, fetchedRecord)

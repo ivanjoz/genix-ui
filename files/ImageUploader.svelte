@@ -391,7 +391,7 @@ $effect(() => {
         </div>
       {/if}
       <div class="absolute bottom-0 flex items-center justify-center w-full p-6">
-        <button class="bnr-1 _4 mr-12 {imageSrc.base64
+        <button class="w-32 h-32 rounded-full _4 mr-12 {imageSrc.base64
             ? ''
             : 'hidden group-hover:block'} outline-2 outline-white/50 hover:outline-black/70"
           aria-label={ui.translate("Delete image|Eliminar imagen")}
@@ -409,7 +409,7 @@ $effect(() => {
           <i class="icon-[fa--close]"></i>
         </button>
         {#if imageSrc.base64 && !hideUploadButton}
-          <button class="bnr-1 _5 outline-2 outline-white/50 hover:outline-black/70"
+          <button class="w-32 h-32 rounded-full _5 outline-2 outline-white/50 hover:outline-black/70"
             aria-label={ui.translate("Upload image|Subir imagen")}
             onclick={(ev) => {
               ev.stopPropagation();
@@ -428,13 +428,13 @@ $effect(() => {
       {#if isReserving}
         <div class={s1.card_image_spinner}></div>
       {/if}
-      <div class="c-white h3 ff-bold">{isReserving ? ui.translate('Loading...|Cargando...') : ui.translate('Saving...|Guardando...')}</div>
+      <div class="text-white h3 ff-bold">{isReserving ? ui.translate('Loading...|Cargando...') : ui.translate('Saving...|Guardando...')}</div>
       {#if progress > 0}
-        <div class="relative left-0 right-0 flex items-center justify-center h-22 w-[calc(100%-16px)] mt-8 mr-8 ml-9 p-2 bg-black/35 lh-10">
+        <div class="relative left-0 right-0 flex items-center justify-center h-22 w-[calc(100%-16px)] mt-8 mr-8 ml-9 p-2 bg-black/35 leading-none">
           <div class="absolute left-2 h-18 bg-[#29b15d]"
             style="width: calc({Math.round(progress)}% - 4px);"
           ></div>
-          <div class="absolute fs14 ff-bold text-white">{Math.round(progress)} %</div>
+          <div class="absolute text-[14px] ff-bold text-white">{Math.round(progress)} %</div>
         </div>
       {/if}
     </div>

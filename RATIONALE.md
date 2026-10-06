@@ -2,6 +2,25 @@
 
 Design decisions for the shared UI package, newest first.
 
+## genix-ui ships its global CSS in `tailwind.css`
+
+**Context** — The CSS the components depend on (the `--spacing: 1px` theme and breakpoints, the
+custom properties they read, element resets, the `bx-*` button classes, `.color-label`, `.c-*`,
+the `mdi--delete` zoom, `.w-page-clipped`) lived in each host's `app.css`/`tailwind.css`. berryapps
+and genix kept hand-copied versions that drifted. genix lacked `.w-page-clipped`, the delete zoom and
+`.bx-red:hover`, so the same component rendered differently in each host.
+
+**Decision** — `tailwind.css` at the package root holds all of it, and every host imports it right
+after `@import 'tailwindcss'`. A host redeclares the custom properties on `body` to restyle. CSS
+that a single component uses lives in that component (`.w-page` in Layer.svelte). One-off helper
+classes became Tailwind utilities (`lh-10` → `leading-none`, `bnr-1` → `w-32 h-32 rounded-full`).
+Classes only an app uses stay in the app.
+
+**Rationale** — There is one copy, so a fix reaches both hosts with the submodule bump. The `bx-*`
+classes stay global, not scoped to Button.svelte, because Modal, ButtonLayer and ButtonList put them
+on their own `<button>`. The cost: a host must import the file from its Tailwind entry, since
+`@theme` and `@source` only work there. A plain `import` from a component would not do.
+
 ## `Button`'s icon/label gap is a margin on the label
 
 **Context** — With `hideNameOnMobile`, the label was hidden on mobile but the icon kept its 5px
@@ -33,13 +52,12 @@ minimal delete icon and a thinner close X were requested for modals and layers.
 **Decision** — Every `fa--trash` became `mdi--delete`. `fa--close` became `mdi--close-thick` only
 in `layers/` (Modal, Layer, TopLayerSelector, TopLayerDatePicker). The other X icons (file chips,
 side/mobile menu, chat attachments) still use `fa--close` / `fa--times`. `mdi--delete` only fills
-18 of its 24 grid units, so the host's `tailwind.css` zooms its mask to 133%. The icon keeps its
+18 of its 24 grid units, so genix-ui's `tailwind.css` zooms its mask to 133%. The icon keeps its
 1em box, so buttons keep their size.
 
 **Rationale** — `@iconify-json/mdi` is already installed, so this adds no dependency. Keeping the
-change to the layer close buttons stays within what was asked. The costs: the X icons now look
-different between layers and those other widgets, and the delete zoom lives in the host app's CSS,
-not in genix-ui.
+change to the layer close buttons stays within what was asked. The cost: the X icons now look
+different between layers and those other widgets.
 
 ## TableGrid reads `subcols`, so a group label can sit over its columns
 

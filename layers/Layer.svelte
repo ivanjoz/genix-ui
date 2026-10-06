@@ -224,12 +224,12 @@ import { useUI } from '../runtime/index.js';
           </div>
         {/if}
         {#if onDelete}
-          <Button color="red" icon="icon-[mdi--delete]" label={ui.translate("Delete|Eliminar")} css="mr-10 lh-10"
+          <Button color="red" icon="icon-[mdi--delete]" label={ui.translate("Delete|Eliminar")} css="mr-10 leading-none"
             onClick={onDelete} />
         {/if}
         {#if onSave}
           <Button color="blue" icon={saveButtonIcon || 'icon-[fa--floppy-o]'}
-            name={ui.translate(saveButtonName || 'Guardar')} css="mr-10 lh-10"
+            name={ui.translate(saveButtonName || 'Guardar')} css="mr-10 leading-none"
             label={ui.translate("Save|Guardar")} onClick={onSave} />
         {/if}
         <Button color="yellow" icon="icon-[mdi--close-thick] text-[22px]" label={ui.translate("Close|Cerrar")} onClick={() => {
@@ -261,7 +261,7 @@ import { useUI } from '../runtime/index.js';
 
 {#if type == 'content'}
   <!-- While a side layer is open it shrinks and clips its children, which keep their full width
-       (see .w-page-clipped in app.css), so the content is cut before the layer without reflowing. -->
+       (see .w-page-clipped below), so the content is cut before the layer without reflowing. -->
   <div data-id="Layer:{componentID}" class="w-page" class:w-page-clipped={!!contentWidth} style:width={contentWidth}>
     {@render children()}
   </div>
@@ -384,5 +384,25 @@ import { useUI } from '../runtime/index.js';
     opacity: 0 !important;
     animation: none !important;
     display: none !important;
+  }
+
+  @media only screen and (min-width: 680px) {
+    .w-page {
+      overflow: auto;
+      padding: 4px;
+      margin: -4px;
+    }
+  }
+
+  /* A side layer is open and has shrunk .w-page: its children keep the full page width and are
+     cut where .w-page ends. Clip, never scroll: a scrollbar here makes the page taller, which
+     brings up the window's vertical scrollbar, and as --page-width counts it (100vw) both
+     scrollbars stay after the layer closes. The min-width applies only here for the same reason. */
+  .w-page.w-page-clipped {
+    overflow: clip;
+  }
+
+  .w-page.w-page-clipped > :global(div) {
+    min-width: var(--page-width);
   }
 </style>

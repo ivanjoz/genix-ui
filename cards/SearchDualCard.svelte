@@ -356,7 +356,7 @@
         {@const removeSelected = () => removeSelectedID(currentSelectedItem.source, currentSelectedItem.id)}
         {#if selectedItem}
           <div data-id="Option:{currentSelectedItem.id}" data-selected="true"
-            class={`m-2 px-8 py-6 min-w-56 lh-10 flex _chip ${currentSelectedItem.source === "right" ? "_chip-right" : "_chip-left"}`}>
+            class={`m-2 px-8 py-6 min-w-56 leading-none flex _chip ${currentSelectedItem.source === "right" ? "_chip-right" : "_chip-left"}`}>
             <span class="_chip-text">
               {@render selectedItem(currentSelectedItem)}
             </span>
@@ -373,7 +373,7 @@
           </div>
         {:else}
           <div data-id="Option:{currentSelectedItem.id}" data-selected="true"
-            class={`m-2 px-8 py-6 min-w-56 lh-10 flex _chip ${currentSelectedItem.source === "right" ? "_chip-right" : "_chip-left"}`}>
+            class={`m-2 px-8 py-6 min-w-56 leading-none flex _chip ${currentSelectedItem.source === "right" ? "_chip-right" : "_chip-left"}`}>
             <span class="_chip-text">{getSelectedItemName(currentSelectedItem)}</span>
             <button
               class="_chip-remove absolute w-28 h-28 rounded right-2 top-2"

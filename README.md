@@ -51,23 +51,24 @@ editor navigation opens the real implementation.
 
 ### Tailwind CSS v4 setup (required)
 
-Components are styled with Tailwind utilities and Iconify icon classes. Without these
-three pieces they render unstyled:
+Components are styled with Tailwind utilities, Iconify icon classes and the package's
+own `tailwind.css`. That file holds the theme (`--spacing: 1px`, breakpoints), the `@source` of the
+package, the custom properties the components read, element resets, the `bx-*` button classes and
+the shared text classes. Without these pieces the components render unstyled:
 
 ```css
 @import 'tailwindcss';
+@import '../packages/genix-ui/tailwind.css';
 
 /* Icon classes such as `icon-[fa--floppy-o]` used across the package. */
 @plugin "@iconify/tailwind4" { prefix: "icon"; scale: 1; }
 
-/* Tailwind must scan the package source for class names. */
-@source "../packages/genix-ui/{buttons,cards,charts,editor,files,form,layers,menu,misc,navigation,notify,runtime,vTable}/**/*.svelte";
-
-@theme {
-  /* One Tailwind spacing unit is ONE PIXEL. `h-4` is 4px, not 1rem. */
-  --spacing: 1px;
-}
+/* Restyle by redeclaring the package's custom properties after the import. */
+body { --header-height: 52px; }
 ```
+
+The host keeps only its own look (body background, scrollbar, fonts) and classes no
+component uses.
 
 Install `@iconify/tailwind4` plus the icon sets the components use (`@iconify-json/fa`
 covers most; Genix also installs `mdi`, `emojione`, `flat-color-icons`).

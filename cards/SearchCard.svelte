@@ -128,7 +128,7 @@ import { Agent } from '../agent/registry';
     {#each selectedIDs as id }
       {@const el = getOption(id)}
       <div data-id="Option:{componentID}:{id}" data-selected="true"
-        class="m-2 px-8 min-w-56 h-32 lh-10 flex _3">
+        class="m-2 px-8 min-w-56 h-32 leading-none flex _3">
         { el[keyName] as string }
         <button class="_4 absolute w-28 h-28 rounded right-2" aria-label={ui.translate("delete|eliminar")}
           onclick={ev => {

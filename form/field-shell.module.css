@@ -26,8 +26,8 @@
 
    ── theming ───────────────────────────────────────────────────────────────────────
    Every colour is a custom property read the same way as --input-height, i.e. inherited
-   from an ancestor (the app sets --input-height / --input-border-color on `body` in
-   routes/tailwind.css and webpage/routes/store.css). Each one carries its current value
+   from an ancestor (genix-ui's tailwind.css sets --input-height / --input-border-color on
+   `body`, and a host can redeclare them). Each one carries its current value
    as the var() fallback, so the package still renders correctly with nothing declared,
    and an override can be dropped on `body`, on a section, or on one field via
    `style="--input-border-color: …"`.
@@ -366,7 +366,7 @@ textarea.inp {
 }
 
 /* Disabled reads as disabled, and the grey follows the rounded border instead of the
-   square patch app.css `input:disabled` used to paint inside the old box. */
+   square patch that the `input:disabled` reset in tailwind.css paints inside the box. */
 .field:global(.is-disabled) .box {
   background: var(--input-bg-disabled, #f3f4f8);
   box-shadow: none;

@@ -88,7 +88,7 @@
   }}
 >
   <!-- The check glyph is sized in `em`, so the box's own font-size is what scales it with the box. -->
-  <span class="flex mr-4 pt-1 items-center p-0 lh-10 justify-center rounded-[4px] shrink-0 _1
+  <span class="flex mr-4 pt-1 items-center p-0 leading-none justify-center rounded-[4px] shrink-0 _1
     {size === 'tiny' ? 'w-20 h-20 mb-1 text-[11px]' : 'w-28 h-26'}"
     class:_2={isSelected}
   >

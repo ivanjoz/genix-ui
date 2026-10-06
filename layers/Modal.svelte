@@ -301,7 +301,7 @@
 {#snippet modalActions()}
 	{#if onDelete}
 		<button
-			class="bx-red mr-10 lh-10"
+			class="bx-red mr-10 leading-none"
 			onclick={handleDelete}
 			aria-label={ui.translate("Delete|Eliminar")}
 		>
@@ -310,7 +310,7 @@
 	{/if}
 	{#if onSave}
 		<button
-			class="bx-blue mr-10 lh-10"
+			class="bx-blue mr-10 leading-none"
 			onclick={handleSave}
 			aria-label={ui.translate(saveLabel)}
 		>
@@ -319,7 +319,7 @@
 		</button>
 	{/if}
 	<button
-		class="bx-yellow h3 lh-10 -mr-2"
+		class="bx-yellow h3 leading-none -mr-2"
 		onclick={handleClose}
 		aria-label={ui.translate("Close|Cerrar")}
 	>
@@ -398,7 +398,7 @@
 						{:else}
 							<div class="p-8 relative rounded-md border border-red-200">
 								<button
-									class="bx-red absolute right-6 top-6 lh-10"
+									class="bx-red absolute right-6 top-6 leading-none"
 									onclick={closeErrorsView}
 									aria-label={ui.translate("Close errors|Cerrar errores")}
 								>

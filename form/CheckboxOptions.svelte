@@ -125,7 +125,7 @@
           onSelect(opt)
         }}
       >
-        <span class="flex mr-4 pt-1 items-center p-0 lh-10 justify-center rounded-[4px] shrink-0 w-28 h-26 _1"
+        <span class="flex mr-4 pt-1 items-center p-0 leading-none justify-center rounded-[4px] shrink-0 w-28 h-26 _1"
           class:_2={isSelected}
         >
           {#if isSelected}

@@ -6,7 +6,7 @@ import { useUI } from '../runtime/index.js';
   const ui = useUI()
 
   let {
-    options, selected, keyId, keyName, buttonCss, onSelect, css, useMobileGrid,
+    options, selected, keyId, keyName, keyIcon, buttonCss, onSelect, css, useMobileGrid,
     activeClass = "_3",
     inactiveClass = "",
     itemCss = "_2",
@@ -16,6 +16,8 @@ import { useUI } from '../runtime/index.js';
     selected: any,
     keyId?: keyof T,
     keyName?: keyof T,
+    /** Key of an icon class (e.g. "icon-[fa--info-circle]") drawn before the option's name. */
+    keyIcon?: keyof T,
     buttonCss?: string,
     onSelect: (e: T) => void,
     useMobileGrid?: boolean,
@@ -98,8 +100,8 @@ import { useUI } from '../runtime/index.js';
       ev.stopPropagation()
       onSelect(opt)
     }}>
-      {#if opt && typeof opt === 'object' && 'icon' in opt}
-        <span class="mr-2">{opt.icon}</span>
+      {#if keyIcon && opt?.[keyIcon]}
+        <i class="{opt[keyIcon]} shrink-0 mr-4 text-[1.1em]"></i>
       {/if}
       {#if words.length === 1}
         <span><T text={words[0]} /></span>

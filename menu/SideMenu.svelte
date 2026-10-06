@@ -270,7 +270,7 @@
 	<!-- Mobile Menu Panel -->
 	<aside class="mobile-menu-panel" bind:this={mobileMenuPanel}>
 		<!-- Mobile Header -->
-		<div class="mobile-header h-48 flex items-center gap-8 px-6 justify-between">
+		<div class="mobile-header flex items-center gap-8 px-6 justify-between">
 			{#if header}
 				<div class="flex-1 min-w-0">{@render header(true)}</div>
 			{:else}
@@ -565,7 +565,9 @@
 	}
 
 	/* Mobile Header */
+	/* Level with the app header it slides over. */
 	.mobile-header {
+		height: var(--header-height);
 		border-bottom: 1px solid #e5e7eb;
 		background: white;
 	}

@@ -2,6 +2,22 @@
 
 Design decisions for the shared UI package, newest first.
 
+## Calendar: own integer date math, ISO weeks, display-only
+
+**Context** — The user asked for a month/week calendar over 4-digit codes (YYMM, YYWW) and Unix
+days. Open: which week numbering, whether to reuse `utilities/date.ts`, and what the component
+does beyond showing activities.
+
+**Decision** — `calendar/calendar.ts` converts codes and days with integer arithmetic over
+`Date.UTC`: no time zone can shift a day. Weeks are ISO (Monday start, the week belongs to its
+Thursday's year), the codes read as 20YY. `activityRender` replaces the card's content but the
+colored card stays, so `color` keeps meaning. The component has no navigation, click callbacks
+or activity title translation — the host drives the codes and passes its own data.
+
+**Rationale** — `DateHelper` works on 6-digit week codes (202406) through local `Date` objects
+and date-fns; the new functions are a few lines and tested in isolation. Cost: codes before 2000
+or after 2099 can't be expressed, and clicks on days or cards need a prop when a page needs them.
+
 ## `ifcss`: the caller's `css` overrides only width, height, margin and padding
 
 **Context** — Components appended `css` after their defaults, but Tailwind sorts utilities of the

@@ -7,6 +7,7 @@
   // package itself depends on nothing from the app (no Page, no routing, no stores).
   import OptionsStrip from '../navigation/OptionsStrip.svelte';
   import SectionButtons from './SectionButtons.svelte';
+  import SectionCalendar from './SectionCalendar.svelte';
   import SectionCharts from './SectionCharts.svelte';
   import SectionForm from './SectionForm.svelte';
   import SectionMisc from './SectionMisc.svelte';
@@ -37,6 +38,7 @@
     [5, 'Overlays'],
     [8, 'Notify'],
     [6, 'Charts'],
+    [9, 'Calendar'],
     [7, 'Misc'],
   ];
 </script>
@@ -45,7 +47,7 @@
      something when this is dropped somewhere that has no page container to flip. -->
 <div class={surfaceCss}>
   <div class="flex flex-wrap items-center gap-12 mb-12">
-    <!-- 8 tabs exceed the 3-option guidance for Page header options, so the tab bar
+    <!-- 9 tabs exceed the 3-option guidance for Page header options, so the tab bar
          lives in the body. No useMobileGrid here: the strip only has grid-cols classes
          up to 5 options, and horizontal scroll handles the overflow on mobile. -->
     <OptionsStrip selected={tab} options={tabOptions}
@@ -66,5 +68,6 @@
   {#if tab === 5}<SectionOverlays />{/if}
   {#if tab === 8}<SectionNotify />{/if}
   {#if tab === 6}<SectionCharts />{/if}
+  {#if tab === 9}<SectionCalendar />{/if}
   {#if tab === 7}<SectionMisc />{/if}
 </div>

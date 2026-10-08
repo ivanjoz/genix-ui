@@ -376,7 +376,7 @@ await sendServiceMessage(26, {}); // e.g. clear the worker-side delta cache
 
 ## Component catalog
 
-54 components. Import any of them through the wildcard export
+55 components. Import any of them through the wildcard export
 (`@genix/ui/form/Input.svelte`), or through `$components/*` if the alias is configured.
 Only `Renderer`, the menus, the editor, and the charts are re-exported from the package
 root. **(ui)** marks components that require `provideUi`.
@@ -524,6 +524,15 @@ Neither menu imports routing, security, or services; all policy arrives as props
 | `CellSimpleChart` | Table-cell bar sparkline | `values`, `labels`, `barWidth`, `barGap`, `barColor`, `barColors`, `colorScale` |
 | `CellHorizontalBars` | Table-cell total/pending horizontal bars | `values: [total, pending][]`, `maxValue`, `logScaleFactor`, `totalBarColor`, `pendingBarColor` |
 
+### `calendar/`
+
+| Component | Purpose | Key props |
+| --- | --- | --- |
+| `Calendar` **(ui)** | Activities on a month grid (weekdays as columns) or a week grid (ISO weeks as columns, Monday–Sunday as rows) | `mode: 'month'\|'week'`, `month` (YYMM, `2406` = June 2024), `weekStart` / `weekEnd` (YYWW, `2406` = week 6 of 2024), `activities: { date, title, color, icon, text }[]` (`date` = Unix day, `color` = `CalendarColor`), `activityRender` snippet (card content), `css` |
+
+The date math (`buildMonthWeeks`, `buildWeekColumns`, `weekCodeOfDay`, `weekCodeStartDay`) is
+pure integer arithmetic in `calendar/calendar.ts`, independent of the browser's time zone.
+
 ### `misc/` — primitives
 
 | Component | Purpose | Key props |
@@ -651,7 +660,7 @@ genix-ui/
                       # cache, service-worker, security, Renderer, image helpers
   agent/              # agent registry (automation contract)
   assets/             # raw SVG assets
-  buttons/ cards/ charts/ editor/ files/ form/ layers/ markdown/ menu/ misc/ navigation/ vTable/
+  buttons/ calendar/ cards/ charts/ editor/ files/ form/ layers/ markdown/ menu/ misc/ navigation/ vTable/
   cache/              # delta cache, group cache, cache-by-IDs
   excel/              # import/export + WASM asset
   http/               # HTTP client + GetHandler

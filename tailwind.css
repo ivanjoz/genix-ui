@@ -7,7 +7,7 @@
 
    The host restyles by redeclaring the custom properties on `body` after this import. */
 
-@source "./{buttons,cards,charts,editor,files,form,layers,menu,misc,navigation,notify,runtime,vTable}/**/*.svelte";
+@source "./{buttons,calendar,cards,charts,editor,files,form,layers,menu,misc,navigation,notify,runtime,vTable}/**/*.svelte";
 
 /* The markup counts in pixels: `--spacing: 1px` makes `h-4` 4px, and `md:` starts at 749px. */
 @theme {

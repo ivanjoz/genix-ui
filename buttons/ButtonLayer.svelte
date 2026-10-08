@@ -378,6 +378,8 @@ import { Agent } from '../agent/registry';
     display: flex;
     justify-content: center;
     z-index: 361;
+    /* The angle overlaps the trigger's bottom edge: let clicks there reach the trigger and close the layer. */
+    pointer-events: none;
   }
 
   .button-layer.placement-top .button-layer-angle {

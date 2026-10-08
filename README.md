@@ -70,6 +70,15 @@ body { --header-height: 52px; }
 The host keeps only its own look (body background, scrollbar, fonts) and classes no
 component uses.
 
+**The `css` prop overrides a component's default width, height (both with min/max), margin and
+padding.**
+Components join their default classes with `css` through `ifcss(css, defaultCss)`
+(`utilities/css.ts`), which drops the defaults the caller overrides under the same variants:
+`css="w-100"` on a `w-800` layer leaves only `w-100`, while `md:w-100` keeps `w-800` for mobile.
+Without it Tailwind decides by the class name (`w-800` beats `w-100`), not by attribute order.
+Other default classes are kept, so set those through the component's other props. Write classes
+as full literals (`"w-100"`, never `` `w-${n}` ``): Tailwind finds them by scanning the files.
+
 Install `@iconify/tailwind4` plus the icon sets the components use (`@iconify-json/fa`
 covers most; Genix also installs `mdi`, `emojione`, `flat-color-icons`).
 

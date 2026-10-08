@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
+  import { ifcss } from '../utilities/css.js';
   const ui = useUI();
 
   type LabelColor = 'blue' | 'green' | 'red' | 'orange' | 'yellow' | 'purple' | 'gray';
@@ -25,6 +26,6 @@
   };
 </script>
 
-<span class={`inline-flex shrink-0 items-center rounded-[4px] border px-6 h-22 text-[14px] leading-none whitespace-nowrap ${colorCssByName[color]} ${css}`.trim()}>
+<span class={ifcss(css, `inline-flex shrink-0 items-center rounded-[4px] border px-6 h-22 text-[14px] leading-none whitespace-nowrap ${colorCssByName[color]}`)}>
   {ui.translate(text)}
 </span>

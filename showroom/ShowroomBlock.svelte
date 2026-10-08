@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { ifcss } from '../utilities/css.js';
 
   // Titled wrapper for one component demo. Intentionally transparent — a white card
   // would hide the page surface and defeat the white/gray toggle. The dashed border
@@ -12,7 +13,7 @@
   } = $props();
 </script>
 
-<div class="border border-dashed border-gray-300 rounded-md p-12 mb-12 {css}">
+<div class={ifcss(css, "border border-dashed border-gray-300 rounded-md p-12 mb-12")}>
   <div class="flex flex-wrap items-baseline gap-8 mb-10">
     <span class="text-sm font-semibold text-gray-700">{name}</span>
     {#if note}<span class="text-xs text-gray-500">{note}</span>{/if}

@@ -6,6 +6,7 @@ import ButtonList from '../buttons/ButtonList.svelte';
 import Button from '../buttons/Button.svelte';
 import { Agent } from '../agent/registry';
 import { useUI } from '../runtime/index.js';
+import { ifcss } from '../utilities/css.js';
 
   const ui = useUI()
 
@@ -190,7 +191,7 @@ import { useUI } from '../runtime/index.js';
 
 {#if ui.state.sideLayerId === id && (type === 'side' || type === 'bottom')}
   <div data-id="Layer:{componentID}"
-    class="flex flex-col w-800 {css || ''}"
+    class={ifcss(css, "flex flex-col w-800")}
     bind:this={divLayer}
     data-layer-id={id}
     class:_8={contentOverflow}

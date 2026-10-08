@@ -37,6 +37,7 @@
 	import { untrack } from "svelte";
 	import { onDestroy } from "svelte";
 	import Portal from "../misc/Portal.svelte";
+	import { ifcss } from "../utilities/css.js";
 	import OptionsStrip from "../navigation/OptionsStrip.svelte";
 	import FileUploadSelector from "../files/FileUploadSelector.svelte";
 	import { Agent } from "../agent/registry";
@@ -334,10 +335,11 @@
 			class="_1 fixed top-0 left-0 flex items-center justify-center"
 			bind:this={modalDiv}
 		>
+			<!-- pt-50 reserves the title bar's room, so a custom padding in `css` must not drop it -->
 			<div
-				class="_2 min-h-460 flex flex-col relative {hideTitle
+				class="{ifcss(css, `_2 min-h-460 flex flex-col relative ${modalSizesMap.get(size)}`)} {hideTitle
 					? 'overflow-hidden'
-					: 'pt-50'} {css} {modalSizesMap.get(size)}"
+					: 'pt-50'}"
 				bind:this={dialogDiv}
 				role="dialog"
 				aria-modal="true"

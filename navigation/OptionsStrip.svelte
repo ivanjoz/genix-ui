@@ -2,6 +2,7 @@
 import T from '../misc/T.svelte';
 import { Agent } from '../agent/registry';
 import { useUI } from '../runtime/index.js';
+import { ifcss } from '../utilities/css.js';
 
   const ui = useUI()
 
@@ -90,7 +91,7 @@ import { useUI } from '../runtime/index.js';
 </script>
 
 <div data-id="OptionsStrip:{componentID}"
-  class="{containerCss} pb-4 md:pb-0 flex items-center shrink-0 max-w-[100%] overflow-x-auto overflow-y-hidden {css}"
+  class={ifcss(css, `${containerCss} pb-4 md:pb-0 flex items-center shrink-0 max-w-[100%] overflow-x-auto overflow-y-hidden`)}
   class:_5={useMobileGrid}
   class:grid-cols-2={useMobileGrid && options.length === 2}
   class:grid-cols-3={useMobileGrid && options.length === 3}

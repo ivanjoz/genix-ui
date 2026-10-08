@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
+  import { ifcss } from '../utilities/css.js';
   const ui = useUI();
 
   type InlineButtonMode = 'default' | 'checked';
@@ -31,7 +32,7 @@
   };
 </script>
 
-<span class={`${baseCss} ${colorCssByName[color][mode]} ${css}`.trim()}>
+<span class={ifcss(css, `${baseCss} ${colorCssByName[color][mode]}`)}>
   {ui.translate(label)}
   {#if mode === 'checked'}
     <i class="icon-[fa--check] absolute -bottom-6 -right-6 text-12 leading-none"></i>

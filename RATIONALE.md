@@ -2,6 +2,22 @@
 
 Design decisions for the shared UI package, newest first.
 
+## `ifcss`: the caller's `css` overrides only width, height, margin and padding
+
+**Context** — Components appended `css` after their defaults, but Tailwind sorts utilities of the
+same property by name, so a default `w-800` beat a custom `w-100`. The user asked for a merge
+limited to width, height (both with min/max), margin and padding.
+
+**Decision** — `utilities/css.ts` `ifcss(css, defaultCss)`, about 40 lines with no dependency: a
+custom class drops the default of the same group under the same variants, and a shorthand
+(`p`, `px`, `py`, `m`, `mx`, `my`) also drops its sides. Applied where a component's defaults hold
+those utilities: Layer, Modal, Label, InlineButton, OptionsStrip, FileDropZone, ShowroomBlock.
+The Modal's `pt-50` stays outside the merge: it reserves the title bar's room.
+
+**Rationale** — `tailwind-merge` covers every utility but adds a dependency and ~7 KB for conflicts
+the components don't have. Cost: a conflict outside those groups (colors, font size) still resolves
+by Tailwind's order; it gets a group in `css.ts` when one shows up.
+
 ## Route user guides: own Markdown parser, the host's glob of GUIDE.md
 
 **Context** — The hosts show each page's user guide in the header's Information tab (ported from

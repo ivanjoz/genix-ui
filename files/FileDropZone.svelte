@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
   import { notifyFailure } from '../notify/notify.svelte.js';
+  import { ifcss } from '../utilities/css.js';
   const ui = useUI();
 
 interface IFileDropZoneProps {
@@ -124,7 +125,7 @@ const clearSelectedFile = (event: MouseEvent) => {
 <!-- The drag events sit on the wrapper and the click on the button inside it: a
      button may not contain another button, and the remove action needs to be one. -->
 <div
-  class="relative w-full {css}"
+  class={ifcss(css, "relative w-full")}
   role="group"
   aria-label={ui.translate(label)}
   ondragenter={handleDragOver}

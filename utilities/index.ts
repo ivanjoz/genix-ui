@@ -22,4 +22,5 @@ export {
 } from './shared-objects.js';
 export { unmarshal } from '@ivanjoz/minijson';
 export { normalizeStringN } from './string.js';
+export { ifcss } from './css.js';
 export * from './ui.js';

@@ -531,6 +531,22 @@ Neither menu imports routing, security, or services; all policy arrives as props
 | `SquareBarSized` **(ui)** | Proportional square/bar KPI tile | `label`, `value`, `size`, `background`, `backgroundColor`, `sublabel` |
 | `LoadingBar` **(ui)** | Indeterminate progress bar | `css`, `label` |
 
+### `markdown/` — route user guides
+
+| Component | Purpose | Key props |
+| --- | --- | --- |
+| `MarkdownView` | Renders Markdown with the package's own dependency-free parser (`markdown-parser.ts`); embedded HTML stays literal text | `content`, `emptyText`, `css` |
+
+`route-guide.svelte.ts` shows the open route's `GUIDE.md`, the user guide beside its `+page.svelte`.
+The host keeps the glob (the routes are its own) and calls `showRouteGuide` on every navigation;
+pages register nothing:
+
+```ts
+const guideFiles = import.meta.glob<string>('../routes/**/GUIDE.md', { query: '?raw', import: 'default' })
+$effect(() => { const routeId = page.route.id || ''; untrack(() => showRouteGuide(guideFiles, routeId)) })
+// <MarkdownView content={routeGuide.markdown} emptyText="No guide|Sin guía" />
+```
+
 ### `editor/`
 
 | Component | Purpose | Key props |
@@ -626,7 +642,7 @@ genix-ui/
                       # cache, service-worker, security, Renderer, image helpers
   agent/              # agent registry (automation contract)
   assets/             # raw SVG assets
-  buttons/ cards/ charts/ editor/ files/ form/ layers/ menu/ misc/ navigation/ vTable/
+  buttons/ cards/ charts/ editor/ files/ form/ layers/ markdown/ menu/ misc/ navigation/ vTable/
   cache/              # delta cache, group cache, cache-by-IDs
   excel/              # import/export + WASM asset
   http/               # HTTP client + GetHandler

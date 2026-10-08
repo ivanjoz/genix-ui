@@ -2,6 +2,21 @@
 
 Design decisions for the shared UI package, newest first.
 
+## Route user guides: own Markdown parser, the host's glob of GUIDE.md
+
+**Context** — The hosts show each page's user guide in the header's Information tab (ported from
+smartberry). Open: how to render Markdown in a package that keeps parsers out (see `ChatMessage`'s
+`content` snippet), and how a page hands over its guide, given the package never imports host routes.
+
+**Decision** — `markdown/markdown-parser.ts` is smartberry's dependency-free parser, ported with
+its tests; `MarkdownView` renders the tree as Svelte elements, never `{@html}`. The host passes its
+lazy `import.meta.glob` of `GUIDE.md` files and SvelteKit's route id to `showRouteGuide`; the file
+beside `+page.svelte` is found by path. smartberry instead has each page register its `.md` from code.
+
+**Rationale** — The parser needs no `marked` + `DOMPurify` pair and no allowlist, since embedded HTML
+is plain text. Its cost: only the subset guides use (no HTML, no images). The glob leaves nothing to
+wire per page and keeps each guide in its own chunk.
+
 ## genix-ui ships its global CSS in `tailwind.css`
 
 **Context** — The CSS the components depend on (the `--spacing: 1px` theme and breakpoints, the

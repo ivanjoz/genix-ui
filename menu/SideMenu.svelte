@@ -344,7 +344,7 @@
 	._2 {
 		display: none;
 	}
-	.d-menu:hover ._2, .d-menu.useTopMinimalMenu ._2 {
+	.d-menu:is(:hover, :has(:global(.button-layer))) ._2, .d-menu.useTopMinimalMenu ._2 {
 		display: block;
 	}
 	/* Hooks for the caller's `header` snippet: hover state is CSS-only, the snippet cannot see it.
@@ -353,7 +353,7 @@
 	.d-menu :global(.side-menu-expanded-only) {
 		transition: opacity 120ms ease-out 80ms;
 	}
-	.d-menu:not(:hover):not(.useTopMinimalMenu) :global(.side-menu-expanded-only) {
+	.d-menu:not(:hover, :has(:global(.button-layer))):not(.useTopMinimalMenu) :global(.side-menu-expanded-only) {
 		opacity: 0;
 		transition: none;
 	}
@@ -364,7 +364,7 @@
 	.d-menu:not(.useTopMinimalMenu) :global(.side-menu-reveal) {
 		clip-path: inset(0 calc(100% - var(--menu-min-width) + 12px) 0 0 round 8px);
 	}
-	.d-menu:not(.useTopMinimalMenu):hover :global(.side-menu-reveal) {
+	.d-menu:not(.useTopMinimalMenu):is(:hover, :has(:global(.button-layer))) :global(.side-menu-reveal) {
 		clip-path: inset(0 0 0 0 round 8px);
 		animation: side-menu-reveal 200ms ease-in-out;
 	}
@@ -376,10 +376,12 @@
 		transition: transform 0.3s;
 		opacity: 0.8;
 	}
-	.d-menu:hover .hover-indicator {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .hover-indicator {
 		transform: rotate(180deg);
 	}
-	/* Desktop Menu - Pure CSS Width Control */
+	/* Desktop Menu - Pure CSS Width Control. "Expanded" everywhere below means hovered OR holding an
+	   open ButtonLayer (`.button-layer` exists only while open): a layer opened from the menu (the
+	   module selector) is anchored to it, so the menu must not collapse while the layer is showing. */
 	.d-menu {
 		width: var(--menu-min-width);
 		overflow: hidden;
@@ -387,7 +389,7 @@
 
 	/* Never scroll horizontally: mid-expansion the full-width header and labels overflow the
 	   still-narrow menu, which would otherwise flash a horizontal scrollbar. */
-	.d-menu:hover {
+	.d-menu:is(:hover, :has(:global(.button-layer))) {
 		width: var(--menu-max-width);
 		overflow-x: hidden;
 		overflow-y: auto;
@@ -408,7 +410,7 @@
 		z-index: 20;
 		opacity: 0;
 	}
-	.d-menu:not(.useTopMinimalMenu):hover::after {
+	.d-menu:not(.useTopMinimalMenu):is(:hover, :has(:global(.button-layer)))::after {
 		animation: side-menu-edge-fade 320ms ease-out;
 	}
 	@keyframes side-menu-edge-fade {
@@ -422,7 +424,7 @@
 		overflow: hidden;
 	}
 
-	.d-menu.useTopMinimalMenu:hover {
+	.d-menu.useTopMinimalMenu:is(:hover, :has(:global(.button-layer))) {
 		height: 100vh;
 	}
 
@@ -435,11 +437,11 @@
 		display: none;
 	}
 
-	.d-menu:hover .menu-minimized {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .menu-minimized {
 		display: none;
 	}
 
-	.d-menu:hover .menu-expanded {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .menu-expanded {
 		display: block;
 	}
 
@@ -453,7 +455,7 @@
 		line-height: 1;
 	}
 
-	.d-menu:hover .menu-arrow {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .menu-arrow {
 		opacity: 1;
 	}
 
@@ -490,11 +492,11 @@
 		display: none;
 	}
 
-	.d-menu:hover .option-minimized {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .option-minimized {
 		display: none;
 	}
 
-	.d-menu:hover .option-expanded {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .option-expanded {
 		display: flex;
 	}
 
@@ -504,7 +506,7 @@
 		text-decoration: none;
 	}
 
-	.d-menu:hover .submenu-option {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .submenu-option {
 		padding-left: 8px;
 		padding-right: 8px;
 	}
@@ -773,11 +775,11 @@
 		background-color: #4f39f6;
 	}
 
-	.d-menu:not(:hover) .menu-header-backgroud > div {
+	.d-menu:not(:hover, :has(:global(.button-layer))) .menu-header-backgroud > div {
 		background-color: #0000001f;
 	}
 
-	.d-menu:hover .menu-header-backgroud {
+	.d-menu:is(:hover, :has(:global(.button-layer))) .menu-header-backgroud {
 		background-color: #0000001f;
 	}
 

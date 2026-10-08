@@ -18,6 +18,7 @@ import { useUI } from '../runtime/index.js';
     keyName?: keyof T,
     /** Key of an icon class (e.g. "icon-[fa--info-circle]") drawn before the option's name. */
     keyIcon?: keyof T,
+    /** Classes added to every option. A min-w-* class here (any variant) replaces the default min width. */
     buttonCss?: string,
     onSelect: (e: T) => void,
     useMobileGrid?: boolean,
@@ -28,8 +29,14 @@ import { useUI } from '../runtime/index.js';
     containerCss?: string
   } = $props()
 
+  // Two min-w-* classes on one element resolve by Tailwind's stylesheet order, not by class order:
+  // the default is only added when buttonCss sets no min width of its own.
+  const DEFAULT_BUTTON_MIN_WIDTH_CSS = "min-w-114 max-md:min-w-86"
+  const hasCustomMinWidth = $derived(/(^|\s|:)min-w-/.test(buttonCss || ""))
+
   const getClass = (e: T) => {
     let cn = itemCss
+    if(!hasCustomMinWidth){ cn += " " + DEFAULT_BUTTON_MIN_WIDTH_CSS }
     const id = Array.isArray(e) ? e[0] : (keyId ? e?.[keyId] : e)
     if(id === selected){ 
       cn += " " + activeClass 
@@ -118,7 +125,6 @@ import { useUI } from '../runtime/index.js';
   }
   ._2 {
     padding: 4px 6px 4px 6px;
-    min-width: 114px;
     color: #9d9dac;
     border-bottom: 4px solid rgba(0, 0, 0, 0.1);
     user-select: none;
@@ -141,7 +147,6 @@ import { useUI } from '../runtime/index.js';
     ._2 {
       padding: 0 2px 0 2px;
       height: 38px;
-      min-width: 86px;
       /* word-break: break-all; */
       align-items: center;
     }

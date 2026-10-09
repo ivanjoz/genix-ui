@@ -1,3 +1,35 @@
+## `useNumericSwipe`: a mark every 5 units, a 6px drag threshold
+**Context** — The user specified the gesture (drag right from the −), the layout (track across
+the middle, 6px from the −, out to the box's end; ruler on the top line, value in a bubble),
+8px per unit, and that releasing outside the field cancels. The ruler's mark spacing and when a
+press turns into a swipe were left open.
+
+**Decision** — One mark every 5 units (40px). A press becomes a swipe after 6px to the right;
+below that it stays a −1 tap. On a short range the track still reaches the box's end, and the
+value stops at `max` before it. A `pointercancel` (the browser took
+the gesture for a vertical scroll, allowed by `touch-pan-y`) cancels the swipe like a release
+outside. During the swipe the field's value is not written; only the bubble moves.
+
+**Rationale** — A mark per unit at 8px reads as a grey band rather than a scale. Values past the
+field's width cannot be reached by swiping (about 35 units on a phone). The ± buttons and typing
+still reach them.
+
+## `useIncrementButtons` steps by 1 and moves the validity glyph to the label
+
+**Context** — A numeric Input can now show a − and a + button around a centred value. The +
+button sits where the suffix slot draws the validity glyph and the `postValue` unit.
+
+**Decision** — The buttons step by 1 with no limits, and go through the same blur path the agent
+uses (`commitValue`), so validate, transform, onChange and persist all run. An empty field
+counts as 0. With the buttons, the ✔ / ⚠ glyph is drawn in the label (`validityIconInLabel`)
+and `postValue` is not drawn. `validityIconInLabel` also works by itself, on Input and
+SearchSelect, through a new `labelSuffix` slot in FieldShell.
+
+**Rationale** — Counts are what the buttons are for, so a step of 1 covers the request without
+`step`/`min`/`max` props. Cost: a decimal field steps by a whole unit, a count can go below 0,
+and a unit cannot sit next to the buttons. The glyph is part of the label, so the notch gets
+about 17px wider when it appears.
+
 ## TimeInput stores minutes after midnight and is picked, not typed
 
 **Context** — A time field was a text Input with "HH:MM" that each page parsed and validated.

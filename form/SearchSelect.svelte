@@ -45,6 +45,8 @@ import type { Snippet } from 'svelte';
     columns?: number;
     getSearchText?: (e: E) => string;
     useDividingLine?: boolean;
+    /** Draws the ✔ / ⚠ validity glyph small and inline after the label text instead of next to the arrow. */
+    validityIconInLabel?: boolean;
   }
 
   const {
@@ -78,6 +80,7 @@ import type { Snippet } from 'svelte';
     columns = 1,
     getSearchText,
     useDividingLine = false,
+    validityIconInLabel = false,
   }: SearchSelectProps<T,E> = $props();
 
   let show = $state(false);
@@ -316,7 +319,7 @@ import type { Snippet } from 'svelte';
 
   // The arrow is always there unless disabled, so the suffix almost always reserves its
   // 34px — which is what keeps a long option name from running under the arrow.
-  const hasSuffix = $derived(isValid > 0 || !isDisabled);
+  const hasSuffix = $derived((isValid > 0 && !validityIconInLabel) || !isDisabled);
 
   // Watch for changes in props
   $effect(() => {
@@ -429,11 +432,21 @@ import type { Snippet } from 'svelte';
 
 <!-- Validity glyph and arrow share the suffix row; the arrow no longer needs
      `absolute bottom-11 right-8` to find its place. -->
-{#snippet validityAndArrow()}
+{#snippet validityIcon(iconCss: string)}
   {#if isValid === 2}
-    <i class="v-icon icon-[fa--check] text-green-600"></i>
+    <i class="icon-[fa--check] text-green-600 {iconCss}"></i>
   {:else if isValid === 1}
-    <i class="v-icon icon-[fa--exclamation-triangle] text-red-600"></i>
+    <i class="icon-[fa--exclamation-triangle] text-red-600 {iconCss}"></i>
+  {/if}
+{/snippet}
+
+{#snippet validityInLabel()}
+  {@render validityIcon("ml-5 text-[12px] align-[-1px]")}
+{/snippet}
+
+{#snippet validityAndArrow()}
+  {#if !validityIconInLabel}
+    {@render validityIcon("v-icon")}
   {/if}
   {#if !isDisabled}
     <i class="{icon || 'icon-[fa--angle-down]'} select-arrow {arrowDirectionClass}"
@@ -446,6 +459,7 @@ import type { Snippet } from 'svelte';
   variant={shellVariant}
   disabled={isDisabled}
   suffix={hasSuffix ? validityAndArrow : undefined}
+  labelSuffix={validityIconInLabel ? validityInLabel : undefined}
   overlay={dropdown}
   data-id="Select:{componentID}"
   data-value={agentDataValue}

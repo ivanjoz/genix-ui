@@ -30,6 +30,9 @@
     // Content grows instead of being vertically centred (textarea, colour picker).
     autoHeight?: boolean;
     children: Snippet<[{ controlId: string; controlClass: string }]>;
+    // Inline after the label text (a small validity glyph). It is part of the label, so the
+    // notch measured from the label grows to fit it.
+    labelSuffix?: Snippet;
     prefix?: Snippet;
     suffix?: Snippet;
     // Dropdowns / calendars. Rendered inside the root, which is the positioned ancestor
@@ -50,6 +53,7 @@
     size = "normal",
     autoHeight,
     children,
+    labelSuffix,
     prefix,
     suffix,
     overlay,
@@ -98,7 +102,7 @@
   {#if showLabel}
     <!-- `for` is what makes clicking the label focus the control. -->
     <label class="{s.lab} {labelStyle === 'bold' ? `${s.labBold} text-[16px] font-bold` : 'text-[15px]'}" for={controlId} bind:clientWidth={labelWidth}>
-      <T text={label ?? ""} />
+      <T text={label ?? ""} />{@render labelSuffix?.()}
     </label>
   {/if}
 

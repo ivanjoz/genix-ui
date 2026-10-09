@@ -527,3 +527,49 @@ textarea.inp {
 .field:global(.has-interactive-prefix) .inp {
   padding-left: 3px;
 }
+
+/* ── increment buttons (Input's useIncrementButtons, labelled fields only) ─────────
+   The ± buttons are cramped in a 38px box, so it grows 4px: its top edge climbs 2px and
+   the row gains 2px at the bottom. The label climbs 4px, 2px more than the line, so it
+   sits clear above the inset buttons. The footprint above the box is unchanged. Last on
+   purpose: it overrides the mobile .box / .labBold offsets, which share or lack this
+   specificity. */
+/* The label climbs 4px past where a normal field's label sits, so the field takes those 4px
+   back as top margin: otherwise the label runs into whatever is above (a tab bar). Wrapped
+   in :where() like the base margin rules, and after them, so it beats them on order while a
+   call site's `mt-*` still wins. */
+:where(.field:global(.has-increment-buttons)) {
+  margin-top: 4px;
+}
+
+.field:global(.has-increment-buttons) .box {
+  top: 5px;
+}
+
+.field:global(.has-increment-buttons) .lab {
+  top: -5px;
+}
+
+.field:global(.has-increment-buttons) .row {
+  height: calc(var(--input-height, 38px) - 4px);
+}
+
+@media (max-width: 749px) {
+  .field:global(.has-increment-buttons) .box {
+    top: 3px;
+  }
+
+  .field:global(.has-increment-buttons) .labBold {
+    top: -7px;
+  }
+}
+
+/* Input's numeric swipe: while its ruler is out, the ruler takes over the top line, so the
+   label goes and the notch closes (the border layer draws the whole line, like a pill). */
+.field:global(.is-swiping) .lab {
+  visibility: hidden;
+}
+
+.field:global(.is-swiping) .box::before {
+  mask-image: none;
+}

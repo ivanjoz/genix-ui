@@ -42,7 +42,7 @@
 <!-- Every control in this tab draws its chrome with FieldShell: one masked layer for the
      border and the focus ring, notch sized from the label's measured width. -->
 <ShowroomBlock name="Input"
-  note="text · number with baseDecimals · password · textarea · validator · disabled — error appears on the border only after you leave the field, ✔ as soon as it is valid">
+  note="text · number with baseDecimals · password · textarea · validator · disabled · validityIconInLabel · useIncrementButtons —error appears on the border only after you leave the field, ✔ as soon as it is valid">
   <div class="grid grid-cols-24 gap-10">
     <Input saveOn={form} save="Name" label="Name|Nombre" css="col-span-24 md:col-span-8" required />
     <Input saveOn={form} save="Quantity" label="Quantity|Cantidad" type="number"
@@ -60,6 +60,11 @@
     <!-- transform runs on every keystroke: uppercase here. -->
     <Input saveOn={form} save="Name" label="Uppercase transform" css="col-span-24 md:col-span-8"
       transform={(value) => String(value).toUpperCase()} />
+    <!-- The validity glyph drawn small after the label; the ± buttons move it there too. -->
+    <Input saveOn={form} save="Email" label="Email (✔ in label)|Email (✔ en la etiqueta)" required
+      validityIconInLabel css="col-span-24 md:col-span-8" />
+    <Input saveOn={form} save="Quantity" label="Quantity ±|Cantidad ±" type="number" required
+      useIncrementButtons useNumericSwipe={{ min: 0, max: 50 }} css="col-span-24 md:col-span-8" />
     <Input saveOn={form} save="Notes" label="Notes|Notas" useTextArea rows={3}
       css="col-span-24" />
   </div>

@@ -52,6 +52,19 @@
         // digits means RUC — and it stops being consulted the moment the user picks, so an
         // explicit choice is never overwritten by the next keystroke.
         deriveLeftOption?: (value: string | number) => number | undefined;
+        // Draws the ✔ / ⚠ validity glyph small and inline after the label text instead of in
+        // the field's right slot, leaving the whole box to the value.
+        validityIconInLabel?: boolean;
+        // type="number" only: a − button on the left and a + button on the right step the
+        // value by 1, and the value is centred between them. The + takes the right slot, so
+        // the validity glyph moves to the label and `postValue` is not drawn.
+        useIncrementButtons?: boolean;
+        // With useIncrementButtons: pressing − and dragging right lays a slider over the
+        // field — a track across its middle from the −'s edge, 8px per unit from `min`, and a
+        // ruler on its top line with the value in a bubble. Releasing inside the field sets
+        // that value; releasing outside it keeps the previous one. A press that does not drag
+        // is still a −1.
+        useNumericSwipe?: { min: number; max: number };
     }
 
     export interface ILeftOption {
@@ -87,6 +100,9 @@
         leftOptions,
         saveLeft,
         deriveLeftOption,
+        validityIconInLabel,
+        useIncrementButtons,
+        useNumericSwipe,
     }: IInput<T> = $props();
 
     const baseDecimalsValue = $derived(baseDecimals ? 10 ** baseDecimals : 0);
@@ -270,9 +286,12 @@
 
     const showInvalid = $derived(isInputValid === 1 && hasBeenBlurred);
     const showValid = $derived(isInputValid === 2);
+    const showIncrementButtons = $derived(!!useIncrementButtons && type === "number");
+    const showValidityInLabel = $derived(!!validityIconInLabel || showIncrementButtons);
     // Passing the snippet only when there is something in it keeps `has-suffix` — and the
     // 34px of padding it reserves — off fields that need neither an icon nor a unit.
-    const hasSuffix = $derived(!!postValue || showInvalid || showValid || isPassword);
+    const hasSuffix = $derived(!showIncrementButtons
+        && (!!postValue || isPassword || (!showValidityInLabel && (showInvalid || showValid))));
 
     // Shared blur handling for both the input and the textarea.
     const onBlurControl = (ev: FocusEvent) => {
@@ -289,20 +308,105 @@
         focusValue = null;
     };
 
+    // A value set from outside the keyboard (the agent, the ± buttons) reuses the blur path,
+    // so parse / transform / validate / persist all run.
+    const commitValue = (value: string | number) => {
+        const fakeEvent = { stopPropagation: () => {}, target: { value: String(value) } } as unknown as KeyboardEvent;
+        onKeyUp(fakeEvent, true);
+        if (onChange) { onChange(); }
+        if (typeof id === "number" && id > 0) {
+            ui.persistFieldValue(id, (saveOn?.[save] ?? null) as number | string | null);
+        }
+    };
+
+    // ── numeric swipe ──────────────────────────────────────────────────────────────
+    const SWIPE_PX_PER_UNIT = 8;
+    // One ruler mark on the top line every this many units.
+    const SWIPE_TICK_UNITS = 5;
+    // A press on − that moves right less than this is still a tap (a −1).
+    const SWIPE_START_PX = 6;
+    // Space between the −'s right edge and the start of the track.
+    const SWIPE_TRACK_GAP_PX = 6;
+
+    const numericSwipeRange = $derived(showIncrementButtons ? useNumericSwipe : undefined);
+    let swipePress: { pointerX: number; minusButton: HTMLElement } | null = null;
+    // Set while the slider is out. `trackStartX` is the track's left end in viewport coordinates
+    // (where `min` sits); the other positions are px relative to the field's root.
+    let swipeRuler = $state<{
+        trackStartX: number; trackLeft: number; trackWidth: number; lineTop: number; trackMiddleTop: number;
+        boxLeft: number; boxRight: number; boxTop: number; boxBottom: number; value: number;
+    } | null>(null);
+    // The click that follows a swipe's pointerup must not also subtract 1.
+    let suppressNextMinusClick = false;
+
+    const swipeValueAt = (clientX: number, trackStartX: number, range: { min: number; max: number }) => {
+        const unitsFromMin = Math.round((clientX - trackStartX) / SWIPE_PX_PER_UNIT);
+        return Math.min(range.max, Math.max(range.min, range.min + unitsFromMin));
+    };
+
+    const onMinusPointerDown = (ev: PointerEvent) => {
+        suppressNextMinusClick = false;
+        if (!numericSwipeRange || disabled || ev.button !== 0) return;
+        const minusButton = ev.currentTarget as HTMLElement;
+        minusButton.setPointerCapture(ev.pointerId);
+        swipePress = { pointerX: ev.clientX, minusButton };
+    };
+
+    const onMinusPointerMove = (ev: PointerEvent) => {
+        if (!swipePress || !numericSwipeRange) return;
+        if (!swipeRuler) {
+            if (ev.clientX - swipePress.pointerX < SWIPE_START_PX) return;
+            // The track runs from SWIPE_TRACK_GAP_PX past the −'s right edge to the box's right
+            // edge, inset as much as the − is from the left one (it covers the hidden +).
+            const fieldElement = swipePress.minusButton.closest(`[data-id="Input:${componentID}"]`) as HTMLElement;
+            const fieldRect = fieldElement.getBoundingClientRect();
+            const boxRect = (fieldElement.firstElementChild as HTMLElement).getBoundingClientRect();
+            const minusRect = swipePress.minusButton.getBoundingClientRect();
+            const trackStartX = minusRect.right + SWIPE_TRACK_GAP_PX;
+            const trackEndX = boxRect.right - (minusRect.left - boxRect.left);
+            // Rounded: a fractional rect (browser zoom, a field at a fractional y) would put
+            // the track, ticks and bubble edges on half pixels and blur them.
+            swipeRuler = {
+                trackStartX,
+                trackLeft: Math.round(trackStartX - fieldRect.left),
+                trackWidth: Math.round(trackEndX - trackStartX),
+                lineTop: Math.round(boxRect.top - fieldRect.top),
+                trackMiddleTop: Math.round(minusRect.top + minusRect.height / 2 - fieldRect.top),
+                boxLeft: boxRect.left, boxRight: boxRect.right, boxTop: boxRect.top, boxBottom: boxRect.bottom,
+                value: numericSwipeRange.min,
+            };
+        }
+        swipeRuler.value = swipeValueAt(ev.clientX, swipeRuler.trackStartX, numericSwipeRange);
+    };
+
+    // pointercancel (the browser took the gesture for a scroll) ends the swipe like a release
+    // outside the field: the value stays as it was.
+    const onMinusPointerEnd = (ev: PointerEvent) => {
+        const endedRuler = swipeRuler;
+        swipePress = null;
+        swipeRuler = null;
+        if (!endedRuler) return;
+        suppressNextMinusClick = true;
+        const isReleasedInsideField = ev.type === "pointerup"
+            && ev.clientX >= endedRuler.boxLeft && ev.clientX <= endedRuler.boxRight
+            && ev.clientY >= endedRuler.boxTop && ev.clientY <= endedRuler.boxBottom;
+        if (isReleasedInsideField) commitValue(endedRuler.value);
+    };
+
+    const onIncrementClick = (step: number) => {
+        if (step < 0 && suppressNextMinusClick) {
+            suppressNextMinusClick = false;
+            return;
+        }
+        commitValue((Number(inputValue) || 0) + step);
+    };
+
     $effect(() => {
         return Agent.register({
             id: componentID,
             type: "Input",
             label: label || placeholder || "",
-            setValue: (value: string | number) => {
-                // Reuse the blur path so parse / transform / validate / persist all run.
-                const fakeEvent = { stopPropagation: () => {}, target: { value: String(value) } } as unknown as KeyboardEvent;
-                onKeyUp(fakeEvent, true);
-                if (onChange) { onChange(); }
-                if (typeof id === "number" && id > 0) {
-                    ui.persistFieldValue(id, (saveOn?.[save] ?? null) as number | string | null);
-                }
-            },
+            setValue: commitValue,
         });
     });
 
@@ -352,10 +456,75 @@
             aria-label={ui.translate("Reveal password|Revelar contraseña")}
             onclick={() => { isPasswordRevealed = !isPasswordRevealed; }}
         ></button>
-    {:else if showInvalid}
-        <i class="v-icon icon-[fa--exclamation-triangle] text-red-500"></i>
+    {:else if !showValidityInLabel}
+        {@render validityIcon("v-icon")}
+    {/if}
+{/snippet}
+
+{#snippet validityIcon(iconCss: string)}
+    {#if showInvalid}
+        <i class="icon-[fa--exclamation-triangle] text-red-500 {iconCss}"></i>
     {:else if showValid}
-        <i class="v-icon icon-[fa--check] c-green"></i>
+        <i class="icon-[fa--check] c-green {iconCss}"></i>
+    {/if}
+{/snippet}
+
+<!-- Smaller than the label text and nudged onto its baseline, so it reads as a mark on the
+     label rather than a second word. -->
+{#snippet validityInLabel()}
+    {@render validityIcon("ml-5 text-[12px] align-[-1px]")}
+{/snippet}
+
+<!-- The buttons sit in the flex row, inset 4px from the box's sides and bottom. A labelled
+     field with buttons is 4px taller (.has-increment-buttons): its row starts 8px under the
+     box's top edge (10px on mobile, where the box starts 2px higher), and the buttons keep
+     7px from that edge, so the label above has room. -->
+{#snippet incrementButton(step: number, iconClass: string, ariaLabel: string)}
+    <button
+        type="button"
+        class="shrink-0 self-stretch flex items-center justify-center w-34 mx-4 mb-4
+               {label ? '-mt-1 max-[749px]:-mt-3' : 'mt-4'}
+               rounded-[5px] bg-[#efedf9] text-[#5b4a9c] text-[18px] cursor-pointer
+               hover:bg-[#e2def5] disabled:cursor-not-allowed disabled:opacity-50
+               {step < 0 && numericSwipeRange ? 'touch-pan-y' : ''} {step > 0 && swipeRuler ? 'invisible' : ''}"
+        {disabled}
+        aria-label={ui.translate(ariaLabel)}
+        onclick={() => { onIncrementClick(step); }}
+        onpointerdown={step < 0 ? onMinusPointerDown : undefined}
+        onpointermove={step < 0 ? onMinusPointerMove : undefined}
+        onpointerup={step < 0 ? onMinusPointerEnd : undefined}
+        onpointercancel={step < 0 ? onMinusPointerEnd : undefined}
+    ><i class={iconClass}></i></button>
+{/snippet}
+
+<!-- The swipe slider, over the field while the − is dragged (the label and its notch are
+     hidden meanwhile, see .is-swiping; the value and the + are hidden under the track). The
+     track crosses the box's middle from the −'s edge; the top line becomes its ruler, a mark
+     every SWIPE_TICK_UNITS, with the value in a bubble on the line and a stem down to the
+     track. The wrapper starts where the track starts, so x = 0 is `min`. -->
+{#snippet numericSwipeRuler()}
+    {#if swipeRuler}
+        {@const thumbX = (swipeRuler.value - (numericSwipeRange?.min ?? 0)) * SWIPE_PX_PER_UNIT}
+        <div class="absolute z-10 top-0 h-full pointer-events-none"
+            style="left: {swipeRuler.trackLeft}px; width: {swipeRuler.trackWidth}px">
+            <div class="absolute left-0 h-10 w-[calc(100%+2px)]"
+                style="top: {swipeRuler.lineTop - 5}px;
+                       background: repeating-linear-gradient(to right, #5f5fe3 0 2px, transparent 2px {SWIPE_TICK_UNITS * SWIPE_PX_PER_UNIT}px)"></div>
+            <div class="absolute left-0 right-0 h-8 rounded-full overflow-hidden bg-[#cfd0dc]"
+                style="top: {swipeRuler.trackMiddleTop - 4}px">
+                <div class="h-full bg-[#5f5fe3]" style="width: {thumbX}px"></div>
+            </div>
+            <div class="absolute w-2 bg-[#5f5fe3]"
+                style="left: {thumbX - 1}px; top: {swipeRuler.lineTop}px; height: {swipeRuler.trackMiddleTop - swipeRuler.lineTop}px"></div>
+            <!-- A fixed 32px circle (room for 3 digits) placed by its top-left corner, a whole
+                 16px off the thumb, instead of translate(-50%) on a content-sized box, which
+                 lands on half pixels. leading-none drops the font's line box, which otherwise
+                 pushes the digits off the circle's centre. -->
+            <span class="absolute w-32 h-32 flex items-center justify-center
+                         rounded-full border-2 border-[#5f5fe3] bg-[#e3e3fb] leading-none font-bold tabular-nums text-[#2f2f7a]
+                         {String(swipeRuler.value).length <= 2 ? 'text-[16px]' : 'text-[14px]'}"
+                style="left: {thumbX - 16}px; top: {swipeRuler.lineTop - 16}px">{swipeRuler.value}</span>
+        </div>
     {/if}
 {/snippet}
 
@@ -430,12 +599,13 @@
 
 <FieldShell
     {label} {labelStyle} {disabled}
-    css="{css || ''}{hasLeftSelector ? ' has-interactive-prefix' : ''}"
+    css="{css || ''}{hasLeftSelector ? ' has-interactive-prefix' : ''}{showIncrementButtons && label ? ' has-increment-buttons' : ''}{swipeRuler ? ' is-swiping' : ''}"
     invalid={showInvalid}
     autoHeight={useTextArea}
     prefix={hasLeftSelector ? leftSelector : undefined}
-    overlay={hasLeftSelector ? leftSelectorOptions : undefined}
+    overlay={hasLeftSelector ? leftSelectorOptions : numericSwipeRange ? numericSwipeRuler : undefined}
     suffix={hasSuffix ? validityAndUnit : undefined}
+    labelSuffix={showValidityInLabel ? validityInLabel : undefined}
     data-id="Input:{componentID}"
     data-value={agentDataValue}
     data-label={agentDataLabel}
@@ -454,9 +624,12 @@
                 onblur={onBlurControl}
             ></textarea>
         {:else}
+            {#if showIncrementButtons}
+                {@render incrementButton(-1, "icon-[mdi--minus]", "Decrease|Disminuir")}
+            {/if}
             <input
                 id={controlId}
-                class="{controlClass} placeholder:text-[15px] {inputCss || ''}"
+                class="{controlClass} placeholder:text-[15px] {showIncrementButtons ? 'text-center' : ''} {swipeRuler ? 'invisible' : ''} {inputCss || ''}"
                 bind:value={inputValue}
                 type={isPassword && isPasswordRevealed ? "text" : (type || "text")}
                 placeholder={ui.translate(placeholder || "")}
@@ -468,6 +641,9 @@
                 }}
                 onblur={onBlurControl}
             />
+            {#if showIncrementButtons}
+                {@render incrementButton(1, "icon-[mdi--plus]", "Increase|Aumentar")}
+            {/if}
         {/if}
     {/snippet}
 </FieldShell>

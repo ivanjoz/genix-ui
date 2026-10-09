@@ -402,6 +402,8 @@ component writes straight into it (bindable, no event plumbing).
 | `Checkbox` **(ui)** | Single boolean | `saveOn`, `save`, `label`, `useNumber` (store `0\|1`) |
 | `CheckboxOptions` **(ui)** | Single/multi option set, optionally rendered as buttons | `options`, `keyId`, `keyName`, `type: 'single'\|'multiple'`, `useButtons`, `useButtonsSlim`, `onChange` |
 | `DateInput` **(ui)** | Calendar input over Unix day / SUnix values | `saveOn`, `save`, `type: 'unix'\|'sunix'`, `usePopover`, `useInlineStyle`, `required`, `onChange` |
+| `TimeInput` **(ui)** | Time of day as minutes after midnight (510 = 08:30): a 6 × 4 grid of hour buttons and a minutes slider in a popover; clearing deletes the key | `saveOn`, `save`, `label`, `minuteStep` (5), `minuteLabels` ([0, 15, 30, 55]), `disabled`, `onChange` |
+| `NumericSlider` **(ui)** | Single-value slider over a whole-pixel tick scale (`numeric-slider-scale.ts`); writes while dragging, `onChange` once on release | `min`, `max`, `referenceWidth`, `step`, `saveOn`, `save`, `value`, `label`, `prefix`, `suffix`, `scaleLabels` (default `[min, max]`), `onChange` |
 | `FilterInput` **(ui)** | Throttled search box | `value` (bindable), `throttle`, `icon`, `placeholder` |
 | `ColorPicker` **(ui)** | Color value picker | `saveOn`, `save`, `label`, `onChange` |
 | `LabelText` | Read-only label + value pair | `label`, `text`, `css`, `contentCss` |
@@ -489,6 +491,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 | --- | --- | --- |
 | `OptionsStrip` **(ui)** | Tab/section strip; the standard sub-view switcher | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `useMobileGrid`, `activeClass`, `inactiveClass` |
 | `ArrowSteps` **(ui)** | Chevron step/stage picker | `options`, `selected`, `onSelect`, `optionRender`, `columnsTemplate` |
+| `ChevronStrip` **(ui)** | Horizontally scrolling strip of arrow-shaped steps fitted into each other; options take 28% of the width so the 4th is cut, hinting the scroll; `autocenter` scrolls the selected one to the 2nd place; the options fill the strip's height (set through `css`, `h-48` by default) minus its 4px scrollbar gutter | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `optionWidth`, `autocenter`, `css` |
 
 ### `menu/` — fully host-driven
 

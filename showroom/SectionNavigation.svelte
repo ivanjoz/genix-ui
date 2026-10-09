@@ -1,6 +1,7 @@
 <script lang="ts">
   import KeyValueStrip from '../misc/KeyValueStrip.svelte';
   import ArrowSteps from '../navigation/ArrowSteps.svelte';
+  import ChevronStrip from '../navigation/ChevronStrip.svelte';
   import OptionsStrip from '../navigation/OptionsStrip.svelte';
   import ShowroomBlock from './ShowroomBlock.svelte';
   import { statusOptions } from './showroom-data';
@@ -9,6 +10,7 @@
   let recordSelected = $state(2);
   let twoLineSelected = $state(1);
   let stepSelected = $state(2);
+  let chevronSelected = $state(1);
 
   // [id, label] tuples — the format used by most pages.
   const tupleOptions: [number, string][] = [
@@ -30,6 +32,15 @@
     { id: 2, name: 'Confirmed|Confirmado', icon: 'icon-[fa--check]' },
     { id: 3, name: 'Shipped|Enviado', icon: 'icon-[fa--truck]' },
     { id: 4, name: 'Closed|Cerrado', icon: 'icon-[fa--lock]' },
+  ];
+
+  const chevronSteps = [
+    { id: 1, name: 'Header|Cabecera' },
+    { id: 2, name: 'Size|Calibre' },
+    { id: 3, name: 'Defects|Defectos' },
+    { id: 4, name: 'Firmness|Firmeza' },
+    { id: 5, name: 'Color|Color' },
+    { id: 6, name: 'Packing|Empaque' },
   ];
 
   // Excluded from this tab: SideMenu and MobileMenu — the app shell already renders
@@ -60,6 +71,12 @@
   <div class="text-xs text-gray-500 mt-8">
     selected = {stepSelected} ({steps.find((step) => step.id === stepSelected)?.name})
   </div>
+</ShowroomBlock>
+
+<ShowroomBlock name="ChevronStrip" note="each option is 28% wide: the 4th is cut, so the strip reads as scrollable">
+  <ChevronStrip options={chevronSteps} selected={chevronSelected} keyId="id" keyName="name" autocenter={true}
+    onSelect={(step) => { chevronSelected = step.id; }} />
+  <div class="text-xs text-gray-500 mt-8">selected = {chevronSelected}</div>
 </ShowroomBlock>
 
 <ShowroomBlock name="KeyValueStrip" note="up to 10 label/value pairs · getContent formats a value">

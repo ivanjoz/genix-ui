@@ -7,7 +7,9 @@
   import Input from '../form/Input.svelte';
   import LabelText from '../form/LabelText.svelte';
   import LoginForm from '../form/LoginForm.svelte';
+  import NumericSlider from '../form/NumericSlider.svelte';
   import SearchSelect from '../form/SearchSelect.svelte';
+  import TimeInput from '../form/TimeInput.svelte';
   import ShowroomBlock from './ShowroomBlock.svelte';
   import { languageOptions, statusOptions } from './showroom-data';
 
@@ -27,6 +29,8 @@
     LanguageIDs: [] as number[],
     DateUnix: 0,
     DateSunix: 0,
+    StartMinute: 510,
+    Percent: 40,
     Color: '#4874f5',
   });
 
@@ -104,6 +108,16 @@
       css="col-span-24 md:col-span-8" />
     <DateInput saveOn={form} save="DateSunix" label="SUnix time|Fecha SUnix" type="sunix"
       css="col-span-24 md:col-span-8" />
+  </div>
+</ShowroomBlock>
+
+<ShowroomBlock name="TimeInput · NumericSlider" note="minutes after midnight · hour grid + 5-minute slider · free slider 0‥100">
+  <div class="grid grid-cols-24 gap-10 items-end">
+    <TimeInput saveOn={form} save="StartMinute" label="Start|Inicio" css="col-span-24 md:col-span-8" />
+    <div class="col-span-24 md:col-span-8">
+      <NumericSlider saveOn={form} save="Percent" min={0} max={100} referenceWidth={240}
+        label="Percent|Porcentaje" suffix="%" />
+    </div>
   </div>
 </ShowroomBlock>
 

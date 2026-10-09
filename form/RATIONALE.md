@@ -1,3 +1,18 @@
+## TimeInput stores minutes after midnight and is picked, not typed
+
+**Context** — A time field was a text Input with "HH:MM" that each page parsed and validated.
+The requested picker is 24 hour buttons (6 × 4) with a 5-minute slider under them.
+
+**Decision** — `TimeInput` stores an integer, minutes after midnight, the shape the records
+already persist; clearing deletes the key, like DateInput. The panel is a portaled Popover on
+every width (no mobile layer): it is ~285px wide and fits a phone. Picking minutes before an
+hour keeps them for the hour click. `NumericSlider` is a port of smartberry's, scale code and
+tests unchanged.
+
+**Rationale** — Storing the persisted shape removes the per-page text parsing and its "bad
+format" error. Cost: there is no typing, and a stored minute off the step (08:07) shows on the
+slider snapped to 08:05 until the user moves it.
+
 ## Unlabelled fields match the labelled box height at each width; mobile breaks at 749px
 
 **Context** — An unlabelled field's box was `--input-height - 4` (38px) against a labelled box of

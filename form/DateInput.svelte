@@ -3,6 +3,7 @@
     saveOn?: T
     save?: keyof T
     label?: string
+    labelStyle?: "normal" | "bold"
     css?: string
     inputCss?: string
     placeholder?: string
@@ -40,6 +41,7 @@
     saveOn = $bindable(),
     save,
     label = "",
+    labelStyle,
     css = "",
     inputCss = "",
     placeholder = "DD-MM-YYYY",
@@ -351,7 +353,7 @@
      near-identical 45-line branches; the only real difference was the chrome, which
      FieldShell now owns. -->
 <FieldShell
-  {label} {disabled} {css}
+  {label} {labelStyle} {disabled} {css}
   variant={shellVariant}
   overlay={calendarBlock}
   data-id="DateInput:{componentID}"

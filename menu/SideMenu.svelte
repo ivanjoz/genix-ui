@@ -139,7 +139,7 @@
 <!-- Desktop Menu -->
 <!-- Only `width` transitions: content keeps its layout and the growing edge reveals it. -->
 <div class="d-menu fixed left-0 top-0 bg-linear-to-b from-gray-900 via-gray-900 to-gray-950
-		text-white shadow-xl z-300 hidden md:block
+		text-white shadow-xl z-300 hidden md:block select-none
 		{useTopMinimalMenu ? '' : 'h-screen transition-[width] ease-in-out duration-200'}"
 	class:useTopMinimalMenu
 	role="navigation"
@@ -255,7 +255,7 @@
 </div>
 
 <!-- Mobile Menu -->
-<div class="mobile-menu-wrapper md:hidden {drawerShownOpen ? 'is-open' : ''}" role="dialog" aria-modal="true">
+<div class="mobile-menu-wrapper md:hidden select-none {drawerShownOpen ? 'is-open' : ''}" role="dialog" aria-modal="true">
 	<!-- Backdrop -->
 	<button type="button" class="mobile-menu-backdrop" aria-label="Close menu"
 		onclick={() => { open = false }} bind:this={mobileMenuBackdrop}></button>
@@ -501,9 +501,17 @@
 	}
 
 	/* Submenu padding adjustment */
+	/* Options are <a> links: drop the browser focus ring (white lines on the dark menu) and the
+	   link drag ghost. Keyboard focus shows as the hover background instead. */
 	.submenu-option {
 		height: 38px;
 		text-decoration: none;
+		outline: none;
+		-webkit-user-drag: none;
+	}
+
+	.submenu-option:focus-visible {
+		background-color: rgb(79 70 229 / 0.2);
 	}
 
 	.d-menu:is(:hover, :has(:global(.button-layer))) .submenu-option {
@@ -714,6 +722,12 @@
     min-height: 70px;
     justify-content: center;
     text-decoration: none;
+    outline: none;
+    -webkit-user-drag: none;
+	}
+
+	.mobile-menu-option:focus-visible {
+		border-color: #8b5cf6;
 	}
 
 	.mobile-menu-option:hover:not(.is-active) {

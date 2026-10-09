@@ -288,6 +288,13 @@
     top: 5px;
   }
 
+  /* labelStyle="bold" (16px, set from Tailwind in the markup): lifted 2px with the line, so
+     the line crosses it at half height again. On desktop the line stays at 7px and the
+     base -1px already centres it. */
+  .labBold {
+    top: -3px;
+  }
+
   .field:global(.no-label) .row {
     height: calc(var(--input-height, 38px) + 2px);
   }

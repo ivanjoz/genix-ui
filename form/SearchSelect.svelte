@@ -21,6 +21,7 @@ import type { Snippet } from 'svelte';
     keyId: keyof E;
     keyName: keyof E;
     label?: string;
+    labelStyle?: "normal" | "bold";
     placeholder?: string;
     /** The placeholder stands in for a missing label: paint it in the label colour, not placeholder grey. */
     placeholderAsLabel?: boolean;
@@ -53,6 +54,7 @@ import type { Snippet } from 'svelte';
     useStyle = 0,
     options = [],
     label,
+    labelStyle,
     placeholder,
     placeholderAsLabel = false,
     max = 200,
@@ -440,7 +442,7 @@ import type { Snippet } from 'svelte';
 {/snippet}
 
 <FieldShell
-  {label} {css}
+  {label} {labelStyle} {css}
   variant={shellVariant}
   disabled={isDisabled}
   suffix={hasSuffix ? validityAndArrow : undefined}

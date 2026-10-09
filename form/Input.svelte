@@ -21,6 +21,7 @@
         saveOn: T;
         save: keyof T;
         label?: string;
+        labelStyle?: "normal" | "bold";
         css?: string;
         inputCss?: string;
         required?: boolean;
@@ -67,6 +68,7 @@
         saveOn = $bindable(),
         save,
         label,
+        labelStyle,
         css,
         inputCss,
         required,
@@ -427,7 +429,7 @@
 {/snippet}
 
 <FieldShell
-    {label} {disabled}
+    {label} {labelStyle} {disabled}
     css="{css || ''}{hasLeftSelector ? ' has-interactive-prefix' : ''}"
     invalid={showInvalid}
     autoHeight={useTextArea}

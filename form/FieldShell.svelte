@@ -14,6 +14,9 @@
 
   export interface IFieldShell {
     label?: string;
+    // bold = a 16px bold label, for forms filled on a phone where the 15px regular
+    // label reads too faint next to the value.
+    labelStyle?: "normal" | "bold";
     // The consumer owns the *when*: Input only flags after the first blur, so a pristine
     // form does not greet the user with a wall of red.
     invalid?: boolean;
@@ -39,6 +42,7 @@
 
   const {
     label,
+    labelStyle = "normal",
     invalid,
     disabled,
     css,
@@ -93,7 +97,7 @@
 
   {#if showLabel}
     <!-- `for` is what makes clicking the label focus the control. -->
-    <label class="{s.lab} text-[15px]" for={controlId} bind:clientWidth={labelWidth}>
+    <label class="{s.lab} {labelStyle === 'bold' ? `${s.labBold} text-[16px] font-bold` : 'text-[15px]'}" for={controlId} bind:clientWidth={labelWidth}>
       <T text={label ?? ""} />
     </label>
   {/if}

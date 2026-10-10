@@ -46,7 +46,7 @@ payload costs real IndexedDB writes.
 
 ## The watermark: `"<upd>.<fingerprint>"`
 
-`upd` is the backend's managed `Updated`: milliseconds since its `[dynamo].unix_time_start`
+`upd` is the backend's managed `Updated`: milliseconds since its `unix_time_start`
 (`VITE_UNIX_TIME_START` in the app; `updatedToUnixMillis` turns it into a unix time). Per response
 key the route row keeps, in `updatedStatus[key]`, an `IDeltaWatermark`:
 

@@ -5,7 +5,7 @@ Design decisions for the shared UI package, newest first.
 ## Caches sync on one millisecond `upd`: a fingerprinted overlap window, slot `upd` by ID
 
 **Context** — The backend dropped `upv`, the per-partition write sequence that cost a DynamoDB call
-before every write. Its only managed stamp is now `upd`: milliseconds since `[dynamo].unix_time_start`,
+before every write. Its only managed stamp is now `upd`: milliseconds since `unix_time_start`,
 taken from the Lambda's clock. A clock is not a sequence: two Lambdas can stamp the same millisecond,
 and a write stamped just before a client synced can land after it, so a bare `> upd` delta would lose
 it for good. The by-IDs cache compared `upv` slot versions sent as `cc-ver` (uint16) and had the same

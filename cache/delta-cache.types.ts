@@ -37,7 +37,7 @@ export interface ICacheRouteRow extends ILastSync {
 }
 
 // What a response key holds of its delta: `upd` is the highest `upd` received (milliseconds since
-// the backend's [dynamo].unix_time_start), and `window` the `upd` of every record received in the
+// the backend's unix_time_start), and `window` the `upd` of every record received in the
 // overlap below it, `[upd - deltaOverlapMillis, upd]`, keyed by record ID (deleted records too). The
 // backend resends that window unless the fingerprint of `window` matches its own: a write stamped
 // inside it can land after the client read past it.

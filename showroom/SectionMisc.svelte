@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from '../buttons/Button.svelte';
+  import FileCard from '../files/FileCard.svelte';
   import FileDropZone from '../files/FileDropZone.svelte';
   import FileUploadSelector from '../files/FileUploadSelector.svelte';
   import HighlightText from '../misc/HighlightText.svelte';
@@ -24,6 +25,8 @@
   // HTMLEditor pulls in RoosterJS, the heaviest import on the page, so it loads on demand.
   let isEditorLoaded = $state(false);
   let editorForm = $state({ Html: '<p>Editable <b>rich text</b>.</p>' });
+  let isEditor2Loaded = $state(false);
+  let editor2Form = $state({ Html: '<p>Editable <b>rich text</b>.</p>' });
 
   const rendererTree: ElementAST[] = [
     { tagName: 'DIV', css: 'text-sm text-fg-soft', text: 'Rendered from an ElementAST tree:' },
@@ -137,6 +140,14 @@
   <div class="text-xs text-fg-muted mt-8">dropped: {droppedFile?.name || '—'}</div>
 </ShowroomBlock>
 
+<ShowroomBlock name="FileCard" note="logo by extension · hover shows the remove X when onRemove is set">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-800">
+    {#each ['Ventas 2026.xlsx', 'Contrato.pdf', 'Foto campo.jpg', 'Presentación.pptx', 'Notas.txt', 'Respaldo.zip'] as fileCardName}
+      <FileCard name={fileCardName} detail="1.2 MB" onRemove={() => {}} />
+    {/each}
+  </div>
+</ShowroomBlock>
+
 <ShowroomBlock name="HTMLEditor" note="RoosterJS rich text bound with saveOn/save · loaded on demand">
   {#if isEditorLoaded}
     {#await import('../editor/HTMLEditor.svelte') then editorModule}
@@ -146,5 +157,17 @@
   {:else}
     <Button name="Load editor|Cargar editor" color="purple" icon="icon-[fa--pencil]"
       onClick={() => { isEditorLoaded = true; }} />
+  {/if}
+</ShowroomBlock>
+
+<ShowroomBlock name="HTMLEditor2" note="Tiptap rich text bound with saveOn/save · loaded on demand">
+  {#if isEditor2Loaded}
+    {#await import('../editor/HTMLEditor2.svelte') then editorModule}
+      <editorModule.default saveOn={editor2Form} save="Html" css="min-h-200" />
+    {/await}
+    <pre class="text-xs text-fg-muted mt-8 overflow-x-auto">{editor2Form.Html}</pre>
+  {:else}
+    <Button name="Load editor|Cargar editor" color="purple" icon="icon-[fa--pencil]"
+      onClick={() => { isEditor2Loaded = true; }} />
   {/if}
 </ShowroomBlock>

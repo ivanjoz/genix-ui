@@ -404,11 +404,12 @@ component writes straight into it (bindable, no event plumbing).
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Input` **(ui)** | Text/number/password/textarea field with validation | `saveOn`, `save`, `label`, `type`, `required`, `validator`, `baseDecimals`, `transform`, `useTextArea`, `rows`, `postValue`, `dependencyValue`, `disabled`, `onChange` |
+| `Input` **(ui)** | Text/number/password/textarea field with validation | `saveOn`, `save`, `label`, `type`, `required`, `validator`, `baseDecimals`, `transform`, `useTextArea`, `rows`, `useFileDragUpload` + `onFileDrop`, `postValue`, `dependencyValue`, `disabled`, `onChange` |
 | `SearchSelect` **(ui)** | Searchable single-select over a record list; mobile opens `TopLayerSelector` | `options`, `keyId`, `keyName`, `saveOn`, `save`, `selected`, `onChange`, `max`, `avoidIDs`, `optionRenderer`, `getSearchText`, `clearOnSelect`, `noStyle`, `icon`, `useCache` |
 | `ButtonSelect` **(ui)** | Single-select drawn as a pill button as tall as a field (no label, 15px name wrapped to 2 lines, small chevron); opens a `ButtonLayer` with a filter box over the options | `options`, `keyId`, `keyName`, `selected`, `onChange`, `color` (`'blue'`; white without it), `label` (accessible only), `placeholder`, `css`, `layerCss` (`w-360`), `max`, `getSearchText` |
 | `Checkbox` **(ui)** | Single boolean | `saveOn`, `save`, `label`, `useNumber` (store `0\|1`) |
 | `CheckboxOptions` **(ui)** | Single/multi option set, optionally rendered as buttons | `options`, `keyId`, `keyName`, `type: 'single'\|'multiple'`, `useButtons`, `useButtonsSlim`, `onChange` |
+| `InputList` | Editable list of one-line texts (checklists, criteria): borderless rows in one frame, + button by the title, ✕ on row hover; with `checkKey` a checkbox per row and a right-aligned done count | `items` (bindable), `textKey`, `checkKey`, `makeItem`, `title`, `countLabel`, `placeholder`, `emptyText`, `disabled` (read-only), `css` |
 | `SelectedTags` | Coloured tags of what the fields bound to `saveOn` selected; hover ✕ clears it in the field too | `saveOn`, `fields: { save, options?, keyId?, keyName?, label? }[]`, `css`, `useBorder` |
 | `DateInput` **(ui)** | Calendar input over Unix day / SUnix values | `saveOn`, `save`, `type: 'unix'\|'sunix'`, `usePopover`, `useInlineStyle`, `required`, `onChange` |
 | `TimeInput` **(ui)** | Time of day as minutes after midnight (510 = 08:30): a 6 × 4 grid of hour buttons and a minutes slider in a popover; clearing deletes the key | `saveOn`, `save`, `label`, `minuteStep` (5), `minuteLabels` ([0, 15, 30, 55]), `disabled`, `onChange` |
@@ -470,7 +471,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Layer` **(ui)** | Side / bottom / content panel with title, tabs, save-delete-close actions | `type: 'side'\|'bottom'\|'content'`, `id`, `title`, `options`, `selected`, `onSave`, `onDelete`, `onClose`, `actions`, `sideLayerSize`, `contentOverflow` |
+| `Layer` **(ui)** | Side / bottom / content panel with title, tabs, save-delete-close actions | `type: 'side'\|'bottom'\|'content'`, `id`, `title`, `options`, `selected`, `optionsSide` (snippet beside the tabs), `onSave`, `onDelete`, `onClose`, `actions`, `sideLayerSize`, `contentOverflow` |
 | `LayerStatic` **(ui)** | Always-present side panel (no open/close animation) | `show`, `css`, `mobileLayerTitle`, `useMobileLayerVertical` |
 | `Modal` **(ui)** | Centered dialog, optionally with file import + error list | `id`, `title`, `size`, `isEdit`, `onSave`, `onDelete`, `onClose`, `useFileImportWithErrors`, `onFileChange`, `fileErrors` |
 | `MobileLayerVertical` **(ui)** | Collapsible bottom sheet | `title`, `show`, `closedHeightPx`, `onToggle` |
@@ -481,7 +482,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Button` **(ui)** | Icon/text button with color variants. `icon` renders before the label, `iconRight` after; both get a 7px gap only when `name` is set, so icon-only buttons keep their exact geometry | `icon`, `iconRight`, `name`, `label`, `color`, `onClick`, `useCircle`, `hideNameOnMobile`, `disabled` |
+| `Button` **(ui)** | Icon/text button with color variants. `icon` renders before the label, `iconRight` after; both get a 7px gap only when `name` is set, so icon-only buttons keep their exact geometry | `icon`, `iconRight`, `name`, `label`, `color`, `onClick`, `useCircle`, `noShadow`, `hideNameOnMobile`, `disabled` |
 | `ButtonLayer` **(ui)** | Button that toggles an anchored panel (filters, pickers) | `isOpen` (bindable), `buttonText`, `icon`, `iconOnShow`, `horizontalOffset`, `edgeMargin`, `onOpen`, `onClose`, `children`, `button` |
 | `ButtonList` | Button that opens a list of actions | `items: { id, name, icon, handler }[]`, `name`, `icon` |
 | `InlineButton` **(ui)** | Compact inline toggle/tag | `label`, `mode: 'default'\|'checked'`, `color` |
@@ -595,6 +596,7 @@ $effect(() => { const routeId = page.route.id || ''; untrack(() => showRouteGuid
 | Component | Purpose | Key props |
 | --- | --- | --- |
 | `HTMLEditor` | RoosterJS rich-text editor bound with `saveOn`/`save` | `saveOn`, `save`, `css` |
+| `HTMLEditor2` | Tiptap rewrite of `HTMLEditor`: same toolbar and binding | `saveOn`, `save`, `css` |
 
 ### `runtime/`
 

@@ -64,6 +64,12 @@
         // that value; releasing outside it keeps the previous one. A press that does not drag
         // is still a −1.
         useNumericSwipe?: { min: number; max: number };
+        // The field becomes a drop target for files. While files are dragged anywhere on the
+        // page it shows a faint file icon over the box, so the user learns they can drop
+        // there; over the field the icon bounces. The dropped files go to onFileDrop — the
+        // field never uploads or stores them itself.
+        useFileDragUpload?: boolean;
+        onFileDrop?: (files: File[]) => void;
     }
 
     export interface ILeftOption {
@@ -102,6 +108,8 @@
         validityIconInLabel,
         useIncrementButtons,
         useNumericSwipe,
+        useFileDragUpload,
+        onFileDrop,
     }: IInput<T> = $props();
 
     const baseDecimalsValue = $derived(baseDecimals ? 10 ** baseDecimals : 0);
@@ -401,6 +409,60 @@
         commitValue((Number(inputValue) || 0) + step);
     };
 
+    // ── file drag upload ───────────────────────────────────────────────────────────
+    // Depths, not booleans: dragenter / dragleave also fire for every child element the
+    // pointer crosses, so a boolean would flicker off over the textarea inside the box.
+    let pageFileDragDepth = $state(0);
+    let fieldFileDragDepth = $state(0);
+    const acceptsFileDrop = $derived(!!useFileDragUpload && !disabled);
+
+    // Only drags that carry files: a dragged text selection or table row is not a drop here.
+    const isFileDrag = (ev: DragEvent) => !!ev.dataTransfer?.types.includes("Files");
+
+    $effect(() => {
+        if (!acceptsFileDrop) return;
+        const onPageDragEnter = (ev: DragEvent) => { if (isFileDrag(ev)) pageFileDragDepth++; };
+        const onPageDragLeave = (ev: DragEvent) => {
+            if (isFileDrag(ev)) pageFileDragDepth = Math.max(0, pageFileDragDepth - 1);
+        };
+        // A drop anywhere, or a drag cancelled with Esc, ends the hint on every field.
+        const endFileDrag = () => { pageFileDragDepth = 0; fieldFileDragDepth = 0; };
+        window.addEventListener("dragenter", onPageDragEnter);
+        window.addEventListener("dragleave", onPageDragLeave);
+        window.addEventListener("drop", endFileDrag);
+        window.addEventListener("dragend", endFileDrag);
+        return () => {
+            window.removeEventListener("dragenter", onPageDragEnter);
+            window.removeEventListener("dragleave", onPageDragLeave);
+            window.removeEventListener("drop", endFileDrag);
+            window.removeEventListener("dragend", endFileDrag);
+        };
+    });
+
+    const onFieldDragEnter = (ev: DragEvent) => {
+        if (!acceptsFileDrop || !isFileDrag(ev)) return;
+        ev.preventDefault();
+        fieldFileDragDepth++;
+    };
+    // preventDefault on dragover is what makes the field a valid drop target at all.
+    const onFieldDragOver = (ev: DragEvent) => {
+        if (!acceptsFileDrop || !isFileDrag(ev)) return;
+        ev.preventDefault();
+        if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
+    };
+    const onFieldDragLeave = (ev: DragEvent) => {
+        if (!acceptsFileDrop || !isFileDrag(ev)) return;
+        fieldFileDragDepth = Math.max(0, fieldFileDragDepth - 1);
+    };
+    // Without preventDefault the browser would open the file in the tab, or paste its path
+    // into the textarea.
+    const onFieldDrop = (ev: DragEvent) => {
+        if (!acceptsFileDrop || !isFileDrag(ev)) return;
+        ev.preventDefault();
+        const droppedFiles = [...(ev.dataTransfer?.files ?? [])];
+        if (droppedFiles.length) onFileDrop?.(droppedFiles);
+    };
+
     $effect(() => {
         return Agent.register({
             id: componentID,
@@ -528,6 +590,32 @@
     {/if}
 {/snippet}
 
+<!-- Covers the box the user sees (7px under the root's top when the label notches it). It is
+     pointer-events:none, so the drag events still land on the field and the typed text stays
+     readable under the translucent fill. Faint while files are dragged anywhere on the page,
+     solid with a bouncing icon over the field. -->
+{#snippet fileDropOverlay()}
+    {#if pageFileDragDepth > 0 || fieldFileDragDepth > 0}
+        {@const isOverField = fieldFileDragDepth > 0}
+        <div class="absolute inset-x-0 bottom-0 {label ? 'top-7' : 'top-0'} z-10 pointer-events-none
+                    flex flex-col items-center justify-center gap-4 rounded-[7px] border-2 border-dashed
+                    transition-colors duration-150
+                    {isOverField ? 'border-accent-solid bg-accent-bg-strong/85 text-accent-fg' : 'border-accent-border bg-accent-bg/60 text-accent-fg/60'}">
+            <i class="icon-[fa--file-o] text-[28px] {isOverField ? 'animate-bounce' : ''}"></i>
+            {#if isOverField}
+                <span class="text-[14px] font-semibold">{ui.translate("Drop the files here|Suelta los archivos aquí")}</span>
+            {/if}
+        </div>
+    {/if}
+{/snippet}
+
+<!-- The shell takes a single overlay snippet; each one renders only when its feature is on. -->
+{#snippet fieldOverlays()}
+    {#if hasLeftSelector}{@render leftSelectorOptions()}{/if}
+    {#if numericSwipeRange}{@render numericSwipeRuler()}{/if}
+    {#if acceptsFileDrop}{@render fileDropOverlay()}{/if}
+{/snippet}
+
 {#snippet leftSelector()}
     <button
         type="button"
@@ -604,7 +692,11 @@
     invalid={showInvalid}
     autoHeight={useTextArea}
     prefix={hasLeftSelector ? leftSelector : undefined}
-    overlay={hasLeftSelector ? leftSelectorOptions : numericSwipeRange ? numericSwipeRuler : undefined}
+    overlay={hasLeftSelector || numericSwipeRange || acceptsFileDrop ? fieldOverlays : undefined}
+    ondragenter={acceptsFileDrop ? onFieldDragEnter : undefined}
+    ondragover={acceptsFileDrop ? onFieldDragOver : undefined}
+    ondragleave={acceptsFileDrop ? onFieldDragLeave : undefined}
+    ondrop={acceptsFileDrop ? onFieldDrop : undefined}
     suffix={hasSuffix ? validityAndUnit : undefined}
     labelSuffix={showValidityInLabel ? validityInLabel : undefined}
     data-id="Input:{componentID}"

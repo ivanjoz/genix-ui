@@ -1,3 +1,27 @@
+## `InputList`: plain text boxes in one frame, not a stack of `Input`s
+**Context** — The user asked for a component for a story's acceptance criteria (a checklist), with
+the done count at the far right and the remove ✕ shown on row hover. Each row had been a full
+`Input` (box, notch, validity glyph), which read as many unrelated fields. How a row looks was open.
+
+**Decision** — One framed list with hairline separators; each row is a checkbox (with `checkKey`),
+a borderless `<input>` and the ✕. The row tints on hover and while typed in; the ✕ shows then too,
+and always on touch screens. Adding a row focuses its text box. `disabled` draws plain text.
+
+**Rationale** — A checklist is one thing, so it is drawn as one. Cost: the rows skip `Input`'s
+validation and agent registration (the checkbox and the buttons still register).
+
+**Context** — The user asked for an `Input` prop that makes the field a file drop target, with an
+overlay (a file icon at low opacity) so users know they can drop there, and a callback for the
+files. When the hint shows and who uploads were open.
+
+**Decision** — The hint shows faintly (dashed border, translucent file icon) while files are dragged
+anywhere on the page, and turns solid with a bouncing icon and "Drop the files here" over the field.
+Only drags carrying files count. The field never uploads: `onFileDrop(files)` gets the `File[]`.
+
+**Rationale** — Showing it only over the field would not tell the user the field accepts files
+until they already aimed at it. Leaving the upload to the caller keeps storage, limits and errors
+out of the form library. Cost: one window listener set per enabled field while it is mounted.
+
 ## `SelectedTags`: reads `saveOn`, the fields don't register with it
 **Context** — The user asked for colored tags showing what SearchSelect / Input / Checkbox /
 CheckboxOptions selected, with a hover ✕ that also deselects it in the field, through some shared

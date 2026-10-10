@@ -6,13 +6,17 @@
   // Before this existed, Input / SearchSelect / DateInput / ColorPicker each repeated the
   // same six chrome elements, which is why their borders never quite agreed.
   import type { Snippet } from "svelte";
+  import type { HTMLAttributes } from "svelte/elements";
   import { useUI } from "../runtime/index.js";
   import s from "./field-shell.module.css";
   import T from "../misc/T.svelte";
 
   const ui = useUI();
 
-  export interface IFieldShell {
+  // The drag handlers are spread onto the root with the data-* attributes: the whole field,
+  // label and padding included, is the drop target of a file-dropping consumer.
+  export interface IFieldShell extends Pick<HTMLAttributes<HTMLDivElement>,
+    "ondragenter" | "ondragover" | "ondragleave" | "ondrop"> {
     label?: string;
     // bold = a 16px bold label, for forms filled on a phone where the 15px regular
     // label reads too faint next to the value.

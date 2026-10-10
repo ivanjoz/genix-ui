@@ -5,6 +5,8 @@
   import DateInput from '../form/DateInput.svelte';
   import FilterInput from '../form/FilterInput.svelte';
   import Input from '../form/Input.svelte';
+  import InputList from '../form/InputList.svelte';
+  import { notifySuccess } from '../notify/index.js';
   import LabelText from '../form/LabelText.svelte';
   import LoginForm from '../form/LoginForm.svelte';
   import NumericSlider from '../form/NumericSlider.svelte';
@@ -32,6 +34,7 @@
     StartMinute: 510,
     Percent: 40,
     Color: '#4874f5',
+    Steps: [{ Text: 'Write the spec', Done: true }, { Text: 'Review it', Done: false }],
   });
 
   let filterText = $state('');
@@ -65,7 +68,9 @@
       validityIconInLabel css="col-span-24 md:col-span-8" />
     <Input saveOn={form} save="Quantity" label="Quantity ±|Cantidad ±" type="number" required
       useIncrementButtons useNumericSwipe={{ min: 0, max: 50 }} css="col-span-24 md:col-span-8" />
-    <Input saveOn={form} save="Notes" label="Notes|Notas" useTextArea rows={3}
+    <!-- Drag a file over the page: the box hints it accepts files; dropping notifies the names. -->
+    <Input saveOn={form} save="Notes" label="Notes (drop files)|Notas (suelta archivos)" useTextArea rows={3}
+      useFileDragUpload onFileDrop={(files) => notifySuccess(files.map((file) => file.name).join(', '))}
       css="col-span-24" />
   </div>
 </ShowroomBlock>
@@ -103,6 +108,15 @@
     <div class="text-xs text-fg-muted mb-4">type="single" + useButtonsSlim — compact blue segmented control</div>
     <CheckboxOptions saveOn={form} save="StatusID" type="single" useButtonsSlim
       options={statusOptions} keyId="ID" keyName="Name" />
+  </div>
+</ShowroomBlock>
+
+<ShowroomBlock name="InputList" note="checkKey adds a checkbox per row and the done count · ✕ on row hover · disabled is read-only">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-20">
+    <InputList bind:items={form.Steps} textKey="Text" checkKey="Done" makeItem={() => ({ Text: '', Done: false })}
+      title="Steps|Pasos" placeholder="Step|Paso" />
+    <InputList bind:items={form.Steps} textKey="Text" checkKey="Done" makeItem={() => ({ Text: '', Done: false })}
+      title="Read-only|Solo lectura" disabled />
   </div>
 </ShowroomBlock>
 

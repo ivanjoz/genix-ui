@@ -23,6 +23,7 @@ import { ifcss } from '../utilities/css.js';
     title,
     titleIcon,
     titleSide,
+    optionsSide,
     titleCss,
     contentCss,
     id,
@@ -31,6 +32,7 @@ import { ifcss } from '../utilities/css.js';
     selected = $bindable(),
     onSave,
     onDelete,
+    buttonDeleteOnTitle = false,
     onClose,
     saveButtonName,
     saveButtonIcon,
@@ -45,6 +47,8 @@ import { ifcss } from '../utilities/css.js';
     /** Icon class rendered ahead of the title, sizing and colour included. */
     titleIcon?: string
     titleSide?: Snippet
+    /** Content on the tabs' row, after the tabs: status tags, counters. Drawn only with options. */
+    optionsSide?: Snippet
     titleCss?: string
     options?: [number, string, string[]?][]
     contentCss?: string
@@ -52,6 +56,8 @@ import { ifcss } from '../utilities/css.js';
     // onSelect?: (e: any) => (void | undefined),
     onSave?: () => void
     onDelete?: () => void
+    /** Renders the delete button as a small round button beside the title instead of in the actions. */
+    buttonDeleteOnTitle?: boolean
     onClose?: () => void
     saveButtonName?: string
     saveButtonIcon?: string
@@ -207,6 +213,11 @@ import { ifcss } from '../utilities/css.js';
           <i class="{titleIcon} shrink-0"></i>
         {/if}
         <div class="overflow-hidden text-nowrap {titleCss}">{ui.translate(title)}</div>
+        {#if onDelete && buttonDeleteOnTitle}
+          <!-- The base .round is 38px; important sizes shrink it to sit within the title line. -->
+          <Button color="red" useCircle noShadow icon="icon-[mdi--delete] text-[14px]" label={ui.translate("Delete|Eliminar")}
+            css="shrink-0 w-28! h-28! min-w-28! -mt-8" role="delete" onClick={onDelete} />
+        {/if}
         {#if titleSide}
           <div class="shrink-0">
             {@render titleSide()}
@@ -224,7 +235,7 @@ import { ifcss } from '../utilities/css.js';
             />
           </div>
         {/if}
-        {#if onDelete}
+        {#if onDelete && !buttonDeleteOnTitle}
           <Button color="red" icon="icon-[mdi--delete]" label={ui.translate("Delete|Eliminar")} css="mr-10 leading-none"
             onClick={onDelete} />
         {/if}
@@ -246,15 +257,19 @@ import { ifcss } from '../utilities/css.js';
       </div>
     </div>
     {#if (options || []).length > 0}
-      <OptionsStrip
-        options={options as [number, string][]}
-        selected={selected as number}
-        useMobileGrid={true}
-        onSelect={(e) => {
-          selected = e[0]
-        }}
-        css="mt-4 mb-6"
-      />
+      <div class="flex items-center flex-wrap gap-x-16 gap-y-6 mt-4 mb-6">
+        <OptionsStrip
+          options={options as [number, string][]}
+          selected={selected as number}
+          useMobileGrid={true}
+          onSelect={(e) => {
+            selected = e[0]
+          }}
+        />
+        {#if optionsSide}
+          {@render optionsSide()}
+        {/if}
+      </div>
     {/if}
     <div class="_4 grow-1 {contentCss}">{@render children()}</div>
   </div>

@@ -2,6 +2,25 @@
 
 Design decisions for the shared UI package, newest first.
 
+## ChatThread: virtualized in place, with in-flow spacers
+
+**Context** — The user wanted a long chat not to keep every message in the DOM (RAM, heavy
+scroll). Open: paging from the server or virtualizing the DOM, and whether to reuse
+`misc/Virtualizer.svelte`.
+
+**Decision** — `ChatThread` renders only the items within 900px of the view; the rest are two
+spacer divs sized from heights measured per item id (120px until measured). While stuck to the
+bottom the window is computed from the end, so a long thread opens on its last messages. Each
+item is measured when it mounts and again by a ResizeObserver; a change in an item wholly above
+the view shifts `scrollTop` by the same delta (native `overflow-anchor` is off so it isn't
+doubled). The 8px gap moved into each item's wrapper so it is part of the measure.
+
+**Rationale** — The messages are already in memory: the weight was the DOM, so no server API
+change. `Virtualizer` positions items absolutely and resets on a new array reference; the chat
+mutates its array in place while streaming and needs `align-self` for user bubbles, which in-flow
+spacers keep. Cost: a message remounts (and re-parses its Markdown) when scrolled back into view,
+and the programmatic scroll is no longer smooth.
+
 ## Calendar: own integer date math, ISO weeks, display-only
 
 **Context** — The user asked for a month/week calendar over 4-digit codes (YYMM, YYWW) and Unix

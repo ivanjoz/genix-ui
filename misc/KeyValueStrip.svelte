@@ -104,7 +104,7 @@
       <div class={"strip-label " + (labelCss || 'text-xs color-label leading-[1.1] w-full ff-semibold')}>
         {ui.translate(keyValueRow.label)}
       </div>
-      <div class={lineCss || 'h-1 w-24 bg-slate-200 rounded-full'}></div>
+      <div class={lineCss || 'h-1 w-24 bg-line rounded-full'}></div>
       <div class={textCss || 'text-sm'}>
         {keyValueRow.getContent(keyValueRow.value as KeyValuePrimitive)}
       </div>
@@ -114,7 +114,7 @@
 
 <style>
 	.strip-label {
-		border-bottom: 1px solid #5f488f45;
+		border-bottom: 1px solid color-mix(in srgb, var(--label) 27%, transparent);
 		margin-bottom: -1px;
     z-index: 1;
 	}

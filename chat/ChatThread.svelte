@@ -178,7 +178,7 @@
 
   .chat-empty {
     margin: auto;
-    color: #7b7a85;
+    color: var(--fg-muted);
     font-size: 14px;
     text-align: center;
     max-width: 460px;

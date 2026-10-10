@@ -310,8 +310,8 @@
     flex-direction: column;
     gap: 8px;
     padding: 10px 12px;
-    border-top: 1px solid #dfe2ec;
-    background: var(--white, #ffffff);
+    border-top: 1px solid var(--line);
+    background: var(--surface);
   }
 
   .chat-composer-row {
@@ -339,21 +339,21 @@
     border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
-    color: #7b7a85;
+    color: var(--fg-muted);
     font-size: 16px;
     cursor: pointer;
   }
 
   .chat-composer-row :global(.chat-composer-clip:hover:not(:disabled)) {
-    border-color: var(--gray-purple-2, #c3c5df);
-    background: var(--secondary, #eeefff);
-    color: var(--primary, #4042a3);
+    border-color: var(--line-strong);
+    background: var(--secondary);
+    color: var(--primary);
   }
 
   textarea {
     flex: 1;
     resize: none;
-    border: 1px solid var(--input-border-color, #d0d4e7);
+    border: 1px solid var(--input-border-color, var(--line-strong));
     border-radius: 8px;
     padding: 9px 11px;
     font-family: inherit;
@@ -364,7 +364,7 @@
   }
 
   textarea:focus {
-    border-color: var(--primary, #4042a3);
+    border-color: var(--primary);
   }
 
   .chat-composer-picker {
@@ -378,9 +378,9 @@
     content: '';
     position: absolute;
     inset: 4px;
-    border: 2px dashed var(--primary, #4042a3);
+    border: 2px dashed var(--primary);
     border-radius: 10px;
-    background: var(--secondary, #eeefff);
+    background: var(--secondary);
     opacity: 0.55;
     pointer-events: none;
   }
@@ -391,7 +391,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--primary, #4042a3);
+    color: var(--primary);
     font-size: 14px;
     font-weight: 600;
     pointer-events: none;

@@ -70,6 +70,13 @@ body { --header-height: 52px; }
 The host keeps only its own look (body background, scrollbar, fonts) and classes no
 component uses.
 
+**Colors and dark mode.** Components hold no color literals: every color is a token declared in
+`tailwind.css` (`--surface`, `--line`, `--fg-muted`, `--accent-solid`, `--red-bg`...; the list and
+the role of each step are in that file's "Color tokens" comment), also usable as Tailwind colors
+(`bg-surface`, `text-fg-muted`, `border-red-border`). Dark mode is one class: add `dark` to `<body>`
+and the tokens switch. Write new components with these tokens, never with a hex value or a Tailwind
+palette class (`bg-gray-100`), or they will not follow the toggle.
+
 **The `css` prop overrides a component's default width, height (both with min/max), margin and
 padding.**
 Components join their default classes with `css` through `ifcss(css, defaultCss)`
@@ -399,8 +406,10 @@ component writes straight into it (bindable, no event plumbing).
 | --- | --- | --- |
 | `Input` **(ui)** | Text/number/password/textarea field with validation | `saveOn`, `save`, `label`, `type`, `required`, `validator`, `baseDecimals`, `transform`, `useTextArea`, `rows`, `postValue`, `dependencyValue`, `disabled`, `onChange` |
 | `SearchSelect` **(ui)** | Searchable single-select over a record list; mobile opens `TopLayerSelector` | `options`, `keyId`, `keyName`, `saveOn`, `save`, `selected`, `onChange`, `max`, `avoidIDs`, `optionRenderer`, `getSearchText`, `clearOnSelect`, `noStyle`, `icon`, `useCache` |
+| `ButtonSelect` **(ui)** | Single-select drawn as a pill button as tall as a field (no label, 15px name wrapped to 2 lines, small chevron); opens a `ButtonLayer` with a filter box over the options | `options`, `keyId`, `keyName`, `selected`, `onChange`, `color` (`'blue'`; white without it), `label` (accessible only), `placeholder`, `css`, `layerCss` (`w-360`), `max`, `getSearchText` |
 | `Checkbox` **(ui)** | Single boolean | `saveOn`, `save`, `label`, `useNumber` (store `0\|1`) |
 | `CheckboxOptions` **(ui)** | Single/multi option set, optionally rendered as buttons | `options`, `keyId`, `keyName`, `type: 'single'\|'multiple'`, `useButtons`, `useButtonsSlim`, `onChange` |
+| `SelectedTags` | Coloured tags of what the fields bound to `saveOn` selected; hover ✕ clears it in the field too | `saveOn`, `fields: { save, options?, keyId?, keyName?, label? }[]`, `css`, `useBorder` |
 | `DateInput` **(ui)** | Calendar input over Unix day / SUnix values | `saveOn`, `save`, `type: 'unix'\|'sunix'`, `usePopover`, `useInlineStyle`, `required`, `onChange` |
 | `TimeInput` **(ui)** | Time of day as minutes after midnight (510 = 08:30): a 6 × 4 grid of hour buttons and a minutes slider in a popover; clearing deletes the key | `saveOn`, `save`, `label`, `minuteStep` (5), `minuteLabels` ([0, 15, 30, 55]), `disabled`, `onChange` |
 | `NumericSlider` **(ui)** | Single-value slider over a whole-pixel tick scale (`numeric-slider-scale.ts`); writes while dragging, `onChange` once on release | `min`, `max`, `referenceWidth`, `step`, `saveOn`, `save`, `value`, `label`, `prefix`, `suffix`, `scaleLabels` (default `[min, max]`), `onChange` |

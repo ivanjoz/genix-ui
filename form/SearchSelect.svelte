@@ -434,9 +434,9 @@ import type { Snippet } from 'svelte';
      `absolute bottom-11 right-8` to find its place. -->
 {#snippet validityIcon(iconCss: string)}
   {#if isValid === 2}
-    <i class="icon-[fa--check] text-green-600 {iconCss}"></i>
+    <i class="icon-[fa--check] text-green-solid {iconCss}"></i>
   {:else if isValid === 1}
-    <i class="icon-[fa--exclamation-triangle] text-red-600 {iconCss}"></i>
+    <i class="icon-[fa--exclamation-triangle] text-red-solid {iconCss}"></i>
   {/if}
 {/snippet}
 
@@ -624,8 +624,8 @@ import type { Snippet } from 'svelte';
   ._1 {
     position: absolute;
     top: 100%;
-    background: white;
-    border: 1px solid #ccc;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border-radius: 6px;
@@ -660,7 +660,7 @@ import type { Snippet } from 'svelte';
   }
 
   ._highlight._with_divider {
-    border-bottom: 1px solid #ececec;
+    border-bottom: 1px solid var(--line-soft);
     border-radius: 0;
   }
 
@@ -669,17 +669,17 @@ import type { Snippet } from 'svelte';
   }
 
   ._highlight:hover {
-    background-color: #f0f0f0;
+    background-color: var(--surface-muted);
   }
 
   ._selected {
-    background-color: #e6f7ff;
+    background-color: var(--blue-bg-strong);
   }
 
   ._highlight i {
     font-style: normal;
     font-weight: bold;
-    color: #1890ff;
+    color: var(--blue-solid);
   }
 
   ._option_text {
@@ -691,25 +691,25 @@ import type { Snippet } from 'svelte';
   }
 
   ._8 {
-    color: rgb(196, 71, 71);
+    color: var(--red-fg);
     text-decoration: underline;
   }
   /* The mobile trigger paints its own placeholder text (it is a div, not an input, so
      ::placeholder never applies). Read the same tokens FieldShell gives a real input,
      otherwise the placeholder inherits the field colour and reads as the label's purple. */
   ._10 {
-    color: var(--input-placeholder-color, #8a8fb0);
+    color: var(--input-placeholder-color, var(--fg-subtle));
   }
 
   /* placeholderAsLabel: the placeholder replaces the label, so it borrows the label's colour.
      The scoping class Svelte appends is what outranks FieldShell's `.inp::placeholder`. */
   ._11::placeholder {
-    color: #7F77A1;
+    color: var(--label);
     opacity: 1;
   }
 
   ._12 {
-    color: #7F77A1;
+    color: var(--label);
   }
 
   .select-arrow {
@@ -719,7 +719,7 @@ import type { Snippet } from 'svelte';
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #53516d
+    color: var(--fg-soft)
   }
 
   .default-select-arrow {
@@ -736,6 +736,6 @@ import type { Snippet } from 'svelte';
   }
 
   .select-arrow.is-open {
-    color: #3a3945;
+    color: var(--fg);
   }
 </style>

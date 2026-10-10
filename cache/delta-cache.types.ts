@@ -2,7 +2,7 @@ export type CacheRecordID = string | number
 
 export interface ILastSync {
   fetchTime: number
-  updatedStatus: { [key: string]: IWatermarkPair }
+  updatedStatus: { [key: string]: IDeltaWatermark }
   fetchedRecordsCount: number
   fetchedBytes: number
   forceNetwork?: boolean
@@ -36,21 +36,22 @@ export interface ICacheRouteRow extends ILastSync {
   isSingle?: boolean
 }
 
-// Both watermarks a response key can be synced on: `upv` is the write sequence of a db.TypeDelta
-// table, `upd` the updated timestamp. The client keeps both and sends both — which one bounds the
-// query is the backend's decision, not something the client infers from the records it received.
-export interface IWatermarkPair {
-  upv: number
+// What a response key holds of its delta: `upd` is the highest `upd` received (milliseconds since
+// the backend's [dynamo].unix_time_start), and `window` the `upd` of every record received in the
+// overlap below it, `[upd - deltaOverlapMillis, upd]`, keyed by record ID (deleted records too). The
+// backend resends that window unless the fingerprint of `window` matches its own: a write stamped
+// inside it can land after the client read past it.
+export interface IDeltaWatermark {
   upd: number
+  window: Record<string, number>
 }
 
-// The two numbers travel as one query param per response key, `"<upv>.<upd>"`. A single-array route
-// has no response key of its own, so it sends them under `up`.
+// genix-orm/dynamo's DeltaOverlap: the window a later sync re-checks below its watermark.
+export const deltaOverlapMillis = 4000
+
+// A watermark travels as one query param per response key, `"<upd>.<fingerprint>"`. The backend
+// reads `up`, which carries the lowest key's.
 export const watermarkParamOfDefaultKey = 'up'
-
-export const formatWatermarkPair = (watermark: IWatermarkPair): string => {
-  return `${watermark.upv || 0}.${watermark.upd || 0}`
-}
 
 export interface ICacheRecordRowMulti {
   _r: number

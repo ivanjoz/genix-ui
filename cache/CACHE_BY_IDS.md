@@ -4,7 +4,7 @@ This folder contains the `cache_by_ids` flow used to resolve records by `ID` wit
 
 - in-memory cache
 - IndexedDB persistence
-- backend validation using the per-slot version (`upv`)
+- backend validation using the per-slot `upd` (the `Updated` of the slot's last write)
 
 This is the cache used by features that ask for many individual records by `ID` and want to avoid downloading unchanged rows repeatedly.
 
@@ -40,10 +40,9 @@ If a record is found in IndexedDB, it is promoted to memory.
 Each cached record stores:
 
 - `ID`: unique record identifier
-- `upv`: slot version returned by backend
+- `upd`: the slot's last write, as returned by the backend (`0` = unknown, always forces a fetch)
 - `_fch`: fetch timestamp in seconds
 - `ss`: status, where `0` means deleted/tombstone
-- `upd`: updated value used by `getRecordByIDUpdated`
 
 A record is considered stale when:
 
@@ -61,46 +60,53 @@ When the frontend needs server validation, it sends:
   IDs that do not exist locally
 - `cc-ids`
   IDs that exist locally
-- `cc-ver`
-  slot-version for each `cc-id`
+- `cc-upd`
+  the slot `upd` held for each `cc-id`
 
 Important:
 
-- `cc-ids` and `cc-ver` are positional pairs
+- `cc-ids` and `cc-upd` are positional pairs
 - they must stay aligned after compact encoding. `cc-ids` uses `concatenateInts`, which buckets by
-  magnitude; `cc-ver` uses `concatenateUint16s`, a single fixed-width array, precisely so that
-  bucketing cannot reorder it out of alignment
-- `cc-ver` must fit in `uint16`, so `0..65535`. `0` means "no version held" and always forces a read
+  magnitude; `cc-upd` uses `concatenateUint48s` (`utilities/parsers.ts`), one base64url array of
+  6-byte little-endian values, reordered into the same bucket order so bucketing cannot break the
+  alignment
+- `0` means "nothing held" and always forces a read
 
 If backend does not return a cached ID, frontend treats that row as unchanged and only refreshes `_fch`.
 
 ## Backend Flow
 
-The backend endpoint receives the IDs and calls:
+The backend endpoint reads the params and calls `QueryCachedIDs` (`genix-orm/dynamo/cache_by_ids.go`):
 
 ```go
-err := db.QueryCachedIDs(&records, cachedIDs)
+cachedIDs := req.ExtractCachedIDs() // []db.CachedID{ID, Updated}
+records, err := types.Products.QueryCachedIDs(cachedIDs, partitionValues...)
 ```
 
-`QueryCachedIDs` compares the client `upv` against the current slot version in `cache_updated_version`.
+Records are bucketed into 256 slots per partition by `uint8(ID)`. One slot item per partition holds,
+for each slot, the `Updated` of its last write; every write sets it after the records are written.
+`QueryCachedIDs` reads that item once and compares each client value against its slot's.
 
 Behavior:
 
-- matching version: row is omitted from response
-- different version: row is selected from the main table and returned
-- the returned row's `upv` is overwritten with its **slot** version, not its own write version — that
-  is the value the client must send back next time
+- matching value: row is omitted from response
+- different value (or `0`): row is read consistently from the main table and returned
+- the returned row's `upd` is overwritten with its **slot** value, not its own `Updated` — that is
+  the value the client must send back next time
+- a slot value younger than 4 seconds is returned as `0`: a concurrent write could still stamp that
+  millisecond or land late, so it is not trusted yet, and the next revalidation reads the row again
 
-### Why the slot version, not the record's own
+### Why the slot value, not the record's own
 
-Records are bucketed into 256 slots by `uint8(ID)`, and a write bumps the whole slot. If the client
-kept a record's own write version, a record sharing a slot with a more recently written one would
-mismatch forever and be refetched on every request. Stamping the slot version makes the comparison
-converge after one fetch.
+A write moves the whole slot. If the client kept a record's own `upd`, a record sharing a slot with a
+more recently written one would mismatch forever and be refetched on every request. Returning the
+slot value makes the comparison converge after one fetch.
 
-The cost: a record that reached this cache from a **delta** list carries its own write version
-instead, which never equals a slot version. That costs exactly one revalidation fetch, after which
-the record holds the right value. This is expected, not a bug.
+The cost: a record that reached this cache from a **delta** list carries its own `upd`, which equals
+the slot value only if it was the slot's last write. Otherwise that costs exactly one revalidation
+fetch, after which the record holds the right value. This is expected, not a bug. For the same
+reason, IndexedDB rows written before a protocol change heal themselves: an old value never matches a
+slot.
 
 So the response contains only:
 
@@ -118,7 +124,6 @@ The frontend record type must include at least:
 ```ts
 export interface IMinimalRecord {
 	ID: number
-	upv?: number
 	ss: number
 	_fch?: number
 	upd: number
@@ -129,83 +134,76 @@ Minimum practical requirements:
 
 - `ID`
   Required. Used as cache key.
-- `upv`
-  Required for backend delta validation.
+- `upd`
+  Required for backend delta validation, and read by `getRecordByIDUpdated`.
 - `ss`
   Required. `0` is treated as deleted.
 - `_fch`
   Internal frontend timestamp used for stale detection.
-- `upd`
-  Required only if you use `getRecordByIDUpdated`.
 
 ### Backend schema requirements
 
-The backend table schema must enable slot-version support:
+The backend table schema must enable the by-IDs cache:
 
 ```go
-func (t ProductoTable) GetSchema() db.TableSchema {
-	return db.TableSchema{
-		Name:             "productos",
-		Partition:        t.EmpresaID,
-		SaveUpdatedVersion: true,
-		Keys:             []db.Coln{t.ID.Autoincrement(0)},
+func (table ProductTable) GetSchema() db.Schema {
+	return db.Schema{
+		Entity:     "example_product",
+		Keys:       db.Cols(table.ID.Size(32)),
+		CacheByIDs: true,
 	}
 }
 ```
 
 Requirements enforced by the ORM:
 
-- `SaveUpdatedVersion: true`
-- exactly one key column
-- key column must be `int16`, `int32`, or `int64`
-- table must have a partition column
-- partition column must be `int32` or `int64`
+- `CacheByIDs: true`
+- exactly one integer `Keys` column (the ID)
+- an `int64` field named `Updated` (`json:"upd"`)
+- a `Partition` is optional; when present, pass its values to `QueryCachedIDs`
 
 ### Backend response struct requirements
 
-The response struct must expose a slot-version field:
+The response struct must expose the managed `Updated`:
 
 ```go
-type Producto struct {
-	ID           int32 `json:",omitempty"`
-	Status       int8  `json:"ss,omitempty"`
-	Updated      int32 `json:"upd,omitempty"`
-	UpdatedVersion int32 `json:"upv,omitempty"`
+type Product struct {
+	ID      int32 `json:"ID" cb:"1"`
+	Status  int8  `json:"ss" cb:"7"`
+	Updated int64 `json:"upd" cb:"8"`
 }
 ```
 
 Requirements:
 
-- field name `UpdatedVersion` with JSON tag `upv`, in **both** the record and the table struct
-- type must be `uint8`
+- field name `Updated`, type `int64`, JSON tag `upd`, in **both** the record and the table struct
+- the ORM stamps it on every write; handlers never set it
 - `ID` must be present in the response
 
-If `upv` is missing from the response, the frontend cannot validate cached rows correctly.
+If `upd` is missing from the response, the frontend cannot validate cached rows correctly.
 
 ## Expected Endpoint Pattern
 
 The `*-ids` endpoint usually does this:
 
-1. parse `ids`, `cc-ids`, `cc-ver`
-2. build `[]db.IDUpdatedVersion`
-3. call `db.QueryCachedIDs`
+1. parse `ids`, `cc-ids`, `cc-upd` (`req.ExtractCachedIDs()`)
+2. guard against an empty list
+3. call `Repo.QueryCachedIDs`
 4. return only changed/new rows
 
 Example:
 
 ```go
-func GetProductosByIDs(req *core.HandlerArgs) core.HandlerResponse {
-	cachedIDs := req.ExtractUpdatedVersionValues()
+func GetClientsByIDs(req *core.HandlerArgs) core.HandlerResponse {
+	cachedIDs := req.ExtractCachedIDs()
 	if len(cachedIDs) == 0 {
-		return req.MakeErr("No se enviaron ids a buscar.")
+		return req.MakeErr("No client IDs were sent.")
 	}
-
-	productos := []negocioTypes.Producto{}
-	if err := db.QueryCachedIDs(&productos, cachedIDs); err != nil {
-		return req.MakeErr("Error al obtener los productos.", err)
+	clients, err := types.Clients.QueryCachedIDs(cachedIDs)
+	if err != nil {
+		return req.MakeErrCode(http.StatusInternalServerError, "Could not load the clients:", err)
 	}
-
-	return core.MakeResponse(req, &productos)
+	return req.MakeResponse(clients)
 }
 ```
 
@@ -219,7 +217,7 @@ Each route gets its own object store.
 IndexedDB stores the full record object, including:
 
 - `ID`
-- `upv`
+- `upd`
 - `_fch`
 - `ss`
 - domain fields
@@ -237,14 +235,13 @@ This means:
 
 This cache works correctly only if all of these are true:
 
-1. frontend sends `ID` and `upv` for cached rows
-2. backend response includes the correct `upv`
-3. backend schema has `SaveUpdatedVersion: true`
-4. backend response model exposes `UpdatedVersion int32` as `upv`
-5. `cc-ver` never exceeds `65535`
-6. `cc-ids` and `cc-ver` stay aligned in the same order
-7. returned records are merged into memory and IndexedDB
-8. unchanged cached records refresh `_fch`
+1. frontend sends `ID` and `upd` for cached rows
+2. backend response includes the slot `upd`
+3. backend schema has `CacheByIDs: true`
+4. backend response model exposes `Updated int64` as `upd`
+5. `cc-ids` and `cc-upd` stay aligned in the same order
+6. returned records are merged into memory and IndexedDB
+7. unchanged cached records refresh `_fch`
 
 If any of these fail, the usual symptom is:
 
@@ -252,9 +249,9 @@ If any of these fail, the usual symptom is:
 
 ## Important Limitation
 
-The backend groups slot-version state by `uint8(id)`, one row per slot in `cache_updated_version`.
+The backend groups slot state by `uint8(id)`, one value per slot in each partition's slot item.
 
-That means different IDs can share the same slot-version bucket when:
+That means different IDs share the same slot when:
 
 ```text
 uint8(idA) == uint8(idB)
@@ -274,24 +271,25 @@ This is compact and fast, but it means unrelated rows can invalidate together.
 
 If the same rows keep coming back from backend:
 
-1. check frontend request snapshot for `ID`, `upv`, `_fch`
+1. check frontend request snapshot for `ID`, `upd`, `_fch`
 2. check IndexedDB stored value for the same `ID`
-3. check backend received the slot version
-4. check backend response `upv`
-5. confirm `cc-ver` values are `0..65535`
-6. confirm `cc-ids` and `cc-ver` stay aligned
+3. check backend received the slot `upd`
+4. check backend response `upd`
+5. confirm `cc-ids` and `cc-upd` stay aligned
 
 Typical failure patterns:
 
-- IndexedDB has correct `upv`, but backend receives another one
+- IndexedDB has correct `upd`, but backend receives another one
   Usually transport ordering/alignment bug.
-- backend returns rows with no `upv`
-  Response struct is missing `UpdatedVersion`.
+- backend returns rows with no `upd`
+  Response struct is missing `Updated`.
+- backend returns `upd` 0
+  The slot was written less than 4 seconds ago; it settles on the next revalidation.
 - every cached row always fetches again
   `_fch` is not refreshed, local rows are always stale, or the rows came from a delta list and still
-  carry their own write version instead of a slot version (self-heals after one fetch).
+  carry their own `upd` instead of the slot's (self-heals after one fetch).
 
 ## Related References
 
-- `backend/docs/ORM_DATABASE_QUERY.md`
-- `backend/genix-orm/scylla/cache_updated_version.go`
+- `backend/genix-orm/dynamo/cache_by_ids.go`
+- `backend/core/cache_by_ids.go` (`ExtractCachedIDs`, `parseConcatenatedUint48s`)

@@ -9,7 +9,7 @@
 
 import arrow2Svg from '../assets/flecha_fin.svg?raw';
 import arrow1Svg from '../assets/flecha_inicio.svg?raw';
-import { cn, parseSVG } from '../utilities/ui.js';
+import { cn } from '../utilities/ui.js';
 import { Agent } from '../agent/registry';
 
   let {
@@ -65,7 +65,8 @@ import { Agent } from '../agent/registry';
         option.id === selected && "card_arrow_ctn_selected",
       )}
     >
-      <img class="h-full card_arrow_svg" src={parseSVG(arrow1Svg)} alt="" />
+      <!-- Inline SVGs filled with currentColor: the tips take the name block's token. -->
+      <span class="h-full card_arrow_svg">{@html arrow1Svg}</span>
       <div class="h-full flex items-center justify-center card_arrow_name">
         {#if optionRender}
           {@render optionRender(option)}
@@ -73,7 +74,7 @@ import { Agent } from '../agent/registry';
           <div class="ff-semibold">{ui.translate(option.name)}</div>
         {/if}
       </div>
-      <img class="h-full card_arrow_svg" src={parseSVG(arrow2Svg)} alt="" />
+      <span class="h-full card_arrow_svg">{@html arrow2Svg}</span>
       <div class="card_arrow_line"></div>
     </div>
   {/each}
@@ -87,7 +88,7 @@ import { Agent } from '../agent/registry';
     cursor: pointer;
   }
   .card_arrow_name {
-    background-color: #dfdfdf;
+    background-color: var(--surface-strong);
     min-width: 5rem;
     text-align: center;
     overflow: visible;
@@ -97,7 +98,7 @@ import { Agent } from '../agent/registry';
     max-width: 100%;
     overflow: hidden;
   }
-  .card_arrow_ctn > img:last-of-type {
+  .card_arrow_ctn > span:last-of-type {
     margin-right: -4px;
   }
   .card_arrow_line {
@@ -106,32 +107,37 @@ import { Agent } from '../agent/registry';
     position: absolute;
     bottom: -4px;
     left: 0;
-    background-color: #0cad66;
+    background-color: var(--green-solid);
     visibility: hidden;
   }
   .card_arrow_svg {
-    filter: invert(100%) sepia(0%) saturate(5883%) hue-rotate(164deg) brightness(120%) contrast(75%);
+    color: var(--surface-strong);
+  }
+  .card_arrow_svg :global(svg) {
+    display: block;
+    height: 100%;
+    width: auto;
   }
 
   .card_arrow_ctn:hover .card_arrow_line {
    visibility: visible;
   }
   .card_arrow_ctn:hover .card_arrow_svg {
-    filter: invert(91%) sepia(5%) saturate(633%) hue-rotate(100deg) brightness(102%) contrast(95%);
+    color: var(--green-bg-strong);
   }
   .card_arrow_ctn:hover .card_arrow_name {
-    background-color: #d5efe3;
-    color: #147e50;
+    background-color: var(--green-bg-strong);
+    color: var(--green-fg);
   }
   .card_arrow_ctn_selected .card_arrow_line {
-    background-color: #14945c;
+    background-color: var(--green-solid);
   }
   .card_arrow_ctn.card_arrow_ctn_selected .card_arrow_svg {
-    filter: invert(49%) sepia(53%) saturate(3777%) hue-rotate(125deg) brightness(95%) contrast(91%);
+    color: var(--green-solid);
   }
   .card_arrow_ctn.card_arrow_ctn_selected .card_arrow_name {
-    background-color: #0cad66;
-    color: white;
+    background-color: var(--green-solid);
+    color: var(--on-solid);
   }
 
   /* Use a literal breakpoint so Lightning CSS can minify this scoped block safely. */

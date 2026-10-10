@@ -81,9 +81,9 @@
     align-items: center;
     gap: 4px;
     max-width: 100%;
-    border: 1px solid var(--gray-purple-2, #c3c5df);
+    border: 1px solid var(--line-strong);
     border-radius: 8px;
-    background: var(--white, #ffffff);
+    background: var(--surface);
     padding: 3px 6px;
     font-size: 13px;
   }
@@ -123,7 +123,7 @@
   }
 
   .chat-file-size {
-    color: #7b7a85;
+    color: var(--fg-muted);
     font-size: 12px;
     flex: none;
   }
@@ -138,14 +138,14 @@
     border: none;
     border-radius: 50%;
     background: transparent;
-    color: #7b7a85;
+    color: var(--fg-muted);
     cursor: pointer;
     font-size: 11px;
   }
 
   .chat-file-remove:hover {
-    background: var(--secondary, #eeefff);
-    color: var(--red, #c0392b);
+    background: var(--secondary);
+    color: var(--red-fg);
   }
 
   /* Sobre la miniatura el aspa flota en la esquina, que si no la taparía. */
@@ -153,6 +153,6 @@
     position: absolute;
     top: 3px;
     right: 3px;
-    background: rgba(255, 255, 255, 0.9);
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
   }
 </style>

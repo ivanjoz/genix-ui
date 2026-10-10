@@ -120,7 +120,7 @@
   {#if savedMinutes !== undefined && !disabled}
     <!-- The suffix is pointer-events:none, so the clear button re-enables them for itself. -->
     <button type="button"
-      class="icon-[fa--times] pointer-events-auto cursor-pointer text-[#6b6b8e] text-[16px]"
+      class="icon-[fa--times] pointer-events-auto cursor-pointer text-label text-[16px]"
       aria-label={ui.translate("Clear|Limpiar")}
       onclick={(ev) => { ev.stopPropagation(); setMinutesOfDay(undefined) }}
     ></button>
@@ -147,7 +147,7 @@
       }}
     >
       {#if savedMinutes === undefined}
-        <span class="text-[#6d5dad]">{ui.translate(placeholder)}</span>
+        <span class="text-label">{ui.translate(placeholder)}</span>
       {:else}
         {formatMinutesOfDay(savedMinutes)}
       {/if}
@@ -157,7 +157,7 @@
 
 <Popover referenceElement={controlElement ?? null} open={showPanel} placement="bottom-start" offset={4}>
   <div bind:this={panelElement}
-    class="bg-white border border-[#c1c5dc] rounded-[8px] p-12 shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+    class="bg-surface border border-line-strong rounded-[8px] p-12 shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
   >
     <div class="grid grid-cols-6 gap-4">
       {#each HOURS_OF_DAY as hour (hour)}
@@ -177,18 +177,18 @@
 
 <style>
   ._hour {
-    background-color: #f4f4fb;
-    color: #3b3d4f;
+    background-color: var(--surface-muted);
+    color: var(--fg-soft);
     transition: background-color 0.15s;
   }
 
   ._hour:hover {
-    background-color: #e8e7f5;
+    background-color: var(--accent-bg-strong);
   }
 
   ._hour._selected {
-    background-color: #6d5dad;
-    color: white;
+    background-color: var(--accent-solid);
+    color: var(--on-solid);
     font-weight: 600;
   }
 </style>

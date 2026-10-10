@@ -46,13 +46,13 @@
       onRowClick={(user) => { form = { ...user }; ui.openSideLayer(SIDE_LAYER_ID); }} />
   </Layer>
 
-  <div class="text-xs text-gray-500 mt-8">last layer action: {lastLayerAction}</div>
+  <div class="text-xs text-fg-muted mt-8">last layer action: {lastLayerAction}</div>
 </ShowroomBlock>
 
 <ShowroomBlock name="LayerStatic" note="permanent companion column on desktop · bottom drawer on mobile">
   <div class="flex gap-20 h-320">
-    <div class="flex-1 min-w-0 border border-gray-200 rounded-md p-12">
-      <div class="text-sm text-gray-600">
+    <div class="flex-1 min-w-0 border border-line rounded-md p-12">
+      <div class="text-sm text-fg-muted">
         Main working surface. The panel on the right is always present — it is not an
         overlay and has no open/close animation.
       </div>
@@ -61,10 +61,10 @@
     <!-- Sized by the host: useMobileLayerVertical turns it into a bottom drawer with a
          124px peek under 740px (deviceType 3). Height is bounded here so it stays
          inside the block. -->
-    <LayerStatic css="w-[38%] min-w-260 h-full bg-white border border-gray-200 rounded-md p-12"
+    <LayerStatic css="w-[38%] min-w-260 h-full bg-surface border border-line rounded-md p-12"
       mobileLayerTitle="Detail|Detalle" useMobileLayerVertical={124}>
-      <div class="text-sm font-semibold text-gray-700 mb-8">Detail|Detalle</div>
-      <div class="text-xs text-gray-500">Cart, totals, or any live working surface.</div>
+      <div class="text-sm font-semibold text-fg-soft mb-8">Detail|Detalle</div>
+      <div class="text-xs text-fg-muted">Cart, totals, or any live working surface.</div>
     </LayerStatic>
   </div>
 </ShowroomBlock>
@@ -75,7 +75,7 @@
 </ShowroomBlock>
 
 <ShowroomBlock name="Popover" note="portals to body, so it escapes clipped / overflow-hidden ancestors">
-  <div class="overflow-hidden h-60 border border-gray-200 rounded-md p-12">
+  <div class="overflow-hidden h-60 border border-line rounded-md p-12">
     <!-- The anchor sits inside an overflow-hidden box on purpose: the popover still
          renders fully because it is portalled out of this subtree. -->
     <div bind:this={popoverAnchor} class="inline-block">
@@ -99,7 +99,7 @@
 
   <MobileLayerVertical title="Bottom sheet|Panel inferior" show={isBottomSheetOpen}
     closedHeightPx={64} onToggle={(nextState) => { isBottomSheetOpen = nextState; }}>
-    <div class="p-12 text-sm text-gray-600">
+    <div class="p-12 text-sm text-fg-muted">
       Sheet body. Collapsed it keeps a 64px peek visible.
     </div>
   </MobileLayerVertical>
@@ -125,7 +125,7 @@
     </div>
   {/if}
   {#if layerView === 2}
-    <div class="mt-12 text-sm text-gray-600">{form?.Bio || '—'}</div>
+    <div class="mt-12 text-sm text-fg-muted">{form?.Bio || '—'}</div>
   {/if}
 </Layer>
 

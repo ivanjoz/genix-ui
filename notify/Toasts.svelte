@@ -11,14 +11,14 @@
   // and gets its contrast from a dark shadow instead: text-shadow for the message, and a
   // drop-shadow filter for the icon, which is a CSS mask and ignores text-shadow.
   const TOAST_STYLES: Record<ToastType, { background: string; icon: string; textShadow: string; iconShadow: string }> = {
-    success: { background: 'bg-[#1f9d63]', icon: 'icon-[fa--check-circle]', textShadow: '', iconShadow: '' },
-    failure: { background: 'bg-[#ff5549]', icon: 'icon-[fa--times-circle]', textShadow: '', iconShadow: '' },
+    success: { background: 'bg-green-solid', icon: 'icon-[fa--check-circle]', textShadow: '', iconShadow: '' },
+    failure: { background: 'bg-red-solid', icon: 'icon-[fa--times-circle]', textShadow: '', iconShadow: '' },
     warning: {
-      background: 'bg-[#eebf31]', icon: 'icon-[fa--exclamation-circle]',
+      background: 'bg-yellow-solid', icon: 'icon-[fa--exclamation-circle]',
       textShadow: '[text-shadow:0_1px_2px_rgba(0,0,0,0.45)]',
       iconShadow: 'drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.4)]',
     },
-    info: { background: 'bg-[#26c0d3]', icon: 'icon-[fa--info-circle]', textShadow: '', iconShadow: '' },
+    info: { background: 'bg-teal-solid', icon: 'icon-[fa--info-circle]', textShadow: '', iconShadow: '' },
   };
 </script>
 
@@ -28,7 +28,7 @@
   style="z-index: var(--toast-zindex, 420)" aria-live="polite">
   {#each notifyState.toasts as toast (toast.id)}
     <button type="button"
-      class="notify-toast pointer-events-auto relative flex min-h-56 items-center gap-12 overflow-hidden rounded-md py-10 pl-12 pr-14 text-left text-white shadow-[0_4px_14px_rgba(0,0,0,0.18)] cursor-pointer transition-[filter] hover:brightness-95 {TOAST_STYLES[toast.type].background}"
+      class="notify-toast pointer-events-auto relative flex min-h-56 items-center gap-12 overflow-hidden rounded-md py-10 pl-12 pr-14 text-left text-on-solid shadow-[0_4px_14px_rgba(0,0,0,0.18)] cursor-pointer transition-[filter] hover:brightness-95 {TOAST_STYLES[toast.type].background}"
       onclick={() => dismissToast(toast.id)}>
       <i class="shrink-0 text-[30px] {TOAST_STYLES[toast.type].icon} {TOAST_STYLES[toast.type].iconShadow}"></i>
       <span class="min-w-0 text-[14px] leading-[1.35] break-words {TOAST_STYLES[toast.type].textShadow}">{ui.translate(toast.message)}</span>

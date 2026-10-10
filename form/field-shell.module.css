@@ -36,25 +36,25 @@
    overrides: a declaration on the element wins over an inherited value, so a `body`-level
    token would never reach the field.
 
-     line (the 1px inset hairline)   --input-border-color            #d0d4e7
-                                     --input-border-color-hover      #b9bede
-                                     --input-border-color-focus      #8b87d6
-                                     --input-border-color-invalid    #dfa2a2
-                                     --input-border-color-invalid-focus  #cf6a63
-                                     --input-border-color-disabled   #e2e5ee
-     ring (the 3px focus halo)       --input-ring-color              rgb(139 135 214 / 40%)
-                                     --input-ring-color-invalid      rgb(207 106 99 / 35%)
+     line (the 1px inset hairline)   --input-border-color            --line-strong
+                                     --input-border-color-hover      --accent-border
+                                     --input-border-color-focus      --accent-solid
+                                     --input-border-color-invalid    --red-border
+                                     --input-border-color-invalid-focus  --red-solid
+                                     --input-border-color-disabled   --line
+     ring (the 3px focus halo)       --input-ring-color              --accent-solid at 40%
+                                     --input-ring-color-invalid      --red-solid at 35%
      drop shadow                     --input-shadow-color            rgb(74 70 86 / 15%)
-     fill                            --input-bg                      white gradient
-                                     --input-bg-disabled             #f3f4f8
-     text                            --input-label-color             #6d5dad
-                                     --input-label-color-focus       #5b4a9c
-                                     --input-label-color-disabled    #918cb5
-                                     --input-text-color              #1f2430
-                                     --input-text-color-disabled     #6b7280
-                                     --input-placeholder-color       #8a8fb0
-                                     --input-prefix-color            #7d82ad
-                                     --input-suffix-color            #585799
+     fill                            --input-bg                      --field-fill
+                                     --input-bg-disabled             --surface-muted
+     text                            --input-label-color             --label
+                                     --input-label-color-focus       --accent-fg
+                                     --input-label-color-disabled    --fg-subtle
+                                     --input-text-color              --fg
+                                     --input-text-color-disabled     --fg-muted
+                                     --input-placeholder-color       --fg-subtle
+                                     --input-prefix-color            --fg-muted
+                                     --input-suffix-color            --label
      pill variant                    --input-pill-radius             16px
 
    The drop shadow exposes its COLOUR only, not the whole box-shadow: its geometry
@@ -126,7 +126,7 @@
   position: absolute;
   inset: 7px 0 0 0;
   border-radius: 7px;
-  background: var(--input-bg, linear-gradient(#ffffff54 0%, #fff 100%));
+  background: var(--input-bg, var(--field-fill));
   /* Downward-only. The -1px spread plus the +2px offset keep the shadow's top edge
      below the box's top edge, so no shadow line is drawn across the notch — which is why
      only the colour is a token. */
@@ -183,7 +183,7 @@
   border-radius: 7px; /* matches .box, so the 1px line sits exactly on its edge */
   /* Both edges in ONE property so the shadow list is declared once and every state below
      only re-tints a token — which is also what makes a state impossible to half-apply. */
-  --_line: var(--input-border-color, #d0d4e7);
+  --_line: var(--input-border-color, var(--line-strong));
   --_ring: transparent;
   box-shadow:
     inset 0 0 0 1px var(--_line),
@@ -216,12 +216,12 @@
 }
 
 .field:hover .box::before {
-  --_line: var(--input-border-color-hover, #b9bede);
+  --_line: var(--input-border-color-hover, var(--accent-border));
 }
 
 .field:focus-within .box::before {
-  --_line: var(--input-border-color-focus, #8b87d6);
-  --_ring: var(--input-ring-color, rgb(139 135 214 / 40%));
+  --_line: var(--input-border-color-focus, var(--accent-solid));
+  --_ring: var(--input-ring-color, color-mix(in srgb, var(--accent-solid) 40%, transparent));
 }
 
 .lab {
@@ -232,7 +232,7 @@
   top: -1px;
   left: 14px;
   line-height: 16px;
-  color: var(--input-label-color, #6d5dad);
+  color: var(--input-label-color, var(--label));
   white-space: nowrap;
   cursor: pointer;
   /* The label overhangs the 13px row, so without this a long one widens the whole field
@@ -245,19 +245,19 @@
 }
 
 .field:focus-within .lab {
-  color: var(--input-label-color-focus, #5b4a9c);
+  color: var(--input-label-color-focus, var(--accent-fg));
 }
 
 /* Invalid tints the line and adds one trailing glyph in the suffix, so the notch never
    resizes — unlike the old chrome, which put the icon inside the label. The label keeps
    its purple. */
 .field:global(.is-invalid) .box::before {
-  --_line: var(--input-border-color-invalid, #dfa2a2);
+  --_line: var(--input-border-color-invalid, var(--red-border));
 }
 
 .field:global(.is-invalid):focus-within .box::before {
-  --_line: var(--input-border-color-invalid-focus, #cf6a63);
-  --_ring: var(--input-ring-color-invalid, rgb(207 106 99 / 35%));
+  --_line: var(--input-border-color-invalid-focus, var(--red-solid));
+  --_ring: var(--input-ring-color-invalid, color-mix(in srgb, var(--red-solid) 35%, transparent));
 }
 
 .row {
@@ -336,14 +336,14 @@
   border: none;
   outline: none !important;
   background: transparent;
-  color: var(--input-text-color, #1f2430);
+  color: var(--input-text-color, var(--fg));
   /* An input's UA `min-width` is its `size` attribute, so without this a field in a flex
      row refuses to shrink below ~170px. */
   min-width: 0;
 }
 
 .inp::placeholder {
-  color: var(--input-placeholder-color, #8a8fb0);
+  color: var(--input-placeholder-color, var(--fg-subtle));
 }
 
 textarea.inp {
@@ -359,13 +359,13 @@ textarea.inp {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--input-suffix-color, #585799);
+  color: var(--input-suffix-color, var(--label));
   pointer-events: none;
 }
 
 .prefix {
   left: 9px;
-  color: var(--input-prefix-color, #7d82ad);
+  color: var(--input-prefix-color, var(--fg-muted));
 }
 
 .suffix {
@@ -375,22 +375,22 @@ textarea.inp {
 /* Disabled reads as disabled, and the grey follows the rounded border instead of the
    square patch that the `input:disabled` reset in tailwind.css paints inside the box. */
 .field:global(.is-disabled) .box {
-  background: var(--input-bg-disabled, #f3f4f8);
+  background: var(--input-bg-disabled, var(--surface-muted));
   box-shadow: none;
 }
 
 /* Only the line: a disabled control cannot take focus, so --_ring stays transparent. */
 .field:global(.is-disabled) .box::before {
-  --_line: var(--input-border-color-disabled, #e2e5ee);
+  --_line: var(--input-border-color-disabled, var(--line));
 }
 
 .field:global(.is-disabled) .lab {
-  color: var(--input-label-color-disabled, #918cb5);
+  color: var(--input-label-color-disabled, var(--fg-subtle));
 }
 
 .inp:disabled {
   background: transparent;
-  color: var(--input-text-color-disabled, #6b7280);
+  color: var(--input-text-color-disabled, var(--fg-muted));
   cursor: not-allowed;
 }
 

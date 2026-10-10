@@ -595,7 +595,7 @@
 <div bind:this={containerElement} class={className} style={`${style};height:${height + (xAxisLabels.length ? xAxisLabelHeightPx : 0)}px`}>
   <div class="relative flex h-full w-full min-w-0 flex-col">
     <div class="relative flex min-h-0 flex-1 w-full min-w-0">
-    <div class="relative shrink-0 text-right text-[12px] leading-none text-slate-500" style={`width:${yAxisLabelWidthPx}px`}>
+    <div class="relative shrink-0 text-right text-[12px] leading-none text-fg-muted" style={`width:${yAxisLabelWidthPx}px`}>
       {#each yAxisGuides as yAxisGuide (yAxisGuide.top)}
         {#if !yAxisGuide.hideLabel}
           <div class="pointer-events-none absolute right-0 pr-4 [&>div]:block" style={`top:${yAxisGuide.top + yAxisGuide.labelOffsetPx}px;transform:${yAxisGuide.transform}`}>
@@ -606,7 +606,7 @@
     </div>
 
     <div class="relative h-full min-w-0 flex-1 overflow-hidden" bind:this={plotFrameElement}>
-      <div class="absolute inset-0 [&>div]:pointer-events-none [&>div]:absolute [&>div]:left-0 [&>div]:right-0 [&>div]:border-t [&>div]:border-dashed [&>div]:border-slate-300/80">
+      <div class="absolute inset-0 [&>div]:pointer-events-none [&>div]:absolute [&>div]:left-0 [&>div]:right-0 [&>div]:border-t [&>div]:border-dashed [&>div]:border-line-strong/80">
         {#each yAxisGuides as yAxisGuide (yAxisGuide.top)}
           <div style={`top:${yAxisGuide.top}px`}></div>
         {/each}
@@ -614,7 +614,7 @@
 
       {#if showBottomBaseline}
         <!-- The explicit zero baseline is opt-in because existing charts intentionally have a floating plot. -->
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 z-[1] border-t border-solid border-slate-400/90"></div>
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 z-[1] border-t border-solid border-line-strong/90"></div>
       {/if}
 
       {#if useHtmlRendered}
@@ -639,11 +639,11 @@
       {#if showTooltip}
         {#if hoverPointIndex !== null && hoverSeries.length}
           <div class="pointer-events-none absolute inset-y-0 z-[2]" style={`width:${chartMetrics.plotWidth}px;right:0`}>
-            <div class="absolute inset-y-0 border-l border-dashed border-slate-500/70" style={`left:${hoverCrosshairX}px`}></div>
+            <div class="absolute inset-y-0 border-l border-dashed border-fg-muted/70" style={`left:${hoverCrosshairX}px`}></div>
             {#each hoverSeries as hoverSeriesItem, hoverSeriesIndex (hoverSeriesIndex)}
               {#if hoverSeriesItem.dotY !== null}
                 <div
-                  class="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white"
+                  class="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-surface"
                   style={`left:${hoverCrosshairX}px;top:${hoverSeriesItem.dotY}px;background:${hoverSeriesItem.color}`}
                 ></div>
               {/if}
@@ -666,17 +666,17 @@
     {#if showTooltip && hoverPointIndex !== null && hoverSeries.length}
       <!-- Outside the plot frame, whose overflow: hidden would cut the tooltip off at the edges. -->
       <div
-        class="pointer-events-none absolute z-[4] whitespace-nowrap rounded-[6px] border border-slate-300 bg-white/95 px-8 py-6 text-[11px] leading-[15px] text-slate-600 shadow-md"
+        class="pointer-events-none absolute z-[4] whitespace-nowrap rounded-[6px] border border-line-strong bg-surface/95 px-8 py-6 text-[11px] leading-[15px] text-fg-muted shadow-md"
         style={`left:${hoverTooltipLeft}px;top:${hoverTooltipTop}px;transform:${hoverTooltipTransform}`}
       >
         {#if hoverTooltipLabel}
-          <div class="mb-4 font-bold text-slate-900">{hoverTooltipLabel}</div>
+          <div class="mb-4 font-bold text-fg">{hoverTooltipLabel}</div>
         {/if}
         {#each hoverSeries as hoverSeriesItem, hoverSeriesIndex (hoverSeriesIndex)}
           <div class="flex items-center gap-6">
             <span class="inline-block h-8 w-8 shrink-0 rounded-full" style={`background:${hoverSeriesItem.color}`}></span>
             <span>{hoverSeriesItem.name}</span>
-            <span class="ff-mono ml-auto pl-10 font-bold text-slate-900">{hoverSeriesItem.valueLabel}</span>
+            <span class="ff-mono ml-auto pl-10 font-bold text-fg">{hoverSeriesItem.valueLabel}</span>
           </div>
         {/each}
       </div>
@@ -686,7 +686,7 @@
       <div class="relative mt-2 flex w-full min-w-0">
         <div class="shrink-0" style={`width:${yAxisLabelWidthPx}px`}></div>
         <div class="relative min-w-0 flex-1 overflow-hidden" style={`height:${xAxisLabelHeightPx}px`}>
-          <div class="absolute inset-y-0 [&>div]:pointer-events-none [&>div]:absolute [&>div]:text-[11px] [&>div]:uppercase [&>div]:leading-none [&>div]:text-slate-500 [&>div]:whitespace-nowrap" style={`width:${chartMetrics.plotWidth}px;right:0`}>
+          <div class="absolute inset-y-0 [&>div]:pointer-events-none [&>div]:absolute [&>div]:text-[11px] [&>div]:uppercase [&>div]:leading-none [&>div]:text-fg-muted [&>div]:whitespace-nowrap" style={`width:${chartMetrics.plotWidth}px;right:0`}>
             {#each xAxisLabels as xAxisLabel (xAxisLabel.key)}
               <div
                 class={`${xAxisLabel.align === 'left' ? '[&>div]:text-left' : xAxisLabel.align === 'right' ? '[&>div]:text-right' : '[&>div]:text-center'}`}

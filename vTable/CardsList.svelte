@@ -151,7 +151,7 @@
 
 <style>
   .cards-list-container {
-    background-color: white;
+    background-color: var(--surface);
     border: none;
     border-radius: 0;
     box-shadow: none;
@@ -185,7 +185,7 @@
   }
 
   .cards-list-empty-message {
-    color: #6c757d;
+    color: var(--fg-muted);
     text-align: center;
     padding: 32px 16px;
   }

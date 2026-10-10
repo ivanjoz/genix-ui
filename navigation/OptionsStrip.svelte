@@ -126,8 +126,8 @@ import { ifcss } from '../utilities/css.js';
   }
   ._2 {
     padding: 4px 6px 4px 6px;
-    color: #9d9dac;
-    border-bottom: 4px solid rgba(0, 0, 0, 0.1);
+    color: var(--fg-subtle);
+    border-bottom: 4px solid var(--line);
     user-select: none;
     cursor: pointer;
     display: flex;
@@ -137,8 +137,8 @@ import { ifcss } from '../utilities/css.js';
     line-height: 1;
   }
   ._3 {
-    color: #4343ad;
-    border-bottom: 4px solid rgb(117 108 233);
+    color: var(--accent-fg);
+    border-bottom: 4px solid var(--accent-solid);
   }
 
   @media (max-width: 750px) {

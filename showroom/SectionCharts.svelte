@@ -43,7 +43,7 @@
 <ShowroomBlock name="ChartCanvas" note="2 stacked bar series + 1 line series on its own axis · canvas rendered">
   <ChartCanvas data={chartSeries} dateLabels={dateLabels} dateLabelEvery={3} height={180}
     dateLabelFormatter={(dateLabel) => `D${dateLabel}`} />
-  <div class="text-xs text-gray-500 mt-8">
+  <div class="text-xs text-fg-muted mt-8">
     Bars and the line are painted onto a canvas with fixed hex colors — the canvas itself is
     transparent, so the surface toggle shows through.
   </div>
@@ -52,16 +52,16 @@
 <ShowroomBlock name="CellSimpleChart" note="table-cell sparkline: single color · per-bar colors · colorScale">
   <div class="flex flex-wrap items-end gap-24">
     <div>
-      <div class="text-xs text-gray-500 mb-4">barColor</div>
+      <div class="text-xs text-fg-muted mb-4">barColor</div>
       <CellSimpleChart values={sparkValues} barWidth={8} barGap={3} />
     </div>
     <div>
-      <div class="text-xs text-gray-500 mb-4">barColors (per bar)</div>
+      <div class="text-xs text-fg-muted mb-4">barColors (per bar)</div>
       <CellSimpleChart values={barScaleValues} barWidth={10} barGap={4}
         barColors={barScaleValues.map((value) => (value > 100 ? '#e67676' : '#4874f5'))} />
     </div>
     <div>
-      <div class="text-xs text-gray-500 mb-4">colorScale + labels</div>
+      <div class="text-xs text-fg-muted mb-4">colorScale + labels</div>
       <CellSimpleChart values={barScaleValues} barWidth={10} barGap={4} labelGroup={3}
         labels={barScaleValues.map((_, idx) => `W${idx + 1}`)}
         colorScale={['#dbeafe', '#93c5fd', '#4874f5', '#1e3a8a']} />
@@ -72,11 +72,11 @@
 <ShowroomBlock name="CellHorizontalBars" note="[total, pending] pairs · linear and log-scaled">
   <div class="flex flex-wrap gap-40">
     <div class="w-260">
-      <div class="text-xs text-gray-500 mb-4">linear</div>
+      <div class="text-xs text-fg-muted mb-4">linear</div>
       <CellHorizontalBars values={horizontalBarValues} maxValue={640} />
     </div>
     <div class="w-260">
-      <div class="text-xs text-gray-500 mb-4">logScaleFactor = 2</div>
+      <div class="text-xs text-fg-muted mb-4">logScaleFactor = 2</div>
       <CellHorizontalBars values={horizontalBarValues} maxValue={640} logScaleFactor={2} />
     </div>
   </div>

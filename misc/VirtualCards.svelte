@@ -539,6 +539,6 @@
   }
 
   .virtual-cards-empty-message {
-    color: #6b7280;
+    color: var(--fg-muted);
   }
 </style>

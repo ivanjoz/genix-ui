@@ -146,29 +146,29 @@ import { Agent } from '../agent/registry';
 
 <style>
   ._2 {
-    background-color: var(--light-blue-1);
+    background-color: var(--surface-muted);
     border-radius: 5px;
     box-shadow: #5f7187a8 0 1px 3px -1px;
   }
   ._3 {
-    background-color: #fff;
+    background-color: var(--surface);
     justify-content: center;
     border-radius: 4px;
-    border: 1px solid #dfe1ea;
-    color: #3d497a;
+    border: 1px solid var(--line);
+    color: var(--fg-soft);
     align-items: center;
     cursor: pointer;
     position: relative;
     user-select: none;
   }
   ._3:hover {
-    border-color: rgb(236, 125, 125);
-    color: rgb(209, 66, 66);
+    border-color: var(--red-border);
+    color: var(--red-fg);
   }
   ._3:hover ._4 {
     opacity: 1;
-    background-color: rgb(255, 221, 221);
-    color: rgb(224, 61, 61);
+    background-color: var(--red-bg-strong);
+    color: var(--red-solid);
   }
   ._3 ._4 {
     font-size: 14px;
@@ -176,7 +176,7 @@ import { Agent } from '../agent/registry';
     opacity: 0;
   }
   ._3 ._4:hover {
-    background-color: rgb(240, 102, 102);
-    color: white;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
   }
 </style>

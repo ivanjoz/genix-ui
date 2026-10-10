@@ -49,18 +49,16 @@
     onChange?.(optionsSelected)
   }
 
-  let lastSaveOn: T | undefined
-
+  // Follows saveOn[save] itself, not only a swapped saveOn: a value written from outside (a
+  // SelectedTags ✕) deselects the option.
   $effect(() => {
     if(!saveOn || !save){ return }
-    if(lastSaveOn === saveOn){ return }
-    lastSaveOn = saveOn
-
+    const storedValue = saveOn[save]
     untrack(() => {
       if(type === 'multiple'){
-        optionsSelected = (saveOn[save] || []) as (number|string)[]
+        optionsSelected = (storedValue || []) as (number|string)[]
       } else {
-        optionsSelected = [(saveOn[save] || []) as (number|string)]
+        optionsSelected = storedValue ? [storedValue as (number|string)] : []
       }
     })
   })
@@ -141,13 +139,13 @@
 
 <style>
   ._1 {
-    background-color: var(--white);
-    border: 1px solid rgb(143, 143, 143);
-    color: white;
+    background-color: var(--surface);
+    border: 1px solid var(--fg-subtle);
+    color: var(--on-solid);
   }
   ._1._2 {
-    background-color: #09cb70;
-    border-color: #19965b;
+    background-color: var(--green-solid);
+    border-color: var(--green-solid);
   }
   ._row {
     background-color: transparent;
@@ -155,19 +153,19 @@
     padding: 0;
   }
   ._row:hover ._1 {
-    border: 2px solid #0987eb;
+    border: 2px solid var(--blue-solid);
   }
   ._row:hover ._1._2 {
-    border: 2px solid #61778b;
-    background-color: #98aec5;
+    border: 2px solid var(--fg-muted);
+    background-color: var(--fg-subtle);
   }
   ._row:focus-visible {
-    outline: 2px solid #60a5fa;
+    outline: 2px solid var(--blue-solid);
     outline-offset: 2px;
   }
 
   ._button {
-    background-color: var(--white);
+    background-color: var(--surface-raised);
     opacity: 0.8;
     border-radius: 8px;
     min-height: 30px;
@@ -179,20 +177,20 @@
 
   ._buttonSelected {
 		opacity: 1;
-	  outline: 1px solid #bc91ffcf;
-	  box-shadow: rgb(151 112 242 / 70%) 0px 2px 1px;
-	  background-color: #f7f2ff;
-	  color: #6f42b8;
-	  border: 1px solid #ece1ff;
+	  outline: 1px solid color-mix(in srgb, var(--purple-border) 81%, transparent);
+	  box-shadow: color-mix(in srgb, var(--purple-solid) 70%, transparent) 0px 2px 1px;
+	  background-color: var(--purple-bg);
+	  color: var(--purple-fg);
+	  border: 1px solid var(--purple-bg-strong);
   }
 
   /* Slim mode is a compact blue segmented control for dense toolbars and headers. */
   ._buttonsSlim {
     gap: 2px;
     padding: 2px;
-    border: 1px solid #dbe3ee;
+    border: 1px solid var(--line);
     border-radius: 9px;
-    background-color: #f1f5f9;
+    background-color: var(--surface-muted);
   }
   ._buttonSlim {
     min-height: 24px;
@@ -201,24 +199,24 @@
     border-color: transparent;
     background-color: transparent;
     box-shadow: none;
-    color: #64748b;
+    color: var(--fg-muted);
     opacity: 1;
   }
   ._buttonSlim:hover {
-    border-color: #bfdbfe;
-    background-color: #eaf2ff;
-    color: #2563eb;
+    border-color: var(--blue-border);
+    background-color: var(--blue-bg);
+    color: var(--blue-solid);
   }
   ._buttonSlimSelected,
   ._buttonSlimSelected:hover {
-    border-color: #93c5fd;
+    border-color: var(--blue-border);
     outline: none;
-    background-color: #dbeafe;
-    box-shadow: rgb(59 130 246 / 24%) 0 1px 2px;
-    color: #1d4ed8;
+    background-color: var(--blue-bg-strong);
+    box-shadow: color-mix(in srgb, var(--blue-solid) 24%, transparent) 0 1px 2px;
+    color: var(--blue-fg);
   }
   ._buttonSlim:focus-visible {
-    outline: 2px solid #60a5fa;
+    outline: 2px solid var(--blue-solid);
     outline-offset: 1px;
   }
 </style>

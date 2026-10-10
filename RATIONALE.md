@@ -2,6 +2,54 @@
 
 Design decisions for the shared UI package, newest first.
 
+## Caches sync on one millisecond `upd`: a fingerprinted overlap window, slot `upd` by ID
+
+**Context** — The backend dropped `upv`, the per-partition write sequence that cost a DynamoDB call
+before every write. Its only managed stamp is now `upd`: milliseconds since `[dynamo].unix_time_start`,
+taken from the Lambda's clock. A clock is not a sequence: two Lambdas can stamp the same millisecond,
+and a write stamped just before a client synced can land after it, so a bare `> upd` delta would lose
+it for good. The by-IDs cache compared `upv` slot versions sent as `cc-ver` (uint16) and had the same
+problem.
+
+**Decision** — The delta cache keeps per response key an `IDeltaWatermark`: `upd`, the highest
+received, and `window`, the `upd` of every record received in `[upd − 4000, upd]` (deleted ones
+included). It sends `<upd>.<fingerprint of window>`; the backend returns every record past `upd` and
+resends the window only when its own fingerprint of it differs. A multi-key route sends the lowest
+key's watermark as `up`. The IndexedDB delta cache goes to v7, dropping every route. The by-IDs cache
+sends `cc-upd` (6-byte values, `concatenateUint48s`) aligned with `cc-ids`; the backend answers each
+record with its slot's last `upd`, or 0 while that value is younger than 4 seconds. Its IndexedDB
+version is unchanged.
+
+**Rationale** — The overlap catches a late or same-millisecond write; the fingerprint keeps a quiet
+sync from resending it, so a poll with nothing new still returns nothing. The cost: a window map per
+key on the route row, a window resent once after a first sync that filtered out
+soft-deleted rows inside it, the non-lowest keys of a multi-key route resent every sync, and a write
+landing more than 4 s after its stamp still missed. The by-IDs rows need no migration: an old value
+never equals a slot `upd`, so each costs one refetch and heals.
+
+## Color tokens: one palette, dark mode as one class
+
+**Context** — Dark mode needed a single CSS toggle, but the components held about 400 distinct
+color literals and 170 Tailwind palette classes, plus a few scattered `prefers-color-scheme` and
+`:global(.dark)` overrides.
+
+**Decision** — `tailwind.css` declares every color as a token on `body`: neutrals (`surface*`,
+`line*`, `fg*`, `on-solid`, `overlay`), the brand (`primary`, `secondary`, `label`) and ten
+families (`accent` + nine hues) of five steps each (`-bg`, `-bg-strong`, `-border`, `-solid`,
+`-fg`). `body.dark` redeclares them, so the toggle is the existing `body.dark` class. Dark tints and
+borders are `color-mix` of the family's solid over the dark surface, so each family declares two dark
+values. `@theme inline` exposes every token as a Tailwind color (`bg-surface`, `text-red-fg`).
+Components map each literal by role to a token; the old one-off variables (`--white`,
+`--gray-purple-2`, `--light-blue-1`, `--color-11`) are gone. Black-alpha shadows, white highlights on
+solid fills, mask stops, the always-dark desktop menu and the editor's text-color presets stay
+literal.
+
+**Rationale** — Semantic roles (surface, line, fg) rather than a mirrored numeric scale: a role knows
+which way it moves in dark mode, and a flipped `gray-100` would read as a lie. Families follow
+Tailwind's 50/100/300/600/700 steps, so ~400 near-duplicate shades collapse into ~70 tokens. Cost:
+light mode shifts slightly where a one-off shade snapped to its nearest token, and the host's own
+pages still use Tailwind palette classes that do not follow the toggle.
+
 ## Gantt: own date math, today always in range, display-only labels
 
 **Context** — The projects module needed a Gantt (stories and sprints over time). Open: a

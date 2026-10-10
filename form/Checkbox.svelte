@@ -48,15 +48,13 @@
     onToggle?.(nextIsSelected)
   }
 
-  let lastSaveOn: T | undefined
-
+  // Follows saveOn[save] itself, not only a swapped saveOn: a value written from outside (a
+  // SelectedTags ✕) unticks the box.
   $effect(() => {
     if(!saveOn || !save){ return }
-    if(lastSaveOn === saveOn){ return }
-    lastSaveOn = saveOn
-
+    const storedValue = saveOn[save]
     untrack(() => {
-      isSelectedLocal = !!saveOn[save]
+      isSelectedLocal = !!storedValue
     })
   })
 
@@ -107,26 +105,26 @@
   }
 
   ._1 {
-    background-color: var(--white);
-    border: 1px solid rgb(143, 143, 143);
-    color: white;
+    background-color: var(--surface);
+    border: 1px solid var(--fg-subtle);
+    color: var(--on-solid);
   }
   ._1._2 {
-    background-color: #09cb70;
-    border-color: #19965b;
+    background-color: var(--green-solid);
+    border-color: var(--green-solid);
   }
   ._row:hover ._1 {
-    border: 2px solid #0987eb;
+    border: 2px solid var(--blue-solid);
   }
   ._row:hover ._1._2 {
-    border: 2px solid #61778b;
-    background-color: #98aec5;
+    border: 2px solid var(--fg-muted);
+    background-color: var(--fg-subtle);
   }
   ._row:hover ._3 {
     text-decoration: underline;
   }
   ._row:focus-visible {
-    outline: 2px solid #60a5fa;
+    outline: 2px solid var(--blue-solid);
     outline-offset: 2px;
   }
 </style>

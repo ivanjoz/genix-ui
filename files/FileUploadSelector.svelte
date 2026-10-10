@@ -114,7 +114,7 @@ const clearSelectedFile = () => {
 };
 </script>
 
-<div class="inline-flex w-fit min-w-[280px] max-w-[400px] items-center gap-4 rounded-[10px] bg-[#edf4ff] p-4 ring-1 ring-[#c6d8fb] transition-colors duration-150 hover:bg-[#e3eeff]">
+<div class="inline-flex w-fit min-w-[280px] max-w-[400px] items-center gap-4 rounded-[10px] bg-blue-bg p-4 ring-1 ring-blue-border transition-colors duration-150 hover:bg-blue-bg-strong">
   <input
     bind:this={hiddenFileInputElement}
     type="file"
@@ -126,7 +126,7 @@ const clearSelectedFile = () => {
 
   <button
     type="button"
-    class="flex h-34 min-w-0 grow items-center gap-5 rounded-lg border border-transparent bg-white/70 px-6 text-left transition-all duration-150 hover:bg-white/90 hover:shadow-[0_1px_3px_rgba(16,24,40,0.08)] disabled:opacity-60"
+    class="flex h-34 min-w-0 grow items-center gap-5 rounded-lg border border-transparent bg-surface/70 px-6 text-left transition-all duration-150 hover:bg-surface/90 hover:shadow-[0_1px_3px_rgba(16,24,40,0.08)] disabled:opacity-60"
     onclick={openNativeFilePicker}
     disabled={disabled}
   >
@@ -135,19 +135,19 @@ const clearSelectedFile = () => {
       {#if selectedFileTypeIcon}
         <img src={selectedFileTypeIcon} alt={ui.translate("File type|Tipo de archivo")} class="h-16 w-16 shrink-0 object-contain" />
       {:else}
-        <i class="icon-[fa--upload] text-[#3c4650]"></i>
+        <i class="icon-[fa--upload] text-fg-soft"></i>
       {/if}
-      <span class="truncate fs13 leading-[1] text-[#2f3a44]">{selectedFile.name}</span>
+      <span class="truncate fs13 leading-[1] text-fg-soft">{selectedFile.name}</span>
     {:else}
-      <i class="icon-[fa--upload] text-[#3c4650]"></i>
-      <span class="fs13 leading-[1] text-[#2f3a44]">{ui.translate(buttonLabel)}</span>
+      <i class="icon-[fa--upload] text-fg-soft"></i>
+      <span class="fs13 leading-[1] text-fg-soft">{ui.translate(buttonLabel)}</span>
     {/if}
   </button>
 
   {#if selectedFile}
     <button
       type="button"
-      class="flex h-30 w-30 shrink-0 items-center justify-center rounded-[50%] border border-[#ffcfcf] bg-[#fff3f3] text-[#d72828] transition-colors duration-200 hover:border-[#d63232] hover:bg-[#e54545] hover:text-white"
+      class="flex h-30 w-30 shrink-0 items-center justify-center rounded-[50%] border border-red-border bg-red-bg text-red-solid transition-colors duration-200 hover:border-red-solid hover:bg-red-solid hover:text-on-solid"
       aria-label={ui.translate("Remove file|Quitar archivo")}
       onclick={clearSelectedFile}
     >

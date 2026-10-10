@@ -2,15 +2,16 @@
  * Goal:
  * Resolve records by IDs using a 3-layer strategy:
  * 1) in-memory map, 2) IndexedDB persistent cache, 3) server delta sync.
- * It sends `ids`, `cc-ids`, and `cc-ver` so backend returns only new/changed records.
+ * It sends `ids`, `cc-ids`, and `cc-upd` so backend returns only new/changed records.
  *
- * `upv` on a record fetched through this path is its *slot* version, not its own write version:
- * the backend groups records into 256 slots and bumps the slot on every write, so the slot version
- * is what proves a cached copy is still current. A record that arrived from a delta list instead
- * carries its own write version, which never matches a slot version — that costs exactly one
- * revalidation fetch, after which the record holds the right value.
+ * `upd` on a record fetched through this path is its *slot's* last write, not its own: the backend
+ * groups records into 256 slots and stamps a slot on every write to it, so the slot value is what
+ * proves a cached copy is still current. The backend returns 0 while that value is too recent to
+ * trust, which forces one more revalidation. A record that arrived from a delta list carries its
+ * own `upd`, which matches its slot only when it was the slot's last write; otherwise it costs one
+ * revalidation fetch, after which the record holds the slot value.
  */
-import { concatenateInts, concatenateUint16s } from '../utilities/index.js'
+import { concatenateInts, concatenateUint48s } from '../utilities/index.js'
 import { clearCacheByIDsDatabase, readRecordsFromIDBByIDs, upsertRecordsIntoIDB } from "./cache-by-ids.idb"
 import { clearQueryByIdMemoryCache } from "./cache-query-by-id"
 import { getCacheRuntime } from './runtime.js'
@@ -19,10 +20,9 @@ const CACHE_TIME = 5
 
 export interface IMinimalRecord {
 	ID: number /* ID f the record */
-	upv?: number /* slot version, 0..65535; 0 means "unknown" and always forces a fetch */
 	ss: number /* status: 1 active, 0 deleted */
 	_fch?: number /* fetched: when the record was last fetched (in seconds) */
-	upd: number /* for used in getRecordByIDUpdated */
+	upd: number /* the slot's last write (see above); 0 means "unknown" and always forces a fetch */
 }
 
 const cacheRecordIdTable: Map<string,Map<number,IMinimalRecord>> = new Map()
@@ -56,7 +56,6 @@ const logDebugCacheRecord = (
 	if (!shouldDebugCacheRecord(id)) return
 	console.debug(`${LOG_PREFIX} debug ${apiRoute} | ${stage}`, {
 		id,
-		upv: record?.upv,
 		_fch: record?._fch,
 		ss: record?.ss,
 		upd: record?.upd,
@@ -68,51 +67,47 @@ export type CacheByIDsFetchFromServer = <T extends IMinimalRecord>(
 	apiRoute: string,
 	ids: number[],
 	ccIDs: number[],
-	ccVer: number[],
+	ccUpd: number[],
 ) => Promise<T[]>
 
 const buildFetchUriParams = (
-	ids: number[], ccIDs: number[], ccVer: number[],
+	ids: number[], ccIDs: number[], ccUpd: number[],
 ): string => {
 	const cachedRecordsU8IDs: number[] = []
-	const cachedRecordsU8Versions: number[] = []
+	const cachedRecordsU8Updated: number[] = []
 	const cachedRecordsU16IDs: number[] = []
-	const cachedRecordsU16Versions: number[] = []
+	const cachedRecordsU16Updated: number[] = []
 	const cachedRecordsU32IDs: number[] = []
-	const cachedRecordsU32Versions: number[] = []
+	const cachedRecordsU32Updated: number[] = []
 
 	for (let index = 0; index < ccIDs.length; index++) {
 		const cachedID = ccIDs[index]
-		const cachedVersion = ccVer[index] || 0
-		if (cachedVersion < 0 || cachedVersion > 65535) {
-			// Slot versions are uint16 on the backend; fail loudly before corrupting alignment.
-			throw new Error(`${LOG_PREFIX} invalid cc-ver for ${cachedID}: ${cachedVersion}`)
-		}
+		const cachedUpdated = ccUpd[index] || 0
 
-		// `cc-ids` is magnitude-bucketed by the compact encoder, so the versions are reordered into
+		// `cc-ids` is magnitude-bucketed by the compact encoder, so the upd values are reordered into
 		// the same bucket order before being emitted as one fixed-width array.
 		if (cachedID >= 0 && cachedID <= 255) {
 			cachedRecordsU8IDs.push(cachedID)
-			cachedRecordsU8Versions.push(cachedVersion)
+			cachedRecordsU8Updated.push(cachedUpdated)
 			continue
 		}
 		if (cachedID >= 0 && cachedID <= 65535) {
 			cachedRecordsU16IDs.push(cachedID)
-			cachedRecordsU16Versions.push(cachedVersion)
+			cachedRecordsU16Updated.push(cachedUpdated)
 			continue
 		}
 		cachedRecordsU32IDs.push(cachedID)
-		cachedRecordsU32Versions.push(cachedVersion)
+		cachedRecordsU32Updated.push(cachedUpdated)
 	}
 
 	const alignedCachedIDs = [...cachedRecordsU8IDs, ...cachedRecordsU16IDs, ...cachedRecordsU32IDs]
-	const alignedCachedVersions = [...cachedRecordsU8Versions,...cachedRecordsU16Versions,...cachedRecordsU32Versions]
+	const alignedCachedUpdated = [...cachedRecordsU8Updated, ...cachedRecordsU16Updated, ...cachedRecordsU32Updated]
 
 	return [
 		ids.length > 0 && `ids=${concatenateInts(ids)}`,
 		alignedCachedIDs.length > 0 && `cc-ids=${concatenateInts(alignedCachedIDs)}`,
-		// One fixed width, never magnitude-bucketed: that is what keeps cc-ver aligned with cc-ids.
-		alignedCachedVersions.length > 0 && `cc-ver=${concatenateUint16s(alignedCachedVersions)}`,
+		// One fixed width, never magnitude-bucketed: that is what keeps cc-upd aligned with cc-ids.
+		alignedCachedUpdated.length > 0 && `cc-upd=${concatenateUint48s(alignedCachedUpdated)}`,
 	].filter(Boolean).join("&")
 }
 
@@ -121,9 +116,9 @@ let fetchFromServer: CacheByIDsFetchFromServer = async <T extends IMinimalRecord
 	apiRoute: string,
 	ids: number[],
 	ccIDs: number[],
-	ccVer: number[],
+	ccUpd: number[],
 ): Promise<T[]> => {
-	const uriParams = buildFetchUriParams(ids, ccIDs, ccVer)
+	const uriParams = buildFetchUriParams(ids, ccIDs, ccUpd)
 	try {
 		const runtime = getCacheRuntime()
 		// `apiRoute` is treated as the backend route (example: `p-productos-ids`).
@@ -182,7 +177,7 @@ const mergeFetchedRecordsIntoCache = async <T extends IMinimalRecord>(
 			continue
 		}
 		fetchedRecord._fch = fetchedAtSeconds
-		if (typeof fetchedRecord.upv !== "number") fetchedRecord.upv = 0
+		if (typeof fetchedRecord.upd !== "number") fetchedRecord.upd = 0
 		// The API's minijson skips zero values: a record without `ss` is a deleted one (ss = 0).
 		if (typeof fetchedRecord.ss !== "number") fetchedRecord.ss = 0
 		tableCache.set(fetchedRecord.ID, fetchedRecord)
@@ -242,7 +237,7 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 
 	// Classify each requested ID into:
 	// - missing cache (needs IDB lookup),
-	// - cached entries (send ID + slot version for server-side validation),
+	// - cached entries (send ID + slot upd for server-side validation),
 	// - stale cache count (forces revalidation call).
 	const idsMissingFromMemoryCache: number[] = []
 	const idsCachedOnMemory: number[] = []
@@ -250,10 +245,10 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 	const staleIDsToFetch: number[] = []
 	const recordsWitoutCache: number[] = []
 	const recordsCachedIDs: number[] = []
-	const recordsCachedSlotVersions: number[] = []
+	const recordsCachedSlotUpdated: number[] = []
 
 	// Count cached records that exceeded CACHE_TIME.
-	// These records may still be unchanged (same slot version), but we must revalidate with backend.
+	// These records may still be unchanged (same slot upd), but we must revalidate with backend.
 	let staleCachedRecordsCount = 0
 
 	for (const id of normalizedSortedIDs) {
@@ -273,7 +268,7 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 
 			idsCachedOnMemory.push(id)
 			recordsCachedIDs.push(id)
-			recordsCachedSlotVersions.push(hintedRecord.upv || 0)
+			recordsCachedSlotUpdated.push(hintedRecord.upd || 0)
 
 			const recordFetchAgeSeconds = currentTimeSeconds-(hintedRecord._fch || 0)
 			if (recordFetchAgeSeconds > CACHE_TIME) {
@@ -299,7 +294,7 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 
 		idsCachedOnMemory.push(id)
 		recordsCachedIDs.push(id)
-		recordsCachedSlotVersions.push(cachedRecord.upv || 0)
+		recordsCachedSlotUpdated.push(cachedRecord.upd || 0)
 
 		const recordFetchAgeSeconds = currentTimeSeconds - (cachedRecord._fch || 0)
 		if (recordFetchAgeSeconds > CACHE_TIME) {
@@ -338,7 +333,7 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 
 			idsCachedFromIndexedDB.push(id)
 			recordsCachedIDs.push(id)
-			recordsCachedSlotVersions.push(idbRecord.upv || 0)
+			recordsCachedSlotUpdated.push(idbRecord.upd || 0)
 
 			const recordFetchAgeSeconds = currentTimeSeconds - (idbRecord._fch || 0)
 			if (recordFetchAgeSeconds > CACHE_TIME) {
@@ -356,11 +351,11 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 	// Build delta-validation payload:
 	// - `ids`: records with no local cache.
 	// - `cc-ids`: records that exist locally and can be checked by backend.
-	// - `cc-ver`: local update-group values aligned by position with `cc-ids`.
+	// - `cc-upd`: local slot upd values aligned by position with `cc-ids`.
 	const uriParams = buildFetchUriParams(
 		recordsWitoutCache,
 		recordsCachedIDs,
-		recordsCachedSlotVersions,
+		recordsCachedSlotUpdated,
 	)
 
 	// Why not only `uriParams.length > 0`?
@@ -376,12 +371,11 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 		if (!shouldDebugCacheRecord(id)) continue
 		logDebugCacheRecord("request payload version snapshot", apiRoute, id, {
 			ID: id,
-			upv: recordsCachedIDs.includes(id)
-				? recordsCachedSlotVersions[recordsCachedIDs.indexOf(id)]
+			upd: recordsCachedIDs.includes(id)
+				? recordsCachedSlotUpdated[recordsCachedIDs.indexOf(id)]
 				: undefined,
 			_fch: (tableCache.get(id) as T | undefined)?._fch,
 			ss: (tableCache.get(id) as T | undefined)?.ss,
-			upd: (tableCache.get(id) as T | undefined)?.upd,
 		}, {
 			isMissing: recordsWitoutCache.includes(id),
 			isStale: staleIDsToFetch.includes(id),
@@ -414,7 +408,7 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 				apiRoute,
 				recordsWitoutCache,
 				recordsCachedIDs,
-				recordsCachedSlotVersions,
+				recordsCachedSlotUpdated,
 			)
 			for (const fetchedRecord of updatedOrNewRecordsFromServer) {
 				if (!fetchedRecord || typeof fetchedRecord.ID !== "number") continue
@@ -922,7 +916,7 @@ const fetchStaticRecordsFromServer = async <T extends { ID: number }>(
 /**
  * Resolve records by ID from a "static" endpoint that doesn't use the cache-version protocol:
  * lookups are cache-first (memory → IndexedDB) and the server is only asked for IDs that aren't
- * present locally. Once fetched, a record is assumed immutable for its ID — there's no `upd`/`upv`
+ * present locally. Once fetched, a record is assumed immutable for its ID — there's no `upd`
  * revalidation and no staleness timer. Use for catalog-like tables (e.g. product-stock-lots).
  */
 export interface GetStaticRecordsByIDOptions {
@@ -1108,11 +1102,8 @@ export const getRecordWithCache = <T extends IMinimalRecord>(
 			Boolean(refreshedRecord) &&
 			(
 				!localResolution.record ||
-				refreshedRecord!.upv !== localResolution.record.upv ||
-				refreshedRecord!.ss !== localResolution.record.ss ||
-				// Keep this flexible for model payloads that include `upd`.
-				(refreshedRecord as unknown as { upd?: number }).upd !==
-					(localResolution.record as unknown as { upd?: number }).upd
+				refreshedRecord!.upd !== localResolution.record.upd ||
+				refreshedRecord!.ss !== localResolution.record.ss
 			)
 		if (isRecordChanged && refreshedRecord) {
 			record = refreshedRecord

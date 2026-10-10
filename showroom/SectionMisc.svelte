@@ -26,11 +26,11 @@
   let editorForm = $state({ Html: '<p>Editable <b>rich text</b>.</p>' });
 
   const rendererTree: ElementAST[] = [
-    { tagName: 'DIV', css: 'text-sm text-gray-700', text: 'Rendered from an ElementAST tree:' },
+    { tagName: 'DIV', css: 'text-sm text-fg-soft', text: 'Rendered from an ElementAST tree:' },
     {
       tagName: 'DIV', css: 'flex gap-8 mt-6', children: [
-        { tagName: 'SPAN', css: 'px-8 py-2 bg-blue-100 text-blue-700 rounded text-xs', text: 'span' },
-        { tagName: 'BUTTON', id: 'ast-button', css: 'px-8 py-2 bg-green-600 text-white rounded text-xs',
+        { tagName: 'SPAN', css: 'px-8 py-2 bg-blue-bg-strong text-blue-fg rounded text-xs', text: 'span' },
+        { tagName: 'BUTTON', id: 'ast-button', css: 'px-8 py-2 bg-green-solid text-on-solid rounded text-xs',
           text: 'button', onClick: (id) => { lastRendererClick = String(id); } },
       ],
     },
@@ -42,15 +42,15 @@
 </script>
 
 <ShowroomBlock name="T" note="resolves an &quot;English|Spanish&quot; string through ui.translate">
-  <div class="flex flex-wrap gap-20 text-sm text-gray-700">
+  <div class="flex flex-wrap gap-20 text-sm text-fg-soft">
     <T text="Save|Guardar" />
-    <T text="Delete|Eliminar" css="text-red-600" />
+    <T text="Delete|Eliminar" css="text-red-fg" />
     <T text="No pipe means no split" />
   </div>
 </ShowroomBlock>
 
 <ShowroomBlock name="HighlightText" note="marks the matched words inside a string">
-  <div class="text-sm text-gray-700">
+  <div class="text-sm text-fg-soft">
     <HighlightText words={['lobortis', 'dolor']}
       text="Donec lobortis eleifend condimentum. Cras dictum dolor lacinia lectus vehicula rutrum." />
   </div>
@@ -86,10 +86,10 @@
 <ShowroomBlock name="Virtualizer" note="1 000 items · generic vertical virtual list with a children snippet">
   <Virtualizer items={listItems} height="300px" estimatedItemHeight={44}>
     {#snippet children(user, index)}
-      <div class="flex items-center gap-10 px-10 py-8 border-b border-gray-200">
-        <span class="text-xs text-gray-400 w-40">#{index + 1}</span>
-        <span class="text-sm text-gray-700">{user.Name}</span>
-        <span class="text-xs text-gray-500 ml-auto">{user.Language}</span>
+      <div class="flex items-center gap-10 px-10 py-8 border-b border-line">
+        <span class="text-xs text-fg-subtle w-40">#{index + 1}</span>
+        <span class="text-sm text-fg-soft">{user.Name}</span>
+        <span class="text-xs text-fg-muted ml-auto">{user.Language}</span>
       </div>
     {/snippet}
   </Virtualizer>
@@ -98,10 +98,10 @@
 <ShowroomBlock name="VirtualCards" note="responsive virtualized card grid · maxColumns=3">
   <VirtualCards items={cardItems} height="340px" maxColumns={3} estimatedRowHeight={120}>
     {#snippet children(user)}
-      <div class="border border-gray-200 rounded-md p-12 bg-white h-110">
-        <div class="text-sm font-semibold text-gray-700">{user.Name}</div>
-        <div class="text-xs text-gray-500">{user.Code}</div>
-        <div class="text-xs text-gray-500 mt-4">v{user.Version.toFixed(2)} · {user.Language}</div>
+      <div class="border border-line rounded-md p-12 bg-surface h-110">
+        <div class="text-sm font-semibold text-fg-soft">{user.Name}</div>
+        <div class="text-xs text-fg-muted">{user.Code}</div>
+        <div class="text-xs text-fg-muted mt-4">v{user.Version.toFixed(2)} · {user.Language}</div>
       </div>
     {/snippet}
   </VirtualCards>
@@ -109,7 +109,7 @@
 
 <ShowroomBlock name="Renderer" note="ElementAST → DOM · the AST owns its own onClick callbacks">
   <Renderer elements={rendererTree} />
-  <div class="text-xs text-gray-500 mt-8">last AST click id: {lastRendererClick}</div>
+  <div class="text-xs text-fg-muted mt-8">last AST click id: {lastRendererClick}</div>
 </ShowroomBlock>
 
 <ShowroomBlock name="Portal" note="teleports its children to document.body">
@@ -117,7 +117,7 @@
     icon="icon-[fa--external-link]" onClick={() => { isPortalVisible = !isPortalVisible; }} />
   {#if isPortalVisible}
     <Portal zIndex={9000}>
-      <div class="fixed bottom-20 left-20 bg-gray-800 text-white text-xs px-12 py-8 rounded-md">
+      <div class="fixed bottom-20 left-20 bg-fg text-surface text-xs px-12 py-8 rounded-md">
         Rendered into document.body, outside this section's DOM subtree.
       </div>
     </Portal>
@@ -127,14 +127,14 @@
 <ShowroomBlock name="FileUploadSelector" note="local pick only — nothing is uploaded here">
   <FileUploadSelector bind:selectedFile extensions={['xlsx', 'pdf', 'csv']}
     buttonLabel="Select file|Seleccionar archivo" />
-  <div class="text-xs text-gray-500 mt-8">selected: {selectedFile?.name || '—'}</div>
+  <div class="text-xs text-fg-muted mt-8">selected: {selectedFile?.name || '—'}</div>
 </ShowroomBlock>
 
 <ShowroomBlock name="FileDropZone" note="drag & drop or click — local pick only, nothing is uploaded here">
   <FileDropZone bind:selectedFile={droppedFile} extensions={['pfx', 'p12']}
     label="Drop the certificate here or click to select it|Suelte el certificado aquí o haga clic para seleccionarlo"
     hint="A .pfx or .p12 file|Un archivo .pfx o .p12" css="max-w-400" />
-  <div class="text-xs text-gray-500 mt-8">dropped: {droppedFile?.name || '—'}</div>
+  <div class="text-xs text-fg-muted mt-8">dropped: {droppedFile?.name || '—'}</div>
 </ShowroomBlock>
 
 <ShowroomBlock name="HTMLEditor" note="RoosterJS rich text bound with saveOn/save · loaded on demand">
@@ -142,7 +142,7 @@
     {#await import('../editor/HTMLEditor.svelte') then editorModule}
       <editorModule.default saveOn={editorForm} save="Html" css="min-h-200" />
     {/await}
-    <pre class="text-xs text-gray-600 mt-8 overflow-x-auto">{editorForm.Html}</pre>
+    <pre class="text-xs text-fg-muted mt-8 overflow-x-auto">{editorForm.Html}</pre>
   {:else}
     <Button name="Load editor|Cargar editor" color="purple" icon="icon-[fa--pencil]"
       onClick={() => { isEditorLoaded = true; }} />

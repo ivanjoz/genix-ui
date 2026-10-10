@@ -5,7 +5,6 @@
     import FieldShell from "./FieldShell.svelte";
     import type { ElementAST } from '../misc/Renderer.svelte';
     import { Agent } from "../agent/registry";
-    import { parseSVG } from '../utilities/ui.js';
     import angleSvg from '../assets/angle.svg?raw';
 
     // All chrome (label, box, notch, focus ring) lives in FieldShell. This file owns only
@@ -217,8 +216,6 @@
         deriveLeftOptionFromValue(value);
     };
 
-    let lastSaveOn: T | undefined;
-
     const doSave = () => {
         untrack(() => {
             const v = saveOn[save];
@@ -243,18 +240,21 @@
         });
     };
 
+    // Follows saveOn[save] itself, not only a swapped saveOn: a value written from outside (a
+    // SelectedTags ✕) shows in the field. The field's own keystrokes store what it shows, so they
+    // compare equal and never reset the text being typed.
     $effect(() => {
         if (!saveOn || !save) {
             return;
         }
-        if (lastSaveOn === saveOn) {
-            return;
-        }
-        lastSaveOn = saveOn;
-
-        if (saveOn[save] !== inputValue) {
-            doSave();
-        }
+        const storedValue = saveOn[save];
+        untrack(() => {
+            const shownValue = baseDecimalsValue && typeof inputValue === "number"
+                ? Math.round(inputValue * baseDecimalsValue) : inputValue;
+            if (storedValue !== shownValue) {
+                doSave();
+            }
+        });
     });
 
     $effect(() => {
@@ -452,7 +452,7 @@
              value), so the button re-enables them for its own box. -->
         <button
             type="button"
-            class="{isPasswordRevealed ? 'icon-[mdi--eye-off]' : 'icon-[mdi--eye]'} pointer-events-auto cursor-pointer text-[#6b6b8e] text-[20px]"
+            class="{isPasswordRevealed ? 'icon-[mdi--eye-off]' : 'icon-[mdi--eye]'} pointer-events-auto cursor-pointer text-label text-[20px]"
             aria-label={ui.translate("Reveal password|Revelar contraseña")}
             onclick={() => { isPasswordRevealed = !isPasswordRevealed; }}
         ></button>
@@ -463,7 +463,7 @@
 
 {#snippet validityIcon(iconCss: string)}
     {#if showInvalid}
-        <i class="icon-[fa--exclamation-triangle] text-red-500 {iconCss}"></i>
+        <i class="icon-[fa--exclamation-triangle] text-red-solid {iconCss}"></i>
     {:else if showValid}
         <i class="icon-[fa--check] c-green {iconCss}"></i>
     {/if}
@@ -484,8 +484,8 @@
         type="button"
         class="shrink-0 self-stretch flex items-center justify-center w-34 mx-4 mb-4
                {label ? '-mt-1 max-[749px]:-mt-3' : 'mt-4'}
-               rounded-[5px] bg-[#efedf9] text-[#5b4a9c] text-[18px] cursor-pointer
-               hover:bg-[#e2def5] disabled:cursor-not-allowed disabled:opacity-50
+               rounded-[5px] bg-accent-bg text-label text-[18px] cursor-pointer
+               hover:bg-accent-bg-strong disabled:cursor-not-allowed disabled:opacity-50
                {step < 0 && numericSwipeRange ? 'touch-pan-y' : ''} {step > 0 && swipeRuler ? 'invisible' : ''}"
         {disabled}
         aria-label={ui.translate(ariaLabel)}
@@ -509,19 +509,19 @@
             style="left: {swipeRuler.trackLeft}px; width: {swipeRuler.trackWidth}px">
             <div class="absolute left-0 h-10 w-[calc(100%+2px)]"
                 style="top: {swipeRuler.lineTop - 5}px;
-                       background: repeating-linear-gradient(to right, #5f5fe3 0 2px, transparent 2px {SWIPE_TICK_UNITS * SWIPE_PX_PER_UNIT}px)"></div>
-            <div class="absolute left-0 right-0 h-8 rounded-full overflow-hidden bg-[#cfd0dc]"
+                       background: repeating-linear-gradient(to right, var(--accent-solid) 0 2px, transparent 2px {SWIPE_TICK_UNITS * SWIPE_PX_PER_UNIT}px)"></div>
+            <div class="absolute left-0 right-0 h-8 rounded-full overflow-hidden bg-line-strong"
                 style="top: {swipeRuler.trackMiddleTop - 4}px">
-                <div class="h-full bg-[#5f5fe3]" style="width: {thumbX}px"></div>
+                <div class="h-full bg-accent-solid" style="width: {thumbX}px"></div>
             </div>
-            <div class="absolute w-2 bg-[#5f5fe3]"
+            <div class="absolute w-2 bg-accent-solid"
                 style="left: {thumbX - 1}px; top: {swipeRuler.lineTop}px; height: {swipeRuler.trackMiddleTop - swipeRuler.lineTop}px"></div>
             <!-- A fixed 32px circle (room for 3 digits) placed by its top-left corner, a whole
                  16px off the thumb, instead of translate(-50%) on a content-sized box, which
                  lands on half pixels. leading-none drops the font's line box, which otherwise
                  pushes the digits off the circle's centre. -->
             <span class="absolute w-32 h-32 flex items-center justify-center
-                         rounded-full border-2 border-[#5f5fe3] bg-[#e3e3fb] leading-none font-bold tabular-nums text-[#2f2f7a]
+                         rounded-full border-2 border-accent-solid bg-accent-bg-strong leading-none font-bold tabular-nums text-accent-fg
                          {String(swipeRuler.value).length <= 2 ? 'text-[16px]' : 'text-[14px]'}"
                 style="left: {thumbX - 16}px; top: {swipeRuler.lineTop - 16}px">{swipeRuler.value}</span>
         </div>
@@ -532,7 +532,7 @@
     <button
         type="button"
         class="flex items-center gap-4 h-full pl-8 pr-5 text-sm whitespace-nowrap
-               rounded-l-[7px] text-[#4b4b7a] hover:bg-[#f4f4fb] disabled:cursor-not-allowed"
+               rounded-l-[7px] text-fg-soft hover:bg-surface-soft disabled:cursor-not-allowed"
         {disabled}
         aria-haspopup="listbox"
         aria-expanded={isLeftOpen}
@@ -566,28 +566,29 @@
             role="presentation"
         >
             <div class="absolute -top-18 left-12 h-18 w-24 flex justify-center overflow-hidden z-1">
-                <img class="w-24 h-24 mt-2" alt="" src={parseSVG(angleSvg)} />
+                <!-- Inline, not an <img>: the arrow fills with var(--surface) and follows dark mode. -->
+                <span class="block w-24 h-24 mt-2">{@html angleSvg}</span>
             </div>
             <!-- A hairline ring in the shadow rather than a `border`: angle.svg draws its own
-                 34%-opacity outline, and a solid border would paint a line straight across the
+                 outline (--layer-pointer-edge), and a solid border would paint a line straight across the
                  triangle's base and detach it from the panel. Same stack ButtonLayer uses. -->
             <ul
-                class="max-h-[260px] overflow-y-auto rounded-md bg-white py-3
-                       shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.05)]"
+                class="max-h-[260px] overflow-y-auto rounded-md bg-layer py-3 outline-2 outline-(color:--layer-outline)
+                       shadow-[var(--layer-shadow),0_0_0_1px_var(--layer-edge)]"
                 role="listbox"
             >
                 {#each leftOptions ?? [] as option (option.id)}
                     <li>
                         <button
                             type="button"
-                            class="w-full px-8 py-4 text-left text-sm hover:bg-[#ececf6]
-                                   {option.id === selectedLeftID ? 'bg-[#f3f3fb] font-semibold' : ''}"
+                            class="w-full px-8 py-4 text-left text-sm hover:bg-surface-muted
+                                   {option.id === selectedLeftID ? 'bg-accent-bg font-semibold' : ''}"
                             role="option"
                             aria-selected={option.id === selectedLeftID}
                             onclick={() => { pickLeftOption(option.id); }}
                         >
                             {ui.translate(option.name)}{#if option.label}
-                                <span class="ml-6 text-[#6b6b8e]">({ui.translate(option.label)})</span>
+                                <span class="ml-6 text-label">({ui.translate(option.label)})</span>
                             {/if}
                         </button>
                     </li>
@@ -669,7 +670,7 @@
         transform: translateX(-50%);
         width: 1px;
         height: 10px;
-        background: var(--input-border-color, #d0d4e7);
+        background: var(--input-border-color, var(--line-strong));
     }
 
     .caret-slot::before {

@@ -22,8 +22,9 @@ import {
   stripRowMeta,
   verifyRouteMemoryState,
 } from './delta-cache.idb';
-import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync, IRefreshDeltaRoutesArgs, IWatermarkPair } from './delta-cache.types';
-import { formatWatermarkPair, watermarkParamOfDefaultKey } from './delta-cache.types';
+import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync, IRefreshDeltaRoutesArgs } from './delta-cache.types';
+import { watermarkParamOfDefaultKey } from './delta-cache.types';
+import { formatWatermark, lowestWatermark, makeEmptyWatermark, mergeIntoWatermark } from './delta-cache.watermark';
 import type { serviceHttpProps } from './service-http.types.js';
 import { parseObject } from './parse-object.js';
 import { parsePsvResponse } from './psv-parse';
@@ -260,29 +261,6 @@ const parseResponseAsStream = async (
   return await fetchResponse.json()
 }
 
-// Both watermarks of a response key travel on every sync, and the backend takes the one its table
-// is keyed on. The client used to pick — it inferred the field from whether the records carried
-// `upv` and persisted that guess on the route — and a route that guessed wrong stayed wrong: it
-// sent a watermark its handler does not read, got the whole table back, merged it happily and
-// reported nothing. Sending both removes the inference and the failure mode with it.
-const makeEmptyWatermark = (): IWatermarkPair => ({ upv: 0, upd: 0 })
-
-const boundWatermarkValue = (current: number, candidate: number, useMin?: boolean): number => {
-  if(useMin){ return (current === 0 || candidate < current) ? candidate : current }
-  return candidate > current ? candidate : current
-}
-
-const mergeWatermarkPairs = (
-  current: IWatermarkPair, candidate: IWatermarkPair, useMin?: boolean,
-): IWatermarkPair => ({
-  upv: boundWatermarkValue(current.upv, candidate.upv, useMin),
-  upd: boundWatermarkValue(current.upd, candidate.upd, useMin),
-})
-
-const isEmptyWatermark = (watermark: IWatermarkPair) => !watermark.upv && !watermark.upd
-
-const sameWatermark = (a: IWatermarkPair, b: IWatermarkPair) => a.upv === b.upv && a.upd === b.upd
-
 const getRecordStatusValue = (record: any): number => {
   const rawStatus = record?.ss ?? 0
   if(typeof rawStatus === 'number'){ return rawStatus }
@@ -411,20 +389,28 @@ const buildRouteRowsFromResponse = (
   return { rows, responseKeys }
 }
 
-const extractWatermarks = (content: { [key: string]: any[] }, useMin?: boolean) => {
-  const watermarks: { [key: string]: IWatermarkPair } = {}
-
-  for(const [key, values] of listRecordResponseEntries(content as CacheContent)){
-    let watermark = makeEmptyWatermark()
-    for(const record of values || []){
-      watermark = mergeWatermarkPairs(
-        watermark, { upv: record?.upv || 0, upd: record?.upd || 0 }, useMin,
-      )
-    }
-    watermarks[key] = watermark
+// listReceivedUpdated lists, per response key, the [record ID, upd] of every record a delta brought,
+// deleted ones included: the input of the watermark and of its window.
+const listReceivedUpdated = (args: serviceHttpProps, content: CacheContent) => {
+  const receivedUpdatedByKey: { [key: string]: [string, number][] } = {}
+  for(const [key, records] of listRecordResponseEntries(content)){
+    receivedUpdatedByKey[key] = (records || []).map((record) => [
+      String(getRequiredRecordID(args, record, args.route, key)), record?.upd || 0,
+    ])
   }
+  return receivedUpdatedByKey
+}
 
-  return watermarks
+// mergeReceivedIntoRoute folds a delta into the route's watermarks; true when any of them moved.
+const mergeReceivedIntoRoute = (args: serviceHttpProps, routeRow: ICacheRouteRow, content: CacheContent) => {
+  let hasChanged = false
+  for(const [key, receivedUpdated] of Object.entries(listReceivedUpdated(args, content))){
+    const merged = mergeIntoWatermark(routeRow.updatedStatus[key] || makeEmptyWatermark(), receivedUpdated)
+    if(!merged.hasChanged){ continue }
+    routeRow.updatedStatus[key] = merged.watermark
+    hasChanged = true
+  }
+  return hasChanged
 }
 
 const countResponseRecords = (response: CacheContent) => {
@@ -532,7 +518,7 @@ const getNextRouteURL = (args: serviceHttpProps, routeRow?: ICacheRouteRow) => {
 
   for(const field of args.fields || []){
     if(!lastSync.updatedStatus[field]){
-      route = addToRoute(route, field, formatWatermarkPair(makeEmptyWatermark()))
+      route = addToRoute(route, field, formatWatermark(makeEmptyWatermark()))
     }
   }
 
@@ -542,22 +528,20 @@ const getNextRouteURL = (args: serviceHttpProps, routeRow?: ICacheRouteRow) => {
 
   if(lastSync.updatedStatus._default){
     route = addToRoute(route, watermarkParamOfDefaultKey,
-      formatWatermarkPair(lastSync.updatedStatus._default))
+      formatWatermark(lastSync.updatedStatus._default))
     return { route, lastSync }
   }
 
-  let minWatermark: IWatermarkPair | undefined
   const fields = args.fields || []
   for(const [key, watermark] of Object.entries(lastSync.updatedStatus)){
-    minWatermark = minWatermark ? mergeWatermarkPairs(minWatermark, watermark, true) : watermark
     if(fields.length > 0 && !fields.includes(key)){ continue }
-    route = addToRoute(route, key, formatWatermarkPair(watermark))
+    route = addToRoute(route, key, formatWatermark(watermark))
   }
 
-  // Multi-key responses are read per key by the backend; this trailing param only serves routes that
-  // take a single watermark, and it carries the lowest pair so such a route never skips a record.
+  // The backend reads one watermark, `up`, for every key of a multi-key route: the lowest, so no key
+  // skips a record. Its fingerprint only matches that key's window; the other keys get theirs resent.
   route = addToRoute(route, watermarkParamOfDefaultKey,
-    formatWatermarkPair(minWatermark || makeEmptyWatermark()))
+    formatWatermark(lowestWatermark(Object.values(lastSync.updatedStatus))))
   return { route, lastSync }
 }
 
@@ -647,8 +631,6 @@ const handleFetchResponse = async (
     routeRow.isSingle = isArrayResponse
   }
 
-  const updatedStatusDelta = extractWatermarks(response)
-  const updatedMinDelta = extractWatermarks(response, true)
   const idsToRemoveByResponseKey = listIDsToRemoveByResponseKey(response)
   // Any delta carrying at least one record is applied. An unmoved watermark does not say the values
   // did not change: the current day's row is rewritten in place under a fixed time frame, so its
@@ -656,26 +638,13 @@ const handleFetchResponse = async (
   // An empty response still means "nothing new", which is what the backend answers when the
   // client's watermark already covers everything.
   // doNothingOnSameValue restores the watermark comparison, for routes whose watermark identifies
-  // every write and where rewriting the cache with identical values only costs IndexedDB.
+  // every write and where rewriting the cache with identical values only costs IndexedDB: a resent
+  // window that only repeats what the watermark holds is then skipped.
   let hasChanged = [...idsToRemoveByResponseKey.values()].some((idsToRemove) => idsToRemove.length > 0)
     || (!args.doNothingOnSameValue && countResponseRecords(response) > 0)
+  if(mergeReceivedIntoRoute(args, routeRow, response)){ hasChanged = true }
 
-  for(const [key, watermark] of Object.entries(updatedStatusDelta)){
-    if(isEmptyWatermark(watermark)){ continue }
-    const previousWatermark = routeRow.updatedStatus[key] || makeEmptyWatermark()
-    // Each half advances on its own: a response can carry records that only move one of them.
-    const nextWatermark = mergeWatermarkPairs(previousWatermark, watermark)
-    if(!sameWatermark(nextWatermark, previousWatermark)){
-      routeRow.updatedStatus[key] = nextWatermark
-      hasChanged = true
-    }
-    const minWatermark = updatedMinDelta[key] || makeEmptyWatermark()
-    if(minWatermark.upv && minWatermark.upv < previousWatermark.upv){
-      console.warn(`Cache Error: En "${args.route}" [${key}] se están obteniendo registros con [upv] menor que el caché (${(response[key]||[]).length} recibidos)`)
-    }
-  }
-
-  console.log("Fetch cache ha cambiado?:", hasChanged, "|", args.route, "|", updatedStatusDelta)
+  console.log("Fetch cache ha cambiado?:", hasChanged, "|", args.route, "|", makeStats(response))
 
   if(!hasChanged && args.cacheMode !== 'updateOnly'){
     response = (await readCachedContent(routeRow)) as CacheContent
@@ -788,7 +757,8 @@ const saveInitialSnapshot = async (
   // First sync writes the full route snapshot as indexed rows.
   const routeRow = await ensureCacheRouteRow(routeReference)
   routeRow.fetchTime = fetchTime
-  routeRow.updatedStatus = extractWatermarks(response)
+  routeRow.updatedStatus = {}
+  mergeReceivedIntoRoute(args, routeRow, response)
   accumulateRouteFetchStats(routeRow, response, args.contentLength)
   routeRow.__version__ = args.__version__ || 1
   routeRow.forceNetwork = false

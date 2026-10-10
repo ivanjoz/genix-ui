@@ -222,7 +222,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
   >
     { renderContent }
     {#if !selected && required}
-      <i class="icon-[fa--exclamation-triangle] text-red-500"></i>
+      <i class="icon-[fa--exclamation-triangle] text-red-solid"></i>
     {/if}
   </div>
   {#if show}
@@ -294,12 +294,12 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 		border: 1px solid transparent;
 	}
   ._1:hover {
-		border: 1px solid rgba(0, 0, 0, 0.596);
+		border: 1px solid color-mix(in srgb, var(--fg) 60%, transparent);
 	}
 	._1:focus-within {
-		box-shadow: inset 0 0 0px 1px #dbc1ff;
-    border-color: #b17bff;
-		background-color: #f9f4ff;
+		box-shadow: inset 0 0 0px 1px var(--purple-border);
+    border-color: var(--purple-solid);
+		background-color: var(--purple-bg);
 	}
   ._1 > input:first-of-type {
 		border: none;
@@ -320,12 +320,12 @@ import { getVTableAgentContext } from '../vTable/agentContext';
     cursor: pointer;
   }
   ._3:hover {
-    background-color: rgb(244, 244, 244);
+    background-color: var(--surface-muted);
   }
   ._4 {
-    background-color: rgb(255, 255, 255);
+    background-color: var(--surface);
     border-radius: 7px;
-    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px, 0 0 0 1px var(--layer-edge);
   }
 
 </style>

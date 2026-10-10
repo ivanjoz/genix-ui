@@ -33,27 +33,133 @@
 	}
 }
 
+/* ── Color tokens ───────────────────────────────────────────────────────────────────
+   Every color genix-ui paints comes from these tokens; components hold no color literals. Dark
+   mode is one class: `body.dark` redeclares the tokens below, nothing else changes. The host
+   restyles by redeclaring them too (on `body` / `body.dark`, after this import).
+
+   Each token is also a Tailwind color (`bg-surface`, `text-fg-muted`, `border-line`,
+   `bg-red-bg`, `text-accent-fg`...) through the `@theme inline` block, so the class resolves the
+   variable at the element and follows the toggle.
+
+   Neutrals   page (the app background behind the cards) → surface (cards, inputs, popovers) → surface-soft (headers, hover) → surface-muted
+              (wells, disabled) → surface-strong (pressed, chips); surface-raised for a control that
+              sits ON a surface and was only told apart by its shadow (white in light mode, a step
+              lighter in dark mode, where a black shadow is invisible); field-fill for the inside of
+              form fields (raised white in light mode, recessed below the card in dark mode);
+              line-soft / line / line-strong
+              for borders; fg / fg-soft / fg-muted / fg-subtle for text; on-solid for text and icons
+              on a `*-solid` fill; overlay for modal backdrops.
+   Families   accent (the brand indigo) and red, orange, amber, yellow, green, teal, blue, purple,
+              pink. Five steps each: -bg (tint), -bg-strong (selected tint), -border, -solid (fills,
+              icons, focus) and -fg (text on surface or on its own -bg).
+
+   Left literal on purpose: `transparent` / `currentColor`, black-alpha shadows (they read the
+   same on both themes), white-alpha highlights over a solid fill, mask-image stops, the chrome that
+   is dark in both themes (the desktop side menu and the dark-glass mobile pickers of
+   TopLayerSelector / TopLayerDatePicker), the text-color presets of the HTML editor (user content)
+   and the fallback series colors ChartCanvas draws on its canvas, which cannot read a variable. */
+
 /* Unlayered, so these beat Tailwind's own `text-xs` / `text-sm` sizes. */
 :root {
-	--primary: #4042a3;
-	--secondary: #eeefff;
 	--text-sm: 15px;
 	--text-xs: 14px;
 	--fs2: 15px;
 }
 
 body {
+	--primary: #4042a3;
+	--secondary: #eeefff;
+	--label: #6d5dad;
+
+	--page: #e9eef1;
+	--surface: #ffffff;
+	--surface-raised: #ffffff;
+	/* The fill of every FieldShell field (a background, not a color: no Tailwind class). */
+	--field-fill: linear-gradient(color-mix(in srgb, var(--surface) 33%, transparent) 0%, var(--surface) 100%);
+	--surface-soft: #f8f9fb;
+	--surface-muted: #f1f2f6;
+	--surface-strong: #e5e7ee;
+	--line-soft: #eceef4;
+	--line: #e2e5ee;
+	--line-strong: #d0d4e7;
+	--fg: #1f2430;
+	--fg-soft: #374151;
+	--fg-muted: #64748b;
+	--fg-subtle: #94a3b8;
+	--on-solid: #ffffff;
+	--overlay: rgb(0 0 0 / 40%);
+	/* The 1px ring of a floating layer (ButtonLayer, Layer, Modal...) and the outline of its
+	   pointer triangle (angle.svg). In dark mode a black shadow vanishes, so the ring turns into a
+	   faint white edge and the triangle shares it. */
+	--layer-edge: rgb(0 0 0 / 5%);
+	--layer-pointer-edge: rgb(0 0 0 / 34%);
+	/* An anchored floating panel (ButtonLayer, ButtonList, the Input selector list) and its pointer
+	   triangle: its fill, a 2px outline and its drop shadow. Light mode keeps the plain surface
+	   with a black shadow; dark mode sets the panel apart with its own fill, a white outline and a
+	   white shadow. */
+	--layer-bg: var(--surface);
+	--layer-outline: transparent;
+	--layer-shadow: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -1px rgb(0 0 0 / 6%);
+
+	--accent-bg: #f5f4ff;
+	--accent-bg-strong: #e7e4ff;
+	--accent-border: #b9b5f0;
+	--accent-solid: #5f5fe3;
+	--accent-fg: #5243c2;
+	--red-bg: #fef2f2;
+	--red-bg-strong: #fee2e2;
+	--red-border: #fca5a5;
+	--red-solid: #dc2626;
+	--red-fg: #b91c1c;
+	--orange-bg: #fff7ed;
+	--orange-bg-strong: #ffedd5;
+	--orange-border: #fdba74;
+	--orange-solid: #ea580c;
+	--orange-fg: #c2410c;
+	--amber-bg: #fffbeb;
+	--amber-bg-strong: #fef3c7;
+	--amber-border: #fcd34d;
+	--amber-solid: #d97706;
+	--amber-fg: #b45309;
+	--yellow-bg: #fefce8;
+	--yellow-bg-strong: #fef9c3;
+	--yellow-border: #fde047;
+	--yellow-solid: #ca8a04;
+	--yellow-fg: #a16207;
+	--green-bg: #f0fdf4;
+	--green-bg-strong: #dcfce7;
+	--green-border: #86efac;
+	--green-solid: #16a34a;
+	--green-fg: #15803d;
+	--teal-bg: #f0fdfa;
+	--teal-bg-strong: #ccfbf1;
+	--teal-border: #5eead4;
+	--teal-solid: #0d9488;
+	--teal-fg: #0f766e;
+	--blue-bg: #eff6ff;
+	--blue-bg-strong: #dbeafe;
+	--blue-border: #93c5fd;
+	--blue-solid: #2563eb;
+	--blue-fg: #1d4ed8;
+	--purple-bg: #f5f3ff;
+	--purple-bg-strong: #ede9fe;
+	--purple-border: #c4b5fd;
+	--purple-solid: #7c3aed;
+	--purple-fg: #6d28d9;
+	--pink-bg: #fdf2f8;
+	--pink-bg-strong: #fce7f3;
+	--pink-border: #f9a8d4;
+	--pink-solid: #db2777;
+	--pink-fg: #be185d;
+
 	--header-height: 48px;
 	--menu-max-width: 240px;
 	--menu-min-width: 70px;
 	--page-width: calc(100vw - var(--menu-min-width) - 20px);
 	--row-height: 34px;
 	--input-height: 42px;
-	--input-border-color: #d0d4e7;
-	--white: #ffffff;
-	--gray-purple-2: #c3c5df;
-	--light-blue-1: #edeff6;
-	--color-11: #9d9ef0;
+	--input-border-color: var(--line-strong);
 	--font-mono: mono;
 
 	/* Above the app header (z-250), below the side menu and the TopLayer pickers (300) */
@@ -64,6 +170,168 @@ body {
 	--loading-zindex: 400;
 	--confirm-zindex: 410;
 	--toast-zindex: 420;
+}
+
+/* Dark theme. Solids step lighter and text tokens become light; the tints, selected tints and
+   borders of every family are mixed from its solid over the dark surface, so a family only
+   declares two values here. */
+body.dark {
+	color-scheme: dark;
+
+	--primary: #5b5dc9;
+	--secondary: color-mix(in oklab, var(--accent-solid) 18%, var(--surface));
+	--label: #b4a9e8;
+
+	/* Navy, not neutral gray: every neutral sits on the same blue hue. The page is the darkest
+	   layer, cards one clear step up, and fields are recessed back down near the page, so a field
+	   reads as a hole in its card. */
+	--page: #0b1019;
+	--surface: #172031;
+	--surface-raised: #24304a;
+	--surface-soft: #1c2639;
+	--surface-muted: #222d42;
+	--surface-strong: #2c3850;
+	/* Light mode's gradient, softer: the top fades a little toward the card behind the field. */
+	--field-fill: linear-gradient(color-mix(in srgb, #0d1320 55%, transparent) 0%, #0d1320 100%);
+	--line-soft: #1f2a3e;
+	--line: #2a364d;
+	--line-strong: #3b4964;
+	--fg: #e8edf6;
+	--fg-soft: #c7d0e0;
+	--fg-muted: #93a0b8;
+	--fg-subtle: #67758e;
+	--overlay: rgb(2 6 14 / 70%);
+	--layer-edge: rgb(255 255 255 / 14%);
+	--layer-pointer-edge: var(--layer-edge);
+	--layer-bg: #191d2d;
+	--layer-outline: rgb(255 255 255 / 13%);
+	--layer-shadow: 0 4px 6px -1px rgb(250 250 250 / 10%), 0 2px 4px -1px rgb(255 255 255 / 6%);
+
+	--accent-solid: #7f7ff0;
+	--accent-fg: #bdbbff;
+	--red-solid: #ef4444;
+	--red-fg: #fca5a5;
+	--orange-solid: #f97316;
+	--orange-fg: #fdba74;
+	--amber-solid: #f59e0b;
+	--amber-fg: #fcd34d;
+	--yellow-solid: #eab308;
+	--yellow-fg: #fde047;
+	--green-solid: #22c55e;
+	--green-fg: #86efac;
+	--teal-solid: #14b8a6;
+	--teal-fg: #5eead4;
+	--blue-solid: #3b82f6;
+	--blue-fg: #93c5fd;
+	--purple-solid: #8b5cf6;
+	--purple-fg: #c4b5fd;
+	--pink-solid: #ec4899;
+	--pink-fg: #f9a8d4;
+
+	--accent-bg: color-mix(in oklab, var(--accent-solid) 14%, var(--surface));
+	--accent-bg-strong: color-mix(in oklab, var(--accent-solid) 26%, var(--surface));
+	--accent-border: color-mix(in oklab, var(--accent-solid) 50%, var(--surface));
+	--red-bg: color-mix(in oklab, var(--red-solid) 14%, var(--surface));
+	--red-bg-strong: color-mix(in oklab, var(--red-solid) 26%, var(--surface));
+	--red-border: color-mix(in oklab, var(--red-solid) 50%, var(--surface));
+	--orange-bg: color-mix(in oklab, var(--orange-solid) 14%, var(--surface));
+	--orange-bg-strong: color-mix(in oklab, var(--orange-solid) 26%, var(--surface));
+	--orange-border: color-mix(in oklab, var(--orange-solid) 50%, var(--surface));
+	--amber-bg: color-mix(in oklab, var(--amber-solid) 14%, var(--surface));
+	--amber-bg-strong: color-mix(in oklab, var(--amber-solid) 26%, var(--surface));
+	--amber-border: color-mix(in oklab, var(--amber-solid) 50%, var(--surface));
+	--yellow-bg: color-mix(in oklab, var(--yellow-solid) 14%, var(--surface));
+	--yellow-bg-strong: color-mix(in oklab, var(--yellow-solid) 26%, var(--surface));
+	--yellow-border: color-mix(in oklab, var(--yellow-solid) 50%, var(--surface));
+	--green-bg: color-mix(in oklab, var(--green-solid) 14%, var(--surface));
+	--green-bg-strong: color-mix(in oklab, var(--green-solid) 26%, var(--surface));
+	--green-border: color-mix(in oklab, var(--green-solid) 50%, var(--surface));
+	--teal-bg: color-mix(in oklab, var(--teal-solid) 14%, var(--surface));
+	--teal-bg-strong: color-mix(in oklab, var(--teal-solid) 26%, var(--surface));
+	--teal-border: color-mix(in oklab, var(--teal-solid) 50%, var(--surface));
+	--blue-bg: color-mix(in oklab, var(--blue-solid) 14%, var(--surface));
+	--blue-bg-strong: color-mix(in oklab, var(--blue-solid) 26%, var(--surface));
+	--blue-border: color-mix(in oklab, var(--blue-solid) 50%, var(--surface));
+	--purple-bg: color-mix(in oklab, var(--purple-solid) 14%, var(--surface));
+	--purple-bg-strong: color-mix(in oklab, var(--purple-solid) 26%, var(--surface));
+	--purple-border: color-mix(in oklab, var(--purple-solid) 50%, var(--surface));
+	--pink-bg: color-mix(in oklab, var(--pink-solid) 14%, var(--surface));
+	--pink-bg-strong: color-mix(in oklab, var(--pink-solid) 26%, var(--surface));
+	--pink-border: color-mix(in oklab, var(--pink-solid) 50%, var(--surface));
+}
+
+/* The tokens as Tailwind colors. `inline` makes `bg-surface` emit `var(--surface)` itself, so the
+   class resolves on the element and follows `body.dark`. */
+@theme inline {
+	--color-primary: var(--primary);
+	--color-secondary: var(--secondary);
+	--color-label: var(--label);
+	--color-page: var(--page);
+	--color-surface: var(--surface);
+	--color-surface-raised: var(--surface-raised);
+	--color-surface-soft: var(--surface-soft);
+	--color-surface-muted: var(--surface-muted);
+	--color-surface-strong: var(--surface-strong);
+	--color-line-soft: var(--line-soft);
+	--color-line: var(--line);
+	--color-line-strong: var(--line-strong);
+	--color-fg: var(--fg);
+	--color-fg-soft: var(--fg-soft);
+	--color-fg-muted: var(--fg-muted);
+	--color-fg-subtle: var(--fg-subtle);
+	--color-on-solid: var(--on-solid);
+	--color-overlay: var(--overlay);
+	--color-layer: var(--layer-bg);
+	--color-accent-bg: var(--accent-bg);
+	--color-accent-bg-strong: var(--accent-bg-strong);
+	--color-accent-border: var(--accent-border);
+	--color-accent-solid: var(--accent-solid);
+	--color-accent-fg: var(--accent-fg);
+	--color-red-bg: var(--red-bg);
+	--color-red-bg-strong: var(--red-bg-strong);
+	--color-red-border: var(--red-border);
+	--color-red-solid: var(--red-solid);
+	--color-red-fg: var(--red-fg);
+	--color-orange-bg: var(--orange-bg);
+	--color-orange-bg-strong: var(--orange-bg-strong);
+	--color-orange-border: var(--orange-border);
+	--color-orange-solid: var(--orange-solid);
+	--color-orange-fg: var(--orange-fg);
+	--color-amber-bg: var(--amber-bg);
+	--color-amber-bg-strong: var(--amber-bg-strong);
+	--color-amber-border: var(--amber-border);
+	--color-amber-solid: var(--amber-solid);
+	--color-amber-fg: var(--amber-fg);
+	--color-yellow-bg: var(--yellow-bg);
+	--color-yellow-bg-strong: var(--yellow-bg-strong);
+	--color-yellow-border: var(--yellow-border);
+	--color-yellow-solid: var(--yellow-solid);
+	--color-yellow-fg: var(--yellow-fg);
+	--color-green-bg: var(--green-bg);
+	--color-green-bg-strong: var(--green-bg-strong);
+	--color-green-border: var(--green-border);
+	--color-green-solid: var(--green-solid);
+	--color-green-fg: var(--green-fg);
+	--color-teal-bg: var(--teal-bg);
+	--color-teal-bg-strong: var(--teal-bg-strong);
+	--color-teal-border: var(--teal-border);
+	--color-teal-solid: var(--teal-solid);
+	--color-teal-fg: var(--teal-fg);
+	--color-blue-bg: var(--blue-bg);
+	--color-blue-bg-strong: var(--blue-bg-strong);
+	--color-blue-border: var(--blue-border);
+	--color-blue-solid: var(--blue-solid);
+	--color-blue-fg: var(--blue-fg);
+	--color-purple-bg: var(--purple-bg);
+	--color-purple-bg-strong: var(--purple-bg-strong);
+	--color-purple-border: var(--purple-border);
+	--color-purple-solid: var(--purple-solid);
+	--color-purple-fg: var(--purple-fg);
+	--color-pink-bg: var(--pink-bg);
+	--color-pink-bg-strong: var(--pink-bg-strong);
+	--color-pink-border: var(--pink-border);
+	--color-pink-solid: var(--pink-solid);
+	--color-pink-fg: var(--pink-fg);
 }
 
 /* ── Element resets ─────────────────────────────────────────────────────────────── */
@@ -112,8 +380,8 @@ select {
 input:disabled,
 textarea:disabled,
 select:disabled {
-	background-color: #f8f8f8;
-	color: #484848;
+	background-color: var(--surface-muted);
+	color: var(--fg-muted);
 	opacity: 1;
 }
 
@@ -140,19 +408,19 @@ input::-webkit-inner-spin-button {
 
 /* Column and field labels of the tables and KeyValueStrip */
 .color-label {
-	color: #6d5dad;
+	color: var(--label);
 }
 
 .c-red {
-	color: #ca2e2e;
+	color: var(--red-fg);
 }
 
 .c-green {
-	color: rgb(17, 156, 80);
+	color: var(--green-fg);
 }
 
 .c-purple {
-	color: #6840a6;
+	color: var(--purple-fg);
 }
 
 /* mdi draws on a 24-unit grid with built-in padding: the delete glyph spans only 18 of the 24
@@ -193,14 +461,14 @@ input::-webkit-inner-spin-button {
 .bn-white {
 	height: 38px;
 	box-shadow: rgba(0, 0, 0, 0.20) 0px 1px 4px;
-	color: #285bf1;
+	color: var(--blue-fg);
 	border-radius: 7px;
 	padding: 5px 12px 4px 12px;
-	background-color: white;
+	background-color: var(--surface-raised);
 }
 
 .bn-white:hover {
-	outline: 1px solid #686481;
+	outline: 1px solid var(--fg-muted);
 }
 
 .bx-blue,
@@ -236,86 +504,88 @@ input::-webkit-inner-spin-button {
 	justify-content: center;
 }
 
+/* The border is the family's text color half-mixed into the surface: the buttons' original borders
+   sat there (e.g. #849de6 for blue), far stronger than the family's pastel `-border` step. */
 .bx-blue {
-	color: #2652d5;
-	border: 1px solid #849de6;
+	color: var(--blue-fg);
+	border: 1px solid color-mix(in srgb, var(--blue-fg) 55%, var(--surface));
 	border-bottom-width: 2px;
-	background: linear-gradient(338deg, rgb(219 228 255) 0%, rgb(247 249 255) 100%);
-	box-shadow: 0px 3px 7px -1px #283eac78;
+	background: linear-gradient(338deg, var(--blue-bg-strong) 0%, var(--blue-bg) 100%);
+	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--blue-solid) 50%, transparent);
 }
 
 .bx-blue:hover {
-	border-color: #4570f1;
-	color: #1d4bd4;
-	background: white;
+	border-color: var(--blue-solid);
+	color: var(--blue-solid);
+	background: var(--surface);
 }
 
 .bx-green {
-	color: #167a59;
-	border: 1px solid #6bbb7b;
+	color: var(--green-fg);
+	border: 1px solid color-mix(in srgb, var(--green-fg) 55%, var(--surface));
 	border-bottom-width: 2px;
-	background: linear-gradient(338deg, #a1e8bf 0%, #f7fffa 100%);
-	box-shadow: 0px 3px 7px -1px #41a255a8;
+	background: linear-gradient(338deg, var(--green-bg-strong) 0%, var(--green-bg) 100%);
+	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--green-solid) 50%, transparent);
 }
 
 .bx-green:hover {
-	border-color: #479a7e;
-	color: #22ac7e;
-	background: white;
+	border-color: var(--green-solid);
+	color: var(--green-solid);
+	background: var(--surface);
 }
 
 .bx-purple {
-	color: #6644b2;
-	border: 1px solid #a487e1;
+	color: var(--purple-fg);
+	border: 1px solid color-mix(in srgb, var(--purple-fg) 55%, var(--surface));
 	border-bottom-width: 2px;
-	background: linear-gradient(338deg, rgb(231 219 255) 0%, rgb(249 247 255) 100%);
-	box-shadow: 0px 3px 7px -1px #7240bb78;
+	background: linear-gradient(338deg, var(--purple-bg-strong) 0%, var(--purple-bg) 100%);
+	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--purple-solid) 50%, transparent);
 }
 
 .bx-purple:hover {
-	border-color: #7e54d8;
-	color: #835ed3;
-	background: white;
+	border-color: var(--purple-solid);
+	color: var(--purple-solid);
+	background: var(--surface);
 }
 
 .bx-red {
-	color: #bf3939;
-	border: 1px solid #cd8383;
+	color: var(--red-fg);
+	border: 1px solid color-mix(in srgb, var(--red-fg) 55%, var(--surface));
 	border-bottom-width: 2px;
-	background: linear-gradient(338deg, #efb2b2 0%, #fff7f7 100%);
-	box-shadow: 0px 3px 7px -1px #a24141a8;
+	background: linear-gradient(338deg, var(--red-bg-strong) 0%, var(--red-bg) 100%);
+	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--red-solid) 50%, transparent);
 }
 
 .bx-red:hover {
-	border-color: #c64545;
-	color: #d63c3c;
-	background: white;
+	border-color: var(--red-solid);
+	color: var(--red-solid);
+	background: var(--surface);
 }
 
 .bx-orange {
-	color: #a1531e;
-	border: 1px solid #c89a71;
+	color: var(--orange-fg);
+	border: 1px solid color-mix(in srgb, var(--orange-fg) 55%, var(--surface));
 	border-bottom-width: 2px;
-	background: linear-gradient(338deg, #ffdfc2 0%, #fff7f7 100%);
-	box-shadow: 0px 3px 7px -1px #b36724a8;
+	background: linear-gradient(338deg, var(--orange-bg-strong) 0%, var(--orange-bg) 100%);
+	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--orange-solid) 50%, transparent);
 }
 
 .bx-orange:hover {
-	border-color: #b46d2f;
-	color: #be682e;
-	background: white;
+	border-color: var(--orange-solid);
+	color: var(--orange-solid);
+	background: var(--surface);
 }
 
 .bx-yellow {
-	color: #a1831e;
-	border: 1px solid #d5bd6b;
+	color: var(--yellow-fg);
+	border: 1px solid color-mix(in srgb, var(--yellow-fg) 55%, var(--surface));
 	border-bottom-width: 2px;
-	background: linear-gradient(338deg, #fff6c2 0%, #fff7f7 100%);
-	box-shadow: 0px 3px 7px -1px #b39824a8;
+	background: linear-gradient(338deg, var(--yellow-bg-strong) 0%, var(--yellow-bg) 100%);
+	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--yellow-solid) 50%, transparent);
 }
 
 .bx-yellow:hover {
-	border-color: #b46d2f;
-	color: #be682e;
-	background: white;
+	border-color: var(--yellow-solid);
+	color: var(--yellow-solid);
+	background: var(--surface);
 }

@@ -746,9 +746,9 @@
 
 <style>
   .table-grid-shell {
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--line);
     border-radius: 8px;
-    background-color: #ffffff;
+    background-color: var(--surface);
     overflow: auto;
     min-height: 0;
     box-sizing: border-box;
@@ -792,7 +792,7 @@
   }
 
   .table-grid-header {
-    background: #f8f9fa;
+    background: var(--surface-soft);
     position: relative;
     z-index: 2;
     padding-left: 2px;
@@ -808,12 +808,12 @@
     padding-right: 0;
   }
 
-  /* Same header tokens as VTable: 36px tall, own bottom rule, #f8f9fa ground. */
+  /* Same header tokens as VTable: 36px tall, own bottom rule, --surface-soft ground. */
   .table-grid-header-cell {
     min-height: 36px;
-    border-right: 1px solid #e9ecef;
-    border-bottom: 1px solid rgb(204, 204, 204);
-    background-color: #f8f9fa;
+    border-right: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-strong);
+    background-color: var(--surface-soft);
     line-height: 1.1;
     display: grid;
     align-content: center;
@@ -847,7 +847,7 @@
     justify-content: center;
     height: 100%;
     min-height: 140px;
-    color: #6c757d;
+    color: var(--fg-muted);
     padding: 16px;
   }
 
@@ -865,8 +865,8 @@
     width: 26px;
     height: 26px;
     font-size: 13px;
-    color: #5243c2;
-    box-shadow: rgb(67 61 110 / 62%) 0px 1px 2px 0px;
+    color: var(--accent-fg);
+    box-shadow: color-mix(in srgb, var(--accent-solid) 62%, transparent) 0px 1px 2px 0px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -875,21 +875,21 @@
     flex-shrink: 0;
   }
   ._11._e {
-    color: #5243c2;
-    background-color: #e7e4ff;
+    color: var(--accent-fg);
+    background-color: var(--accent-bg-strong);
   }
   ._11._e:hover {
-    outline: 1px solid #5243c2;
-    background-color: #f5f4ff;
+    outline: 1px solid var(--accent-fg);
+    background-color: var(--accent-bg);
   }
   ._11._d {
-    color: #f04949;
-    background-color: #ffe7e7;
-    box-shadow: rgb(181 50 50 / 70%) 0px 1px 1px 0px;
+    color: var(--red-solid);
+    background-color: var(--red-bg-strong);
+    box-shadow: color-mix(in srgb, var(--red-solid) 70%, transparent) 0px 1px 1px 0px;
   }
   ._11._d:hover {
-    background-color: #f04949;
-    color: #ffffff;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
   }
 
   .table-grid-mobile-shell {
@@ -906,7 +906,7 @@
   }
 
   .table-grid-mobile-card {
-    background: white;
+    background: var(--surface);
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 12px;
@@ -920,13 +920,13 @@
 
   .table-grid-mobile-card-selected,
   .table-grid-mobile-card-selected.table-grid-mobile-card:hover {
-    background-color: #f6f6ff;
-    outline: 2px solid var(--color-11);
+    background-color: var(--accent-bg);
+    outline: 2px solid var(--accent-border);
     outline-offset: -1px;
   }
 
   .table-grid-mobile-card:focus-visible {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--blue-solid);
     outline-offset: -2px;
   }
 
@@ -951,7 +951,7 @@
 
   .table-grid-mobile-label-top {
     font-size: 14px;
-    color: #64748b;
+    color: var(--fg-muted);
     line-height: 1;
   }
 
@@ -965,7 +965,7 @@
 
   .table-grid-mobile-label-left {
     font-size: 14px;
-    color: #64748b;
+    color: var(--fg-muted);
     flex-shrink: 0;
   }
 
@@ -985,7 +985,7 @@
     max-height: var(--table-grid-row-height);
     overflow: hidden;
     cursor: pointer;
-    border-bottom: 1px solid #edf2f7;
+    border-bottom: 1px solid var(--line-soft);
     transition: background-color 0.15s ease;
     position: relative;
     box-sizing: border-box;
@@ -996,21 +996,21 @@
   }
 
   .table-grid-row:hover {
-    background-color: #f1f3f5;
+    background-color: var(--surface-muted);
   }
 
   .table-grid-row-even {
-    background: #ffffff;
+    background: var(--surface);
   }
 
   .table-grid-row-odd {
-    background: #f8f9fa;
+    background: var(--surface-soft);
   }
 
   .table-grid-row-selected,
   .table-grid-row-selected.table-grid-row:hover {
-    background-color: #f6f6ff;
-    outline: 2px solid var(--color-11);
+    background-color: var(--accent-bg);
+    outline: 2px solid var(--accent-border);
     outline-offset: -1px;
     border-radius: 4px;
     border-bottom-color: transparent;
@@ -1018,7 +1018,7 @@
   }
 
   .table-grid-cell {
-    border-right: 1px solid #f1f5f9;
+    border-right: 1px solid var(--line-soft);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1067,13 +1067,13 @@
   }
 
   .tg-cell-hover-effect:hover {
-    outline: 1px solid rgba(0, 0, 0, 0.596);
+    outline: 1px solid color-mix(in srgb, var(--fg) 60%, transparent);
     outline-offset: -1px;
   }
   .tg-cell-hover-effect:focus-within {
     outline: none;
-    box-shadow: inset 0 0 0 1px #b17bff, inset 0 0 0 2px #dbc1ff;
-    background-color: #f9f4ff;
+    box-shadow: inset 0 0 0 1px var(--purple-solid), inset 0 0 0 2px var(--purple-border);
+    background-color: var(--purple-bg);
   }
   
   .table-grid-shell::-webkit-scrollbar {

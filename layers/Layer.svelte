@@ -275,10 +275,11 @@ import { ifcss } from '../utilities/css.js';
     width: 800px;
     height: calc(100vh - var(--header-height));
     right: 0;
-    background-color: rgb(255, 255, 255);
+    background-color: var(--surface);
     box-shadow:
       -7px 0px 15px 0px #00000024,
-      -3px 1px 5px 0px #00000017;
+      -3px 1px 5px 0px #00000017,
+      0 0 0 1px var(--layer-edge);
     z-index: var(--layer-zindex);
     max-width: 100vw;
     overflow: hidden;
@@ -292,10 +293,11 @@ import { ifcss } from '../utilities/css.js';
     height: auto;
     width: 800px;
     right: 0;
-    background-color: rgb(255, 255, 255);
+    background-color: var(--surface);
     box-shadow:
       -7px 0px 15px 0px #00000024,
-      -3px 1px 5px 0px #00000017;
+      -3px 1px 5px 0px #00000017,
+      0 0 0 1px var(--layer-edge);
     z-index: var(--layer-zindex);
     max-width: 100vw;
     overflow: hidden;
@@ -341,7 +343,8 @@ import { ifcss } from '../utilities/css.js';
     ._1 {
       box-shadow:
         -7px 0px 15px 8px #00000030,
-        -3px 1px 5px 2px #0000001c;
+        -3px 1px 5px 2px #0000001c,
+        0 0 0 1px var(--layer-edge);
     }
     /* Set view-transition-name only when in transition */
     ._1.in-transition {

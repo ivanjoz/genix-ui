@@ -26,8 +26,8 @@ export interface ServiceHttpProps {
 	keyFilterIfEmpty?: string
 	keyForUpdated?: string
 	cacheMode?: CacheMode
-	// Restores the watermark-only change detection: a delta whose highest `upd`/`upv` per response
-	// key matches the cache is treated as "nothing happened" and never applied. Off by default,
+	// Restores the watermark-only change detection: a delta that moves no response key's watermark
+	// (no newer `upd`, nothing new in the overlap window) is treated as "nothing happened" and never applied. Off by default,
 	// because a row rewritten in place under a fixed watermark (today's usage aggregate) carries the
 	// same watermark all day, and comparing only that froze the route until the next day.
 	doNothingOnSameValue?: boolean

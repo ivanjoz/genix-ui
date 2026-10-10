@@ -38,52 +38,62 @@ highest watermark per response key concluded "nothing happened" and froze the ro
 day. An empty response still means nothing new, which is what the backend answers when the client's
 watermark already covers everything.
 
-Set `doNothingOnSameValue: true` on a service to get the old behaviour back: an unmoved watermark
-discards the delta. Only correct when the watermark moves on every write (a `upv` delta index), and
-worth it only for routes where re-persisting an identical payload costs real IndexedDB writes.
+Set `doNothingOnSameValue: true` on a service to get the watermark comparison back: a delta that
+neither moves `upd` nor adds a newer entry to the window is discarded — typically a resent window
+that only repeats what the client holds. Only correct when every write moves the record's `upd`
+(genix-orm's managed `Updated` does), and worth it only for routes where re-persisting an identical
+payload costs real IndexedDB writes.
 
-## The watermark is a pair: `"<upv>.<upd>"`
+## The watermark: `"<upd>.<fingerprint>"`
 
-Every sync sends **both** watermarks of a response key in one query param, `upv` first:
+`upd` is the backend's managed `Updated`: milliseconds since its `[dynamo].unix_time_start`
+(`VITE_UNIX_TIME_START` in the app; `updatedToUnixMillis` turns it into a unix time). Per response
+key the route row keeps, in `updatedStatus[key]`, an `IDeltaWatermark`:
+
+- `upd` — the highest `upd` received;
+- `window` — `{ [recordID]: upd }` for every record received with `upd` in
+  `[upd − 4000, upd]` (`deltaOverlapMillis`, genix-orm's `DeltaOverlap`), deleted records included.
+
+Every sync sends `<upd>.<fingerprint of window>` (`formatWatermark`):
 
 ```
-GET products?company-id=1&up=21.394157968
-GET warehouse-product-stock?warehouse-id=1&ProductStock=5.394161574&up=5.394161574
+GET example-clients?up=1234567.3051184921
+GET warehouse-product-stock?warehouse-id=1&ProductStock=1234567.3051184921&up=1234567.3051184921
 ```
 
-`upv` (`updated_version`) is the record's write sequence number, `upd` its updated timestamp. The
-param is named after the response key; a route whose response is a bare array has no key of its own
-and sends `up`. A multi-key route also sends `up` last, carrying the lowest pair of all its keys, for
-a handler that takes a single watermark.
+The param is named after the response key; a route whose response is a bare array has no key of its
+own and sends `up`. A multi-key route also sends `up` last, carrying the lowest key's watermark
+(`lowestWatermark`; keys that never received a record don't count), because the backend reads only
+`up`. No key skips a record, but the fingerprint only matches the lowest key's window, so the other
+keys get theirs resent on every sync.
 
-The client never decides which of the two bounds the query — the handler does, by reading
-`req.GetUpVersion()` or `req.GetUpdated()` (both accept a response key: `req.GetUpVersion("ProductStock")`).
-A missing param, or a zero half, is a first sync.
+The backend parses it with `req.GetDeltaSince()` and passes it to `Query().Delta(since, ...)`
+(`genix-orm/dynamo/delta.go`): it returns every record with `Updated > upd`, re-reads the window
+below it, and resends the whole window only when its own fingerprint of it differs. A missing param
+or `upd` 0 is a first sync. A handler doing its own delta reads `req.GetDeltaSince().Updated`.
 
-Why a sequence and not a timestamp, wherever the table supports it: several writes can land in the
-same second, so a client that syncs mid-second gets a watermark that hides records it never received.
-The ORM assigns `upv` from a per-partition counter, so it is strictly increasing and never collides.
-That makes the server's `>= watermark + 1` bound exact — the boundary rows are not re-sent on every
-poll, which is what a timestamp watermark had to do to stay correct. A table with no `db.TypeDelta`
-index has no `upv`, and its handler reads the timestamp half.
+### Why a window and a fingerprint
 
-### Why both, instead of the right one
+`Updated` is a clock, not a sequence: two Lambdas can stamp the same millisecond, and a write stamped
+inside the window can land after the client read past it (still in flight, or stamped by a Lambda
+whose clock lags). A bare `> upd` bound would lose it for good. Re-reading the 4 seconds below the
+watermark catches it; the fingerprint keeps that overlap from being resent on every poll when nothing
+is missing, so a quiet sync costs the backend one keys-only query and returns nothing.
 
-The client used to pick: it inferred the field from whether the records carried `upv` and persisted
-that guess on the route row. A route that guessed wrong stayed wrong — it sent a watermark its
-handler does not read, was answered with the whole table, merged it happily, and reported nothing.
-The only symptom was a full payload on every sync, forever. Sending both costs ~15 bytes per request
-and deletes the entire failure mode: there is nothing left to infer.
+The fingerprint is an order-independent sum, mod 2³², of a murmur3-style mix of each `upd`
+(`deltaFingerprint` in `delta-cache.watermark.ts`, `DeltaFingerprint` in genix-orm): a missing, extra
+or rewritten record changes it. Both sides must compute it identically; a shared test vector pins
+them together. A resent window is upserted by ID, and `mergeIntoWatermark` reports no change when it
+only repeated what the window held.
 
-### Known limitation: concurrent writers
+Expected quirks:
 
-Versions are reserved before the write commits, so two overlapping writers can commit out of order:
-writer A reserves 100, writer B reserves 101 and commits first, a client polls and stores watermark
-101, then A commits. A's records are never delivered until they are written again.
+- A first sync filtered to active records leaves out the soft-deleted ones inside the window, which
+  the backend's fingerprint counts. The next sync resends that window once; after it, they match.
+- A write that lands more than 4 seconds after its stamp, past a client's sync, is still missed
+  until the record is written again.
 
-The window is the few milliseconds between two concurrent writes on the same tenant and table, with
-a poll landing inside it. This is accepted rather than fixed: closing it needs a per-partition
-"all versions below this are committed" watermark and cross-process in-flight tracking. If it ever
-shows up in practice, that is the fix.
+The IndexedDB delta cache is at version 7: the upgrade drops every cached route, since both the
+watermark shape and the unit of `upd` changed.
 
-Note `upv` means something different on `*-ids` routes — see `CACHE_BY_IDS.md`.
+Note `upd` on `*-ids` routes is the record's slot's last write, not its own — see `CACHE_BY_IDS.md`.

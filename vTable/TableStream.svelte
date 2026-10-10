@@ -252,9 +252,9 @@
   }
 
   .stream-table-card {
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--line-strong);
     border-radius: 10px;
-    background: #ffffff;
+    background: var(--surface);
     overflow: hidden;
   }
 
@@ -272,32 +272,32 @@
     position: sticky;
     top: 0;
     z-index: 2;
-    background: #0f172a;
-    color: #e2e8f0;
+    background: var(--fg);
+    color: var(--surface);
     text-align: left;
     font-weight: 700;
     padding: 10px 8px;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid var(--fg-soft);
     white-space: nowrap;
   }
 
   .stream-table tbody td {
     padding: 8px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--line);
     white-space: nowrap;
   }
 
   .stream-row-even {
-    background: #f8fafc;
+    background: var(--surface-soft);
   }
 
   .stream-row-selected {
-    outline: 2px solid #2563eb;
+    outline: 2px solid var(--blue-solid);
     outline-offset: -2px;
   }
 
   .stream-empty {
-    color: #64748b;
+    color: var(--fg-muted);
     text-align: center;
     padding: 22px 8px !important;
     font-family: inherit !important;

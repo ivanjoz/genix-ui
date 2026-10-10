@@ -80,7 +80,7 @@
 
 <style>
   ._1 {
-    background-color: white;
+    background-color: var(--surface);
     opacity: 0;
     pointer-events: none;
     z-index: -1;
@@ -94,12 +94,12 @@
     border-radius: 50%;
     border: none;
     outline: none;
-    background-color: rgb(255, 224, 224);
-    color: rgb(187, 82, 82);
+    background-color: var(--red-bg-strong);
+    color: var(--red-fg);
     font-size: 20px;
   }
   ._4 {
-    background-color: rgba(15, 23, 42, 0);
+    background-color: transparent;
     opacity: 0;
     transition: opacity 200ms ease-in-out;
     pointer-events: none;
@@ -107,21 +107,21 @@
   }
   ._5 {
     opacity: 1;
-    background-color: rgba(15, 23, 42, 0.5);
+    background-color: var(--overlay);
     pointer-events: all;
     z-index: 208;
   }
   ._7 {
     position: relative;
-    background-color: rgb(243 242 249);
+    background-color: var(--surface-muted);
     min-height: 14vw;
     border-radius: 8px;
     padding: 0 6px 6px 6px;
     line-height: 1.1;
     text-align: center;
-    color: #3b384b;
+    color: var(--fg-soft);
     margin-bottom: calc(1vw + 4px);
-    box-shadow: rgb(189 190 210) 0 1px 2px;
+    box-shadow: var(--line-strong) 0 1px 2px;
     display: flex;
     align-items: center;
     flex-direction: column;
@@ -131,7 +131,7 @@
     width: 100%;
   }
   ._8 {
-    background-color: rgb(243 242 249);
+    background-color: var(--surface-muted);
     position: absolute;
     height: 2.4rem;
     width: 3rem;

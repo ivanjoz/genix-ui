@@ -13,8 +13,8 @@
 		values,
 		maxValue,
 		logScaleFactor = 0,
-		totalBarColor = '#4874f5',
-		pendingBarColor = '#e67676'
+		totalBarColor = 'var(--blue-solid)',
+		pendingBarColor = 'var(--red-border)'
 	}: CellHorizontalBarsProps = $props();
 
 	// Keep percentage computation local so callers only provide data and visual options.

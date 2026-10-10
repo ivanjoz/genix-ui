@@ -533,7 +533,7 @@
 		/* No backdrop-filter and no CSS opacity transition: the view transition fades the backdrop's
 		   snapshot. A blur re-renders the whole viewport every frame and, inside the snapshot, samples
 		   empty pixels at the viewport edges (light lines on the right and bottom). */
-		background-color: rgb(0 0 0 / 0.5);
+		background-color: var(--overlay);
 		opacity: 0;
 		cursor: pointer;
 		border: none;
@@ -553,8 +553,8 @@
 		top: 0;
 		height: 100%;
 		width: 78vw;
-		background: white;
-		color: #2c2b2e;
+		background: var(--surface);
+		color: var(--fg);
 		box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
 		overflow-y: auto;
 		display: flex;
@@ -578,13 +578,13 @@
 	/* Level with the app header it slides over. */
 	.mobile-header {
 		height: var(--header-height);
-		border-bottom: 1px solid #e5e7eb;
-		background: white;
+		border-bottom: 1px solid var(--line);
+		background: var(--surface);
 	}
 
 	.mobile-footer {
-		border-top: 1px solid #e5e7eb;
-		background: white;
+		border-top: 1px solid var(--line);
+		background: var(--surface);
 	}
 
 	.mobile-header-logo {
@@ -597,7 +597,7 @@
 		font-size: 18px;
 		font-weight: 700;
 		font-family: bold;
-		color: #1f2937;
+		color: var(--fg);
 		letter-spacing: 0.5px;
 	}
 
@@ -650,7 +650,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		background: white;
+		background: var(--surface);
 		border: none;
 		border-left: 4px solid transparent;
 		cursor: pointer;
@@ -659,25 +659,25 @@
 	}
 
 	.mobile-menu-group-button:hover {
-		background: #f9fafb;
+		background: var(--surface-soft);
 	}
 
 	.mobile-menu-group-button.is-open {
-		background: #f3f4f7;
-		border-left-color: #8b5cf6;
+		background: var(--surface-muted);
+		border-left-color: var(--purple-solid);
 	}
 
 	.menu-group-title {
 		font-size: 15px;
 		font-weight: 600;
 		font-family: semibold;
-		color: #1f2937;
+		color: var(--fg);
 		letter-spacing: 0.3px;
 		text-transform: uppercase;
 	}
 
 	.menu-group-chevron {
-		color: #4b5563;
+		color: var(--fg-muted);
 		font-size: 14px;
 		transition: transform 0.3s ease;
 		display: flex;
@@ -694,7 +694,7 @@
 		grid-template-columns: 1fr 1fr;
 		gap: 6px;
 		padding: 6px 10px 12px 10px;
-		background: white;
+		background: var(--surface);
 		animation: fadeIn 0.25s ease-out;
 	}
 
@@ -715,8 +715,8 @@
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    background: white;
-    border: 1px solid #d1d5db;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
     border-radius: 6px;
     cursor: pointer;
     min-height: 70px;
@@ -727,61 +727,61 @@
 	}
 
 	.mobile-menu-option:focus-visible {
-		border-color: #8b5cf6;
+		border-color: var(--purple-solid);
 	}
 
 	.mobile-menu-option:hover:not(.is-active) {
-		background: #f9fafb;
-		border-color: #9ca3af;
+		background: var(--surface-soft);
+		border-color: var(--line-strong);
 		transform: translateY(-1px);
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 		transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
 	}
 
 	.mobile-menu-option.is-pressed:not(.is-active) {
-		background: #e5e7eb;
-		border-color: #9ca3af;
+		background: var(--surface-strong);
+		border-color: var(--line-strong);
 		transform: translateY(0);
 		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 		transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
 	}
 
 	.mobile-menu-option.is-active {
-		background: #ede9fe !important;
-		border-color: #8b5cf6 !important;
-		box-shadow: 0 2px 6px rgba(139, 92, 246, 0.25) !important;
+		background: var(--purple-bg-strong) !important;
+		border-color: var(--purple-solid) !important;
+		box-shadow: 0 2px 6px color-mix(in srgb, var(--purple-solid) 25%, transparent) !important;
 		transition: none !important;
 	}
 
 	.mobile-menu-option.is-active.is-pressed {
-		background: #ddd6fe !important;
-		border-color: #7c3aed !important;
-		box-shadow: inset 0 2px 4px rgba(124, 58, 237, 0.2) !important;
+		background: var(--purple-bg-strong) !important;
+		border-color: var(--purple-solid) !important;
+		box-shadow: inset 0 2px 4px color-mix(in srgb, var(--purple-solid) 20%, transparent) !important;
 		transition: none !important;
 	}
 
 	.option-icon {
 		font-size: 20px;
-		color: #4b5563;
+		color: var(--fg-muted);
 	 /*	margin-bottom: 2px; */
 	}
 
 	.mobile-menu-option.is-active .option-icon {
-		color: #7c3aed !important;
+		color: var(--purple-solid) !important;
 		transition: none !important;
 	}
 
 	.option-text {
 		font-size: 15px;
 		font-family: main;
-		color: #1f2937;
+		color: var(--fg);
 		text-align: center;
 		line-height: 1.1;
 		word-break: break-word;
 	}
 
 	.mobile-menu-option.is-active .option-text {
-		color: #5b21b6 !important;
+		color: var(--purple-fg) !important;
 		transition: none !important;
 	}
 

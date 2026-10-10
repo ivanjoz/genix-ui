@@ -33,7 +33,7 @@
 <ShowroomBlock name="Gantt" note="rows tree (parentId) · bars on Unix days with color, label and progress · markers · today line · zoom week / month">
   <div class="flex items-center gap-12 mb-12">
     <OptionsStrip selected={zoom === 'week' ? 1 : 2} options={zoomOptions} onSelect={(option) => { zoom = option[0] === 1 ? 'week' : 'month'; }} />
-    {#if clickedBar}<span class="text-sm text-gray-600">Clicked: {clickedBar}</span>{/if}
+    {#if clickedBar}<span class="text-sm text-fg-muted">Clicked: {clickedBar}</span>{/if}
   </div>
   <Gantt {rows} {zoom} {markers} onBarClick={(row, bar) => { clickedBar = `${row.label}${bar.label ? ` · ${bar.label}` : ''}`; }} />
 </ShowroomBlock>

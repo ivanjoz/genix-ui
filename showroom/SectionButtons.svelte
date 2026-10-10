@@ -83,7 +83,7 @@
       iconOnShow="icon-[fa--times]" bind:isOpen={isFilterPanelOpen}>
       <div class="p-12 w-260">
         <Input saveOn={selection} save="FilterText" label="Contains|Contiene" css="w-full" />
-        <div class="text-xs text-gray-500 mt-8">Panel is open: {isFilterPanelOpen}</div>
+        <div class="text-xs text-fg-muted mt-8">Panel is open: {isFilterPanelOpen}</div>
       </div>
     </ButtonLayer>
 
@@ -96,8 +96,8 @@
     {#each statusOptions as status}
       <Card id={status.ID} label={status.Name} css="w-200 p-12"
         onClick={() => { lastAction = `Card ${status.ID}`; }}>
-        <div class="text-sm font-semibold text-gray-700">{status.Name}</div>
-        <div class="text-xs text-gray-500">Clickable card surface</div>
+        <div class="text-sm font-semibold text-fg-soft">{status.Name}</div>
+        <div class="text-xs text-fg-muted">Clickable card surface</div>
       </Card>
     {/each}
   </div>
@@ -115,5 +115,5 @@
 </ShowroomBlock>
 
 <ShowroomBlock name="Live state" note="last click + current selections">
-  <pre class="text-xs text-gray-600 overflow-x-auto">{JSON.stringify({ lastAction, ...selection }, null, 2)}</pre>
+  <pre class="text-xs text-fg-muted overflow-x-auto">{JSON.stringify({ lastAction, ...selection }, null, 2)}</pre>
 </ShowroomBlock>

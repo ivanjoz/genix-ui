@@ -312,10 +312,10 @@ $effect(() => {
 
 <div data-id="ImageUploader:{componentID}"
   data-value={imageSrc?.src || imageSrc?.base64 ? "uploaded" : "empty"}
-  class="group relative overflow-hidden rounded-[10px] border border-gray-500 bg-white cursor-pointer
+  class="group relative overflow-hidden rounded-[10px] border border-line-strong bg-surface cursor-pointer
     {imageSrc?.src
       ? ''
-      : 'hover:border-[#6e697a] hover:outline hover:outline-1 hover:outline-[#302e33]'}
+      : 'hover:border-fg-muted hover:outline hover:outline-1 hover:outline-fg'}
     {cardCss}"
   style={cardStyle}
 >
@@ -370,7 +370,7 @@ $effect(() => {
       {#if imageSrc.base64 && !hideFormUseMessage && !hideForm}
         <textarea
           class="w-full h-auto overflow-hidden resize-none rounded-[7px] border-0 bg-[#0000005c] p-4 text-white
-            outline-2 outline-[#ffffffa3] backdrop-blur-[4px] focus:outline-1 focus:outline-[#7e4dbd]
+            outline-2 outline-[#ffffffa3] backdrop-blur-[4px] focus:outline-1 focus:outline-purple-solid
             placeholder:text-white [font-family:bold] [line-height:1.1]
             [text-shadow:-1px_0_#000000b8,0_1px_#000000b8,1px_0_#000000b8,0_-1px_#000000b8]
             [&::placeholder]:[text-shadow:none]"
@@ -431,7 +431,7 @@ $effect(() => {
       <div class="text-white h3 ff-bold">{isReserving ? ui.translate('Loading...|Cargando...') : ui.translate('Saving...|Guardando...')}</div>
       {#if progress > 0}
         <div class="relative left-0 right-0 flex items-center justify-center h-22 w-[calc(100%-16px)] mt-8 mr-8 ml-9 p-2 bg-black/35 leading-none">
-          <div class="absolute left-2 h-18 bg-[#29b15d]"
+          <div class="absolute left-2 h-18 bg-green-solid"
             style="width: calc({Math.round(progress)}% - 4px);"
           ></div>
           <div class="absolute text-[14px] ff-bold text-white">{Math.round(progress)} %</div>
@@ -444,18 +444,18 @@ $effect(() => {
 <style>
   /* Button styles */
   ._4 {
-    background-color: #e75c5c;
-    color: white;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
   }
   ._4:hover {
-    background-color: #f77d7d;
+    background-color: color-mix(in srgb, var(--red-solid) 80%, var(--on-solid));
   }
   ._5 {
-    background-color: #1277f5;
-    color: white;
+    background-color: var(--blue-solid);
+    color: var(--on-solid);
   }
   ._5:hover {
-    background-color: #52a0ff;
+    background-color: color-mix(in srgb, var(--blue-solid) 75%, var(--on-solid));
   }
 
 </style>

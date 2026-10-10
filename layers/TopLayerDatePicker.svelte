@@ -273,7 +273,7 @@ $effect(() => {
     </div>
 
     {#if ui.state.mobileDateLayer?.label}
-      <div class="mt-6 px-4 text-[13px] tracking-[0.4px] text-white/70">
+      <div class="mt-6 px-4 text-[13px] tracking-[0.4px] text-on-solid/70">
         {ui.state.mobileDateLayer.label}
       </div>
     {/if}
@@ -291,10 +291,10 @@ $effect(() => {
           ‹
         </button>
         <div class="flex min-w-0 grow items-center justify-center gap-8 px-8">
-          <div class="truncate text-[17px] font-medium text-white/82">
+          <div class="truncate text-[17px] font-medium text-on-solid/82">
             {visibleMonth.name}
           </div>
-          <div class="text-[20px] font-semibold tracking-[0.4px] text-white">
+          <div class="text-[20px] font-semibold tracking-[0.4px] text-on-solid">
             {visibleMonth.year}
           </div>
         </div>
@@ -330,9 +330,9 @@ $effect(() => {
 
     <div class="_10 mt-10 p-8">
       <div class="flex">
-        <div class="dp-week text-center text-[12px] font-semibold text-white/35"></div>
+        <div class="dp-week text-center text-[12px] font-semibold text-on-solid/35"></div>
         {#each weekDaysNames as dayName}
-          <div class="dp-col flex items-center justify-center text-[12px] font-semibold text-white/65">
+          <div class="dp-col flex items-center justify-center text-[12px] font-semibold text-on-solid/65">
             {dayName.name}
           </div>
         {/each}
@@ -340,7 +340,7 @@ $effect(() => {
 
       {#each calendarWeeks as weekRecord}
         <div class="flex">
-          <div class="dp-week flex items-center justify-center text-[12px] font-semibold text-[rgba(158,140,212,0.58)]">
+          <div class="dp-week flex items-center justify-center text-[12px] font-semibold text-on-solid/40">
             {weekRecord.week}
           </div>
           {#each weekRecord.weekDays as weekDay}
@@ -404,9 +404,9 @@ $effect(() => {
 
   ._4 {
     border-radius: 9px;
-    color: #fff;
+    color: var(--on-solid);
     margin-bottom: 2px;
-    background-color: #464672d4;
+    background-color: color-mix(in srgb, var(--accent-solid) 30%, transparent);
     border: 1px solid transparent;
     line-height: 1;
     appearance: none;
@@ -416,8 +416,8 @@ $effect(() => {
   }
 
   ._4:focus {
-    border: 1px solid rgb(117, 118, 214);
-    outline: 1px solid rgb(150, 152, 255);
+    border: 1px solid var(--accent-solid);
+    outline: 1px solid var(--accent-border);
     outline-offset: 0;
   }
 
@@ -427,8 +427,8 @@ $effect(() => {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background-color: #e06868;
-    color: #fff;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
     border: none;
     outline: none;
   }
@@ -451,13 +451,13 @@ $effect(() => {
     border: 1px solid #ffffff1f;
     outline: 2px solid #00000059;
     background-color: #0000003d;
-    color: #fff;
+    color: var(--on-solid);
   }
 
   ._9 {
-    background-color: #6861ec;
-    border-color: #b3b0ff;
-    color: #fff;
+    background-color: var(--accent-solid);
+    border-color: var(--accent-border);
+    color: var(--on-solid);
   }
 
   .dp-week {
@@ -478,7 +478,7 @@ $effect(() => {
     flex-shrink: 0;
     cursor: pointer;
     border-radius: 8px;
-    color: #f4f4ff;
+    color: var(--on-solid);
   }
 
   .dp-day.is-out {
@@ -486,14 +486,14 @@ $effect(() => {
   }
 
   .dp-day.selected {
-    background-color: #6d5dad;
-    color: white;
-    outline: 2px solid #b6b1ff;
+    background-color: var(--purple-solid);
+    color: var(--on-solid);
+    outline: 2px solid var(--purple-border);
   }
 
   .dp-day.focused {
     background-color: #ffffff14;
-    outline: 1px solid #8d89ce;
+    outline: 1px solid var(--accent-border);
   }
 
   .ln-today {
@@ -503,11 +503,11 @@ $effect(() => {
     transform: translateX(-50%);
     width: 4px;
     height: 4px;
-    background-color: #ffd96d;
+    background-color: var(--yellow-solid);
     border-radius: 50%;
   }
 
   .dp-day.selected .ln-today {
-    background-color: white;
+    background-color: var(--on-solid);
   }
 </style>

@@ -79,7 +79,7 @@
     <SearchSelect saveOn={form} save="LanguageID" label="Disabled|Deshabilitado" disabled
       options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
   </div>
-  <div class="text-xs text-gray-500 mt-8">
+  <div class="text-xs text-fg-muted mt-8">
     On mobile widths this delegates to the TopLayerSelector singleton mounted in the root layout.
   </div>
 </ShowroomBlock>
@@ -90,17 +90,17 @@
     <Checkbox saveOn={form} save="IsVisible" label="Visible (0 | 1)" useNumber />
   </div>
   <div class="mt-12">
-    <div class="text-xs text-gray-500 mb-4">type="single" — writes one id into StatusID</div>
+    <div class="text-xs text-fg-muted mb-4">type="single" — writes one id into StatusID</div>
     <CheckboxOptions saveOn={form} save="StatusID" type="single"
       options={statusOptions} keyId="ID" keyName="Name" />
   </div>
   <div class="mt-12">
-    <div class="text-xs text-gray-500 mb-4">type="multiple" + useButtons — writes an id array</div>
+    <div class="text-xs text-fg-muted mb-4">type="multiple" + useButtons — writes an id array</div>
     <CheckboxOptions saveOn={form} save="LanguageIDs" type="multiple" useButtons
       options={languageOptions} keyId="ID" keyName="Name" />
   </div>
   <div class="mt-12">
-    <div class="text-xs text-gray-500 mb-4">type="single" + useButtonsSlim — compact blue segmented control</div>
+    <div class="text-xs text-fg-muted mb-4">type="single" + useButtonsSlim — compact blue segmented control</div>
     <CheckboxOptions saveOn={form} save="StatusID" type="single" useButtonsSlim
       options={statusOptions} keyId="ID" keyName="Name" />
   </div>
@@ -143,5 +143,5 @@
 </ShowroomBlock>
 
 <ShowroomBlock name="Live form state" note="every control above writes into this object">
-  <pre class="text-xs text-gray-600 overflow-x-auto">{JSON.stringify(form, null, 2)}</pre>
+  <pre class="text-xs text-fg-muted overflow-x-auto">{JSON.stringify(form, null, 2)}</pre>
 </ShowroomBlock>

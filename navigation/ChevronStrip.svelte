@@ -83,9 +83,9 @@
   /* An arrow: a 10px point on the right, and a matching notch on the left that receives the
      previous option's point. The first option has no notch, the last one no point. */
   .chevron-option {
-    --chevron-bg: #e4e5f0;
+    --chevron-bg: var(--surface-strong);
     background-color: var(--chevron-bg);
-    color: #6b6b85;
+    color: var(--label);
     user-select: none;
     cursor: pointer;
     clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);
@@ -100,11 +100,11 @@
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);
   }
   .chevron-option:hover {
-    --chevron-bg: #dcdcf7;
-    color: #4343ad;
+    --chevron-bg: var(--accent-bg-strong);
+    color: var(--accent-fg);
   }
   .chevron-option.chevron-option-selected {
-    --chevron-bg: rgb(117 108 233);
-    color: white;
+    --chevron-bg: var(--accent-solid);
+    color: var(--on-solid);
   }
 </style>

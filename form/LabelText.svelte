@@ -17,6 +17,6 @@
 </script>
 
 <div class={css}>
-  <div class="text-gray-500 text-sm leading-[1.15]"><T text={label} /></div>
+  <div class="text-fg-muted text-sm leading-[1.15]"><T text={label} /></div>
   <div class={contentCss}>{text}</div>
 </div>

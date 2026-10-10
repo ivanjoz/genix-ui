@@ -63,7 +63,7 @@
   </div>
   <div class="grid grid-cols-24 gap-10">
     <Input saveOn={customToast} save="Message" css="col-span-24 md:col-span-12" label="Custom message|Mensaje propio" />
-    <div class="col-span-24 md:col-span-12 self-center text-[14px] text-gray-500">
+    <div class="col-span-24 md:col-span-12 self-center text-[14px] text-fg-muted">
       Empty uses each button's default. Try a long text, or "English|Español" to see the translation.
     </div>
   </div>
@@ -106,12 +106,12 @@
       setTimeout(() => { void askConfirm('second', { title: 'Second request|Segunda solicitud', message: 'The first one resolved false.|La primera se resolvió en false.' }); }, 2000);
     }} />
   </div>
-  <div class="text-[14px] text-gray-600">last result: {lastConfirmResult}</div>
+  <div class="text-[14px] text-fg-muted">last result: {lastConfirmResult}</div>
 </ShowroomBlock>
 
 <Modal id={CONFIRM_MODAL_ID} title="Modal with a delete button|Modal con botón eliminar" size={4}
   isEdit={true} onDelete={() => askConfirm('modal', { title: 'Delete record|Eliminar registro', message: 'The confirm must sit above this Modal.|El confirm debe quedar sobre este Modal.' })}>
-  <div class="p-8 text-[14px] text-gray-600">
+  <div class="p-8 text-[14px] text-fg-muted">
     Press the red trash button: the confirm opens above the Modal, and Escape cancels only the confirm.
   </div>
 </Modal>

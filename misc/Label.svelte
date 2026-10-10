@@ -16,13 +16,13 @@
   } = $props();
 
   const colorCssByName: Record<LabelColor, string> = {
-    blue: 'border-blue-200 bg-blue-50 text-blue-700',
-    green: 'border-green-200 bg-green-50 text-green-700',
-    red: 'border-red-200 bg-red-50 text-red-700',
-    orange: 'border-orange-200 bg-orange-50 text-orange-700',
-    yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-    purple: 'border-purple-200 bg-purple-50 text-purple-700',
-    gray: 'border-gray-200 bg-gray-50 text-gray-600',
+    blue: 'border-blue-border bg-blue-bg text-blue-fg',
+    green: 'border-green-border bg-green-bg text-green-fg',
+    red: 'border-red-border bg-red-bg text-red-fg',
+    orange: 'border-orange-border bg-orange-bg text-orange-fg',
+    yellow: 'border-yellow-border bg-yellow-bg text-yellow-fg',
+    purple: 'border-purple-border bg-purple-bg text-purple-fg',
+    gray: 'border-line bg-surface-soft text-fg-muted',
   };
 </script>
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { parseSVG } from '../utilities/ui.js';
   import angleSvg from '../assets/angle.svg?raw';
   import Button from './Button.svelte';
   import T from '../misc/T.svelte';
@@ -34,7 +33,8 @@
   <!-- Dropdown: hidden by default, shown on parent hover via CSS -->
   <div class="bl-dropdown">
     <div class="bl-angle">
-      <img class="bl-angle-img" alt="" src={parseSVG(angleSvg)} />
+      <!-- Inline, not an <img>: the arrow fills with var(--surface) and follows dark mode. -->
+      <span class="bl-angle-img">{@html angleSvg}</span>
     </div>
     <div class="bl-content">
       {#each items as item (item.id)}
@@ -59,13 +59,11 @@
     right: 0;
     z-index: 360;
     min-width: 160px;
-    background-color: white;
+    background-color: var(--layer-bg);
     border-radius: 8px;
-    outline: 4px solid #4d447424;
-    border: 1px solid #4d447452;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    outline: 4px solid color-mix(in srgb, var(--line-strong) 60%, transparent);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--layer-shadow);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -105,6 +103,7 @@
   }
 
   .bl-angle-img {
+    display: block;
     width: 24px;
     height: 24px;
     margin-top: 2px;
@@ -131,6 +130,6 @@
   }
 
   .bl-content :global(.bl-item:hover) {
-    background-color: #f3f0ff;
+    background-color: var(--accent-bg);
   }
 </style>

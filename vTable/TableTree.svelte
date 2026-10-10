@@ -469,7 +469,7 @@
   /* Child cards stay visually nested under the parent node they expanded from. */
   .table-tree-mobile-cards :global(.table-tree-mobile-child-card) {
     margin-left: 16px;
-    border-left: 3px solid #c4b5fd;
+    border-left: 3px solid var(--purple-border);
   }
 
   .table-tree-shell {
@@ -485,12 +485,12 @@
     min-height: 0;
     overflow: auto;
     position: relative;
-    border: 1px solid #cfcedf;
+    border: 1px solid var(--line-strong);
   }
 
   .table-tree-header {
-    background: #f8fafc;
-    border-bottom: 1px solid #e5e7eb;
+    background: var(--surface-soft);
+    border-bottom: 1px solid var(--line);
   }
 
   .table-tree-header-sticky {
@@ -515,9 +515,9 @@
     display: flex;
     align-items: center;
     overflow: hidden;
-    color: #64748b;
+    color: var(--fg-muted);
     font-weight: 700;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--line);
   }
 
   .table-tree-header-cell:last-child {
@@ -539,12 +539,12 @@
 
   .table-tree-row {
     height: 100%;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f8fafc;
-    color: #334155;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-soft);
+    color: var(--fg-soft);
     cursor: pointer;
     overflow: hidden;
-    box-shadow: inset 0em 0em 0 2px #ffffff;
+    box-shadow: inset 0em 0em 0 2px var(--surface);
   }
 
   .table-tree-body > .table-tree-row-shell:last-child .table-tree-row {
@@ -552,24 +552,24 @@
   }
 
   .table-tree-row:hover {
-  	background: #f1f0f9;
+  	background: var(--surface-muted);
    	box-shadow: none;
   }
 
   .table-tree-row:focus-visible {
-    outline: 2px solid #8b5cf6;
+    outline: 2px solid var(--purple-solid);
     outline-offset: 1px;
   }
 
   .table-tree-child-row {
-    background: white;
+    background: var(--surface);
     box-shadow: none;
   }
 
   .table-tree-row-selected,
   .table-tree-row-selected.table-tree-row:hover {
-    background: #f5f3ff;
-    color: #4c1d95;
+    background: var(--purple-bg);
+    color: var(--purple-fg);
   }
 
   .table-tree-cell {
@@ -578,7 +578,7 @@
     align-items: center;
     overflow: hidden;
     white-space: nowrap;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--line);
     position: relative;
   }
 
@@ -590,7 +590,7 @@
     position: absolute;
     right: 8px;
     width: 16px;
-    color: #64748b;
+    color: var(--fg-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -604,7 +604,7 @@
   .table-tree-child-indent {
     width: 16px;
     margin-right: 8px;
-    color: #8aa0bd;
+    color: var(--fg-subtle);
     flex: 0 0 auto;
   }
 
@@ -613,7 +613,7 @@
     align-items: center;
     justify-content: center;
     height: 160px;
-    color: #94a3b8;
+    color: var(--fg-subtle);
   }
 
   .table-tree-plain-scroll::-webkit-scrollbar {

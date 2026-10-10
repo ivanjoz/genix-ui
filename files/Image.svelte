@@ -43,7 +43,7 @@
 </script>
 
 <div
-  class="group relative overflow-hidden rounded-[10px] border border-gray-500 bg-white cursor-default {css}"
+  class="group relative overflow-hidden rounded-[10px] border border-line-strong bg-surface cursor-default {css}"
 >
   {#if src}
     <picture class="contents">

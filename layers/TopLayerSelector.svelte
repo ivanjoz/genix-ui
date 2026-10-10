@@ -211,10 +211,10 @@ $effect(() => {
   ._4 {
     width: calc(100% - 60px);
     border-radius: 18px;
-    color: #fff;
+    color: var(--on-solid);
     font-size: 18px;
     margin-bottom: 2px;
-    background-color: #464672d4;
+    background-color: color-mix(in srgb, var(--accent-solid) 30%, transparent);
     border: 1px solid transparent;
     padding-top: calc(.5rem + 2px);
     line-height: 1;
@@ -225,8 +225,8 @@ $effect(() => {
     padding-left: 34px;
   }
   ._4:focus {
-    border: 1px solid rgb(117, 118, 214);
-    outline: 1px solid rgb(150, 152, 255);
+    border: 1px solid var(--accent-solid);
+    outline: 1px solid var(--accent-border);
     outline-offset: 0;
   }
   /* Flex-centered: an inline icon would sit on the text baseline, above the circle's middle. */
@@ -235,8 +235,8 @@ $effect(() => {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background-color: #e06868;
-    color: #fff;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
     border: none;
     outline: none;
   }
@@ -246,7 +246,7 @@ $effect(() => {
   }
 
   ._5c {
-    color: #ff9a3d;
+    color: var(--orange-solid);
   }
 
   ._6 :global(.virtual-list-container) {
@@ -284,7 +284,7 @@ $effect(() => {
 
   ._7 {
     display: flex;
-    color: #fff;
+    color: var(--on-solid);
     min-height: 2.5rem;
     max-height: 80px;
     border-radius: 7px;
@@ -317,7 +317,7 @@ $effect(() => {
     text-overflow: ellipsis;
   }
   ._8 {
-    color: #ffe98c;
+    color: var(--yellow-solid);
     font-style: normal;
     text-decoration: underline;
   }

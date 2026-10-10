@@ -36,14 +36,14 @@
 
   // Full literals so Tailwind finds them when it scans this file.
   const COLOR_CSS: Record<CalendarColor, string> = {
-    blue: 'bg-blue-50 border-blue-500 text-blue-900',
-    green: 'bg-green-50 border-green-500 text-green-900',
-    red: 'bg-red-50 border-red-500 text-red-900',
-    amber: 'bg-amber-50 border-amber-500 text-amber-900',
-    purple: 'bg-purple-50 border-purple-500 text-purple-900',
-    teal: 'bg-teal-50 border-teal-500 text-teal-900',
-    pink: 'bg-pink-50 border-pink-500 text-pink-900',
-    gray: 'bg-gray-100 border-gray-400 text-gray-800',
+    blue: 'bg-blue-bg border-blue-solid text-blue-fg',
+    green: 'bg-green-bg border-green-solid text-green-fg',
+    red: 'bg-red-bg border-red-solid text-red-fg',
+    amber: 'bg-amber-bg border-amber-solid text-amber-fg',
+    purple: 'bg-purple-bg border-purple-solid text-purple-fg',
+    teal: 'bg-teal-bg border-teal-solid text-teal-fg',
+    pink: 'bg-pink-bg border-pink-solid text-pink-fg',
+    gray: 'bg-surface-muted border-line-strong text-fg',
   };
 
   const today = getFechaUnix();
@@ -82,17 +82,17 @@
 {#snippet dayNumber(unixDay: number, isMuted: boolean)}
   <div class="flex justify-end mb-4">
     <span class="text-sm leading-none px-4 py-3 rounded-[4px]
-      {unixDay === today ? 'bg-blue-600 text-white' : isMuted ? 'text-gray-400' : 'text-gray-600'}">
+      {unixDay === today ? 'bg-blue-solid text-on-solid' : isMuted ? 'text-fg-subtle' : 'text-fg-muted'}">
       {dayOfMonth(unixDay)}
     </span>
   </div>
 {/snippet}
 
 {#if mode === 'month'}
-  <div class={ifcss(css, 'border-l border-t border-gray-200 bg-white')}>
+  <div class={ifcss(css, 'border-l border-t border-line bg-surface')}>
     <div class="grid grid-cols-7">
       {#each WEEKDAY_SHORT_NAMES as weekdayName}
-        <div class="border-r border-b border-gray-200 bg-gray-50 px-6 py-6 text-center text-sm font-semibold text-gray-700">
+        <div class="border-r border-b border-line bg-surface-soft px-6 py-6 text-center text-sm font-semibold text-fg-soft">
           {ui.translate(weekdayName)}
         </div>
       {/each}
@@ -104,7 +104,7 @@
       {@const lanesCount = Math.max(0, ...weekBars.map((bar) => bar.lane + 1))}
       <div class="grid grid-cols-7" style="grid-template-rows: auto repeat({lanesCount}, auto) 1fr">
         {#each week as day, weekdayIndex}
-          <div class="min-w-0 min-h-100 border-r border-b border-gray-200 {day.isInMonth ? '' : 'bg-gray-50'}"
+          <div class="min-w-0 min-h-100 border-r border-b border-line {day.isInMonth ? '' : 'bg-surface-soft'}"
             style="grid-column: {weekdayIndex + 1}; grid-row: 1 / -1"></div>
         {/each}
         {#each week as day, weekdayIndex}
@@ -125,25 +125,25 @@
 {:else}
   <!-- Weeks are columns, so a long range scrolls sideways instead of squeezing the cards. -->
   <div class={ifcss(css, 'overflow-x-auto')}>
-    <div class="grid border-l border-t border-gray-200 bg-white"
+    <div class="grid border-l border-t border-line bg-surface"
       style="grid-template-columns: 112px repeat({weekColumns.length}, minmax(150px, 1fr))">
-      <div class="border-r border-b border-gray-200 bg-gray-50"></div>
+      <div class="border-r border-b border-line bg-surface-soft"></div>
       {#each weekColumns as column}
-        <div class="border-r border-b border-gray-200 bg-gray-50 px-6 py-6 text-center leading-tight">
-          <div class="text-sm font-semibold text-gray-700">
+        <div class="border-r border-b border-line bg-surface-soft px-6 py-6 text-center leading-tight">
+          <div class="text-sm font-semibold text-fg-soft">
             {ui.translate('Week|Semana')} {column.weekCode % 100} · {2000 + Math.floor(column.weekCode / 100)}
           </div>
-          <div class="text-sm text-gray-500">
+          <div class="text-sm text-fg-muted">
             {dayMonthLabel(column.days[0])} – {dayMonthLabel(column.days[6])}
           </div>
         </div>
       {/each}
       {#each WEEKDAY_NAMES as weekdayName, weekdayIndex}
-        <div class="border-r border-b border-gray-200 bg-gray-50 px-8 py-6 text-sm font-semibold text-gray-700">
+        <div class="border-r border-b border-line bg-surface-soft px-8 py-6 text-sm font-semibold text-fg-soft">
           {ui.translate(weekdayName)}
         </div>
         {#each weekColumns as column}
-          <div class="min-w-0 min-h-80 border-r border-b border-gray-200 p-4">
+          <div class="min-w-0 min-h-80 border-r border-b border-line p-4">
             {@render dayNumber(column.days[weekdayIndex], false)}
             {@render dayActivities(column.days[weekdayIndex])}
           </div>

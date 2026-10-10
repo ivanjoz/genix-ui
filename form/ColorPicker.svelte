@@ -92,7 +92,7 @@ import FieldShell from './FieldShell.svelte';
     border-radius: 0;
     height: calc(var(--input-height, 38px) - 16px);
     width: 54px;
-    border: 2px solid rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--fg);
     /* No margin-bottom: it used to compensate for the old chrome's off-centre row, and
        the shell's flex centring now does that job. */
   }

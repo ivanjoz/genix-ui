@@ -107,7 +107,7 @@
     getRowId={(user) => user.ID}
     selectedRowId={selectedGridRowId}
     onRowClick={(user) => { selectedGridRowId = user.ID; }} />
-  <div class="text-xs text-gray-500 mt-8">
+  <div class="text-xs text-fg-muted mt-8">
     selectedRowId = {selectedGridRowId ?? '—'} · last cell edit: {lastCellEdit}
   </div>
 </ShowroomBlock>
@@ -119,7 +119,7 @@
     selected={selectedTableRow?.ID}
     isSelected={(user, selected) => user.ID === selected}
     onRowClick={(user) => { selectedTableRow = user; }} />
-  <div class="text-xs text-gray-500 mt-8">selected = {selectedTableRow?.Name || '—'}</div>
+  <div class="text-xs text-fg-muted mt-8">selected = {selectedTableRow?.Name || '—'}</div>
 </ShowroomBlock>
 
 <ShowroomBlock name="TableStream" note="fixed window of 30 rows — oldest rows drop as new ones arrive">

@@ -35,17 +35,22 @@ export const concatenateInts = (values: number[], sorted?: boolean): string => {
 };
 
 // concatenateInts buckets by magnitude, which reorders a mixed-width list. Anything that has to
-// stay positionally aligned with another array — cc-ver against cc-ids — needs one fixed width
-// instead, so the decoded order is exactly the order it was sent in.
-export const concatenateUint16s = (values: number[]): string => {
+// stay positionally aligned with another array — cc-upd against cc-ids — needs one fixed width
+// instead, so the decoded order is exactly the order it was sent in. 6 little-endian bytes per value
+// hold any `upd` (milliseconds, 48 bits last ~8900 years); the backend's parseConcatenatedUint48s reads it.
+export const concatenateUint48s = (values: number[]): string => {
 	if (values.length === 0) return ""
 
-	const packed = new Uint16Array(values.length)
+	const bytes = new Uint8Array(values.length * 6)
 	for (let index = 0; index < values.length; index++) {
-		packed[index] = values[index] & 0xffff
+		// Division, not bit shifts: JS shifts truncate to 32 bits.
+		let remaining = values[index]
+		for (let byteIndex = 0; byteIndex < 6; byteIndex++) {
+			bytes[index * 6 + byteIndex] = remaining % 256
+			remaining = Math.floor(remaining / 256)
+		}
 	}
 
-	const bytes = new Uint8Array(packed.buffer, packed.byteOffset, packed.byteLength)
 	let binary = ""
 	for (let index = 0; index < bytes.byteLength; index++) {
 		binary += String.fromCharCode(bytes[index])

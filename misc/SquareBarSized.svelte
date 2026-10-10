@@ -17,7 +17,7 @@
     value,
     size = 0,
     background = '',
-    backgroundColor = '#dbeafe',
+    backgroundColor = 'var(--blue-bg-strong)',
     sublabel = '',
     useStripedLines = '',
   }: SquareBarSizedProps = $props()
@@ -41,7 +41,7 @@
   })
 
   const stripedBackgroundStyle = $derived.by(() => {
-    return `repeating-linear-gradient(135deg, ${useStripedLines} 0px, ${useStripedLines} 7px, #ffffff 7px, #ffffff 14px)`
+    return `repeating-linear-gradient(135deg, ${useStripedLines} 0px, ${useStripedLines} 7px, var(--surface) 7px, var(--surface) 14px)`
   })
 
   // Render the remaining capacity above the filled block using diagonal stripes.
@@ -77,10 +77,10 @@
         class="absolute inset-x-0 z-[2] flex flex-col items-center justify-center gap-2 px-8 text-center"
         style={`top:0;height:${remainingHeightPercent}%`}
       >
-        <div class="text-[12px] leading-none text-slate-700">{ui.translate(label)}</div>
-        <div class="text-[18px] leading-[1.1] ff-bold text-slate-900">{value}</div>
+        <div class="text-[12px] leading-none text-fg-soft">{ui.translate(label)}</div>
+        <div class="text-[18px] leading-[1.1] ff-bold text-fg">{value}</div>
         {#if sublabel}
-          <div class="text-[12px] leading-none text-slate-700">{ui.translate(sublabel)}</div>
+          <div class="text-[12px] leading-none text-fg-soft">{ui.translate(sublabel)}</div>
         {/if}
       </div>
     {:else}
@@ -88,10 +88,10 @@
         class="absolute inset-x-0 bottom-0 z-[2] flex flex-col items-center justify-center gap-6 px-10 py-8 text-center"
         style={`height:${filledHeightPercent}%`}
       >
-        <div class="text-[12px] leading-none text-slate-700">{ui.translate(label)}</div>
-        <div class="text-[18px] leading-[1.1] ff-bold text-slate-900">{value}</div>
+        <div class="text-[12px] leading-none text-fg-soft">{ui.translate(label)}</div>
+        <div class="text-[18px] leading-[1.1] ff-bold text-fg">{value}</div>
         {#if sublabel}
-          <div class="text-[12px] leading-none text-slate-700">{ui.translate(sublabel)}</div>
+          <div class="text-[12px] leading-none text-fg-soft">{ui.translate(sublabel)}</div>
         {/if}
       </div>
     {/if}

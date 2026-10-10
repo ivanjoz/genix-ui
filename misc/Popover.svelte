@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 import Portal from './Portal.svelte';
-import { parseSVG } from '../utilities/ui.js';
 import angleSvg from '../assets/angle.svg?raw';
 import { calculatePosition, type Placement, type PositionResult } from './popover.positioning';
 
@@ -113,7 +112,8 @@ import { calculatePosition, type Placement, type PositionResult } from './popove
 					position.placement.startsWith("top") && "bottom-[-16px] rotate-180",
 				]}
 			>
-				<img class={`_5 w-24 h-24 top`} alt="" src={parseSVG(angleSvg)}/>
+				<!-- Inline, not an <img>: the arrow fills with var(--surface) and follows dark mode. -->
+				<span class="_5 block w-24 h-24 top">{@html angleSvg}</span>
 			</div>
 		</div>
 	</Portal>

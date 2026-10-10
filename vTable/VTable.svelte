@@ -749,12 +749,12 @@
 
 <style>
   ._2 {
-    color: #da3c3c;
+    color: var(--red-solid);
     text-decoration: underline;
   }
 
   .hsc > div {
-    background-color: #e9ecef;
+    background-color: var(--surface-muted);
   }
 
   .vtable-cell-prefix {
@@ -764,8 +764,8 @@
   }
 
   .vtable-container:not(._14) {
-    background-color: white;
-    border: 1px solid #dee2e6;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
@@ -793,9 +793,9 @@
   .vtable {
     width: 100%;
     border-collapse: separate;
-    background-color: white;
+    background-color: var(--surface);
     border-spacing: 0;
-    background-color: white;
+    background-color: var(--surface);
     isolation: isolate;
   }
 
@@ -804,26 +804,26 @@
     top: 0;
     /* Keep header fully above transformed virtual rows */
     z-index: 30;
-    background-color: #f8f9fa;
+    background-color: var(--surface-soft);
   }
 
   .vtable-header-row {
     width: 100%;
-    background-color: #f8f9fa;
+    background-color: var(--surface-soft);
   }
 
   .vtable-header-row-sub {
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--line);
   }
 
   .vtable-header-cell {
     height: 24px;
     text-align: left;
     border: none;
-    border-right: 1px solid #e9ecef;
+    border-right: 1px solid var(--line-soft);
     position: relative;
     /* Prevent body rows from bleeding through sticky header cells */
-    background-color: #f8f9fa;
+    background-color: var(--surface-soft);
   }
 
   .vtable-header-cell:last-child {
@@ -833,11 +833,11 @@
   .vtable-header-cell > div {
     height: 100%;
     min-height: 36px;
-    border-bottom: 1px solid rgb(204, 204, 204);
+    border-bottom: 1px solid var(--line-strong);
     display: flex;
     align-items: center;
     line-height: 1.1;
-    background-color: #f8f9fa;
+    background-color: var(--surface-soft);
   }
 
   /* `disableHeaderPadding`: header shrinks to its content, no side padding. */
@@ -856,27 +856,27 @@
   .vtable-row {
     display: table-row;
     width: 100%;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--line-soft);
     transition: background-color 0.15s ease;
     cursor: pointer;
     height: var(--row-height);
   }
 
   .vtable-row:hover {
-    background-color: #f1f3f5;
+    background-color: var(--surface-muted);
   }
 
   .vtable-row-even {
-    background-color: #ffffff;
+    background-color: var(--surface);
   }
 
   .vtable-row-odd {
-    background-color: #f8f9fa;
+    background-color: var(--surface-soft);
   }
 
   .vtable-row-selected, .vtable-row-selected.vtable-row:hover {
-    background-color: #f6f6ff;
-    outline: 2px solid var(--color-11);
+    background-color: var(--accent-bg);
+    outline: 2px solid var(--accent-border);
     border-radius: 5px;
     position: relative;
     z-index: 12;
@@ -903,7 +903,7 @@
   }
 
   .vtable-row > td:not(:last-of-type) {
-    border-right: 1px solid #f1f3f5;
+    border-right: 1px solid var(--line-soft);
   }
 
   .vtable-cell:last-child {
@@ -940,7 +940,7 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.75rem;
-    color: #4f6ef7;
+    color: var(--accent-solid);
     opacity: 0;
     pointer-events: none;
   }
@@ -955,7 +955,7 @@
   }
 
   .clickable-cell:hover {
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.596);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 60%, transparent);
     z-index: 1;
   }
 
@@ -971,7 +971,7 @@
   }
 
   .vtable-empty-message {
-    color: #6c757d;
+    color: var(--fg-muted);
     font-size: 0.875rem;
   }
 
@@ -980,26 +980,26 @@
     width: 30px;
     height: 30px;
     font-size: 15px;
-    color: #5243c2;
-    box-shadow: rgb(67 61 110 / 62%) 0px 1px 2px 0px;
+    color: var(--accent-fg);
+    box-shadow: color-mix(in srgb, var(--accent-solid) 62%, transparent) 0px 1px 2px 0px;
   }
   ._11._e {
-    color: #5243c2;
-    background-color: #e7e4ff;
-    box-shadow: rgb(67 61 110 / 62%) 0px 1px 2px 0px;
+    color: var(--accent-fg);
+    background-color: var(--accent-bg-strong);
+    box-shadow: color-mix(in srgb, var(--accent-solid) 62%, transparent) 0px 1px 2px 0px;
   }
   ._11._e:hover {
-    outline: 1px solid #5243c2;
-    background-color: #f5f4ff;
+    outline: 1px solid var(--accent-fg);
+    background-color: var(--accent-bg);
   }
   ._11._d {
-    color: #f04949;
-    background-color: #ffe7e7;
-    box-shadow: rgb(181 50 50 / 70%) 0px 1px 1px 0px;
+    color: var(--red-solid);
+    background-color: var(--red-bg-strong);
+    box-shadow: color-mix(in srgb, var(--red-solid) 70%, transparent) 0px 1px 1px 0px;
   }
   ._11._d:hover {
-    background-color: #f04949;
-    color: #ffffff;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
   }
 
   /* Mobile Card Styles */
@@ -1010,7 +1010,7 @@
   .mobile-empty-message {
     text-align: center;
     padding: 2rem;
-    color: #6c757d;
+    color: var(--fg-muted);
     font-size: 0.875rem;
   }
 
@@ -1018,12 +1018,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #6c757d;
+    color: var(--fg-muted);
     font-size: 0.875rem;
   }
 
   .mobile-card {
-    background: white;
+    background: var(--surface);
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 12px;
@@ -1099,7 +1099,7 @@
 
   .mobile-cell-editable-border > div {
     width: calc(100% - 4px);
-    border: 1px solid #d2d5e7;
+    border: 1px solid var(--line-strong);
     height: 24px;
     border-top: none;
     box-shadow: #706e9021 0 1px 2px 1px;

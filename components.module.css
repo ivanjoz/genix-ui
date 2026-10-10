@@ -16,7 +16,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #ff3d00;
+  background: var(--orange-solid);
   animation: image_spin 2s linear infinite;
 }
 
@@ -27,7 +27,7 @@
   left: 50%;
   box-sizing: border-box;
   border: 10px solid;
-  border-color: transparent white;
+  border-color: transparent var(--on-solid);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
@@ -48,8 +48,8 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  color: white;
-  background: rgba(185, 28, 28, 0.9);
+  color: var(--on-solid);
+  background: color-mix(in srgb, var(--red-solid) 90%, transparent);
   border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow: rgba(15, 23, 42, 0.28) 0 2px 7px;
   backdrop-filter: blur(3px);
@@ -65,6 +65,6 @@
 }
 
 .image_remove_button:hover {
-  background: rgb(153, 27, 27);
+  background: color-mix(in srgb, var(--red-solid) 80%, var(--fg));
 }
 

@@ -40,6 +40,6 @@
 <style>
   /* The same token the notched field label uses, so a read-only cell reads as one of the fields. */
   ._label {
-    color: var(--input-label-color, #6d5dad);
+    color: var(--input-label-color, var(--label));
   }
 </style>

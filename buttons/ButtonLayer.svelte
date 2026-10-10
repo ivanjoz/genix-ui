@@ -2,7 +2,6 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
   import { tick, type Snippet } from 'svelte';
-import { parseSVG } from '../utilities/ui.js';
 import angleSvg from '../assets/angle.svg?raw';
 import { Agent } from '../agent/registry';
 
@@ -309,7 +308,8 @@ import { Agent } from '../agent/registry';
     >
       <!-- Angle pointer -->
       <div class="button-layer-angle" style="left: {angleLeft}px;" class:use-big={useBig}>
-        <img class="button-layer-angle-img" alt="" src={parseSVG(angleSvg)} class:use-big={useBig}/>
+        <!-- Inline, not an <img>: the arrow fills with var(--surface) and follows dark mode. -->
+        <span class="button-layer-angle-img" class:use-big={useBig}>{@html angleSvg}</span>
       </div>
 
       <!-- Layer content -->
@@ -329,19 +329,17 @@ import { Agent } from '../agent/registry';
   .button-layer {
     position: fixed;
     z-index: 360;
-    background-color: white;
+    background-color: var(--layer-bg);
     border-radius: 8px;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06),
-      0 0 0 1px rgba(0, 0, 0, 0.05);
+    outline: 2px solid var(--layer-outline);
+    box-shadow: var(--layer-shadow), 0 0 0 1px var(--layer-edge);
     animation: slideDown 0.2s ease-out;
     overflow: visible;
   }
   
   .button-layer.use-outline {
-  	outline: 4px solid #4d447424;
-    border: 1px solid #4d447452;
+  	outline: 4px solid color-mix(in srgb, var(--line-strong) 60%, transparent);
+    border: 1px solid var(--line-strong);
   }
 
   .button-layer.placement-top {
@@ -349,7 +347,7 @@ import { Agent } from '../agent/registry';
   }
 
   .button-layer.use-big {
-    box-shadow: #46466059 0 2px 18px -2px, #00000059 0 0 6px;
+    box-shadow: #46466059 0 2px 18px -2px, #00000059 0 0 6px, 0 0 0 1px var(--layer-edge);
   }
 
   /* Mobile: fixed width and max-height */
@@ -400,6 +398,7 @@ import { Agent } from '../agent/registry';
   }
 
   .button-layer-angle-img {
+    display: block;
     width: 24px;
     height: 24px;
     margin-top: 2px;
@@ -426,13 +425,5 @@ import { Agent } from '../agent/registry';
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  :global(.dark) .button-layer {
-    background-color: #2d2d3a;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.3),
-      0 2px 4px -1px rgba(0, 0, 0, 0.2),
-      0 0 0 1px rgba(255, 255, 255, 0.1);
   }
 </style>

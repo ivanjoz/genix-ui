@@ -21,13 +21,13 @@
   const baseCss = 'inline-flex h-22 min-w-28 items-center justify-center rounded-[3px] border text-10 ff-bold';
   const colorCssByName: Record<InlineButtonColor, Record<InlineButtonMode, string>> = {
     blue: {
-      default: 'border-red-300 bg-red-100 text-red-800',
+      default: 'border-red-border bg-red-bg-strong text-red-fg',
       // Keep the extra padding only in checked mode so the corner icon never overlaps the label.
-      checked: 'relative border-blue-300 bg-blue-100 text-blue-800 pb-2 pr-5',
+      checked: 'relative border-blue-border bg-blue-bg-strong text-blue-fg pb-2 pr-5',
     },
     green: {
-      default: 'border-red-300 bg-red-100 text-red-800',
-      checked: 'relative border-green-300 bg-green-100 text-green-800 pb-2 pr-5',
+      default: 'border-red-border bg-red-bg-strong text-red-fg',
+      checked: 'relative border-green-border bg-green-bg-strong text-green-fg pb-2 pr-5',
     },
   };
 </script>

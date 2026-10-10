@@ -394,21 +394,21 @@
 
 <style>
   ._container {
-    background-color: var(--light-blue-1);
+    background-color: var(--surface-muted);
     border-radius: 5px;
     box-shadow: #5f7187a8 0 1px 3px -1px;
   }
 
   ._shared-label {
-    color: #6d5dad;
+    color: var(--label);
     line-height: 18px;
     margin-bottom: 8px;
   }
 
   ._chip {
     align-items: center;
-    background-color: #fff;
-    border: 1px solid #dfe1ea;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
     border-radius: 4px;
     color: inherit;
     cursor: pointer;
@@ -419,16 +419,16 @@
   }
 
   ._chip-left {
-    border-color: #d6d8f6;
+    border-color: var(--accent-bg-strong);
   }
 
   ._chip-right {
-    border-color: #d9e0f7;
+    border-color: var(--blue-bg-strong);
   }
 
   ._chip:hover {
-    border-color: rgb(236, 125, 125);
-    color: rgb(209, 66, 66);
+    border-color: var(--red-border);
+    color: var(--red-fg);
   }
 
   ._chip-text {
@@ -443,13 +443,13 @@
   }
 
   ._chip:hover ._chip-remove {
-    background-color: rgb(255, 221, 221);
-    color: rgb(224, 61, 61);
+    background-color: var(--red-bg-strong);
+    color: var(--red-solid);
     opacity: 1;
   }
 
   ._chip:hover ._chip-remove:hover {
-    background-color: rgb(240, 102, 102);
-    color: white;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
   }
 </style>

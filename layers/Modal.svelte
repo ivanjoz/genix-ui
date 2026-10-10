@@ -398,7 +398,7 @@
 						{#if selectedImportView === 1}
 							{@render children?.()}
 						{:else}
-							<div class="p-8 relative rounded-md border border-red-200">
+							<div class="p-8 relative rounded-md border border-red-border">
 								<button
 									class="bx-red absolute right-6 top-6 leading-none"
 									onclick={closeErrorsView}
@@ -406,17 +406,17 @@
 								>
 									<i class="icon-[mdi--close-thick]"></i>
 								</button>
-								<div class="ff-bold text-red-700 mb-2">
+								<div class="ff-bold text-red-fg mb-2">
 									{ui.translate("Import validations|Validaciones de importación")}
 								</div>
 								{#if fileErrors.length > 0}
-									<div class="text-red-700 text-sm max-h-200 overflow-y-auto">
+									<div class="text-red-fg text-sm max-h-200 overflow-y-auto">
 										{#each fileErrors as fileError}
 											<div>{fileError}</div>
 										{/each}
 									</div>
 								{:else}
-									<div class="text-red-700 text-sm">
+									<div class="text-red-fg text-sm">
 										{ui.translate("No errors to display.|No hay errores para mostrar.")}
 									</div>
 								{/if}
@@ -437,7 +437,7 @@
 		width: 100vw;
 		height: 100vh;
 		position: fixed;
-		background-color: rgba(0, 0, 0, 0.5);
+		background-color: var(--overlay);
 		z-index: var(--modal-zindex);
 		opacity: 0;
 		transition: opacity 0.3s ease;
@@ -449,9 +449,9 @@
 
 	._2 {
 		/* body */
-		background-color: var(--white-6);
+		background-color: var(--surface-soft);
 		transform: translateY(-80px);
-		background-color: white;
+		background-color: var(--surface);
 		opacity: 0;
 		transition:
 			transform 0.3s ease,
@@ -460,7 +460,8 @@
 		box-shadow:
 			0 11px 15px -7px rgba(0, 0, 0, 0.2),
 			0px 24px 38px 3px rgba(0, 0, 0, 0.14),
-			0px 9px 46px 8px rgba(0, 0, 0, 0.12);
+			0px 9px 46px 8px rgba(0, 0, 0, 0.12),
+			0 0 0 1px var(--layer-edge);
 	}
 
 	._1.modal-show > ._2 {
@@ -470,8 +471,8 @@
 
 	._3 {
 		/* Title */
-		background-color: #f2f2f2;
-		border-bottom: 1px solid #0000001a;
+		background-color: var(--surface-muted);
+		border-bottom: 1px solid var(--line);
 		border-radius: 7px 7px 0 0;
 	}
 

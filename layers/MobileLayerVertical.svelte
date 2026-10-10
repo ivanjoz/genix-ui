@@ -137,7 +137,7 @@
     position: absolute;
     inset: 0;
     border: none;
-    background: rgb(15 23 42 / 0.22);
+    background: var(--overlay);
     opacity: 0;
     transition: opacity 220ms ease;
     pointer-events: none;
@@ -154,9 +154,9 @@
     right: 0;
     bottom: 0;
     height: calc(100vh - var(--header-height) - 8px);
-    background: white;
+    background: var(--surface);
     border-radius: 18px 18px 0 0;
-    box-shadow: 0 -10px 26px rgb(15 23 42 / 0.22);
+    box-shadow: 0 -10px 26px rgb(15 23 42 / 0.22), 0 0 0 1px var(--layer-edge);
     overflow: hidden;
     pointer-events: auto;
     transform: translateY(calc(100% - var(--mobile-layer-closed-height)));
@@ -175,8 +175,8 @@
     gap: 8px;
     padding: 8px 16px 12px;
     border: none;
-    border-bottom: 1px solid rgb(226 232 240);
-    background: linear-gradient(180deg, rgb(248 250 252) 0%, rgb(255 255 255) 100%);
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--surface-soft) 0%, var(--surface) 100%);
     text-align: left;
     touch-action: none;
     user-select: none;
@@ -187,7 +187,7 @@
     height: 5px;
     margin: 0 auto;
     border-radius: 999px;
-    background: rgb(148 163 184);
+    background: var(--fg-subtle);
   }
 
   .mobile-layer-title-row {
@@ -200,12 +200,12 @@
   .mobile-layer-title {
     font-size: 15px;
     font-weight: 700;
-    color: rgb(51 65 85);
+    color: var(--fg-soft);
   }
 
   .mobile-layer-icon {
     font-size: 16px;
-    color: rgb(71 85 105);
+    color: var(--fg-muted);
   }
 
   .mobile-layer-body {
@@ -213,7 +213,7 @@
     overflow: auto;
     /* Scroll stops at the cart's edges instead of chaining to the page (and triggering pull-to-refresh). */
     overscroll-behavior: contain;
-    background: white;
+    background: var(--surface);
   }
 
   @media (min-width: 750px) {

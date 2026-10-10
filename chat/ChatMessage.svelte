@@ -54,15 +54,15 @@
   }
 
   .chat-msg-user {
-    background: var(--secondary, #eeefff);
-    border: 1px solid var(--gray-purple-2, #c3c5df);
+    background: var(--secondary);
+    border: 1px solid var(--line-strong);
     align-self: flex-end;
     max-width: 80%;
   }
 
   .chat-msg-assistant {
-    background: var(--white, #ffffff);
-    border: 1px solid #e2e5ef;
+    background: var(--surface);
+    border: 1px solid var(--line);
   }
 
   .chat-msg-files {
@@ -86,7 +86,7 @@
     height: 14px;
     margin-left: 2px;
     vertical-align: text-bottom;
-    background: var(--primary, #4042a3);
+    background: var(--primary);
     animation: chat-blink 1s steps(2, start) infinite;
   }
 

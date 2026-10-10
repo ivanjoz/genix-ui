@@ -54,7 +54,9 @@ Anything that captures user input into a typed value. The line between
 - `Input.svelte`, `DateInput.svelte`, `date-input.helpers.ts`
 - `Checkbox.svelte`, `CheckboxOptions.svelte`
 - `ColorPicker.svelte`, `SearchSelect.svelte`
+- `ButtonSelect.svelte` — select drawn as a button; its layer has a filter row over the options.
 - `FilterInput.svelte` — typeable filter/search input.
+- `SelectedTags.svelte` — removable coloured tags of the selections stored on a `saveOn`.
 - `LabelText.svelte` — read-only labeled value pair (label above text).
 - `LoginForm.svelte` — auth form (kept here while it's the only auth piece;
   promote to `auth/` if more auth UIs land).

@@ -1,3 +1,48 @@
+## `SelectedTags`: reads `saveOn`, the fields don't register with it
+**Context** — The user asked for colored tags showing what SearchSelect / Input / Checkbox /
+CheckboxOptions selected, with a hover ✕ that also deselects it in the field, through some shared
+state. How the tags learn the selection was open. The fields often live inside a `ButtonLayer`,
+which unmounts its content when closed.
+
+**Decision** — The shared state is the `saveOn` object itself. `SelectedTags` gets `saveOn` and a
+`fields` list (`save`, plus `options`/`keyId`/`keyName` to name an id, or `label` for a ticked
+boolean) and derives the tags from `saveOn[save]`. ✕ writes the field's empty value (`0`, `''`,
+`false`, or the array without that id). Checkbox, CheckboxOptions and Input now follow
+`saveOn[save]` changes, not only a swapped `saveOn` (SearchSelect already did). Colour is per field,
+from a fixed palette in field order. The ✕ shows on hover, always on touch screens.
+
+**Rationale** — The fields registering their selection would lose the tags whenever the layer
+closes. Cost: the caller passes each field's options twice, to the field and to the tags.
+
+## `ButtonSelect`: `color` sets only fill and text
+**Context** — The user gave the `color="blue"` look as one set of styles (pill radius, 42px
+height, hairline outline, shadow, `#e6eaff` fill, `#4848c9` text) and said the rest belongs to the
+component. Which of those properties change with `color` was open.
+
+**Decision** — Only fill and text (plus the chevron, which follows the text) depend on `color`.
+The pill shape, height, outline and shadow are the base of every `ButtonSelect`; without `color`
+it is a white pill. The height is fixed at `--input-height`, so the name's line height is 1.2 to fit
+two 15px lines in it.
+
+**Rationale** — A new colour is then two declarations. Cost: no variant can change the shape.
+
+## `ButtonSelect`: built on `ButtonLayer`, same picker on desktop and mobile
+**Context** — The user asked for a select drawn as a button (15px text wrapped to 2 lines, smaller
+chevron, no label) whose click opens a layer with a filter row over the options. How the layer is
+positioned and closed, and what mobile does, were left open.
+
+**Decision** — The trigger is `ButtonLayer`'s `button` snippet, so the layer, its angle pointer,
+viewport placement, click-outside close and full-width mobile layout are `ButtonLayer`'s. The
+first row is a small `FilterInput`, focused on open; arrows/Enter/Escape work from it. Mobile uses
+the same layer instead of `TopLayerSelector`. The layer width is a fixed `layerCss` (default
+`w-360`), not the trigger's width. Only `selected` + `onChange`: no `saveOn`/`save`. It registers
+with the agent as a `Select`, like `SearchSelect`.
+
+**Rationale** — Reusing `ButtonLayer` keeps the component to the selection logic. Costs: the angle
+pointer makes it look different from `SearchSelect`'s plain dropdown, there is no list
+virtualization (rows are capped by `max`, 200), and a form-bound variant needs `saveOn`/`save`
+added when one is needed.
+
 ## `useNumericSwipe`: a mark every 5 units, a 6px drag threshold
 **Context** — The user specified the gesture (drag right from the −), the layout (track across
 the middle, 6px from the −, out to the box's end; ruler on the top line, value in a bubble),

@@ -19,18 +19,18 @@
 <!-- Above Modals: a confirm is usually opened from a Modal's delete button. -->
 {#if notifyState.confirm}
   {@const pendingConfirm = notifyState.confirm}
-  <div class="fixed inset-0 flex items-center justify-center bg-black/40 p-16"
+  <div class="fixed inset-0 flex items-center justify-center bg-overlay p-16"
     style="z-index: var(--confirm-zindex, 410)" transition:fade={{ duration: 120 }}>
-    <div class="w-full max-w-[380px] rounded-lg bg-white px-20 py-20 text-center shadow-2xl"
+    <div class="w-full max-w-[380px] rounded-lg bg-surface px-20 py-20 text-center shadow-2xl"
       role="alertdialog" aria-modal="true" aria-labelledby="notify-confirm-title">
-      <div id="notify-confirm-title" class="text-[18px] ff-bold text-red-600">{ui.translate(pendingConfirm.title)}</div>
-      <div class="mt-8 text-[15px] leading-[1.4] text-gray-800 break-words">{ui.translate(pendingConfirm.message)}</div>
+      <div id="notify-confirm-title" class="text-[18px] ff-bold text-red-solid">{ui.translate(pendingConfirm.title)}</div>
+      <div class="mt-8 text-[15px] leading-[1.4] text-fg break-words">{ui.translate(pendingConfirm.message)}</div>
       <div class="mt-20 flex gap-10">
-        <button type="button" class="h-40 flex-1 rounded-md bg-red-500 text-white ff-semibold cursor-pointer transition-colors hover:bg-red-600"
+        <button type="button" class="h-40 flex-1 rounded-md bg-red-solid text-on-solid ff-semibold cursor-pointer transition-colors hover:bg-red-solid/90"
           onclick={() => answerConfirm(true)}>
           {ui.translate(pendingConfirm.okLabel)}
         </button>
-        <button type="button" class="h-40 flex-1 rounded-md bg-gray-100 text-gray-800 ff-semibold cursor-pointer transition-colors hover:bg-gray-200"
+        <button type="button" class="h-40 flex-1 rounded-md bg-surface-muted text-fg ff-semibold cursor-pointer transition-colors hover:bg-surface-strong"
           onclick={() => answerConfirm(false)} {@attach (cancelButton) => cancelButton.focus()}>
           {ui.translate(pendingConfirm.cancelLabel)}
         </button>

@@ -38,14 +38,14 @@
 
   // Full literals so Tailwind finds them when it scans this file.
   const BAR_CSS: Record<GanttColor, { bar: string, progress: string, line: string }> = {
-    blue: { bar: 'bg-blue-100 border-blue-400 text-blue-900', progress: 'bg-blue-300', line: 'border-blue-500' },
-    green: { bar: 'bg-green-100 border-green-500 text-green-900', progress: 'bg-green-300', line: 'border-green-600' },
-    red: { bar: 'bg-red-100 border-red-400 text-red-900', progress: 'bg-red-300', line: 'border-red-500' },
-    amber: { bar: 'bg-amber-100 border-amber-400 text-amber-900', progress: 'bg-amber-300', line: 'border-amber-500' },
-    purple: { bar: 'bg-purple-100 border-purple-400 text-purple-900', progress: 'bg-purple-300', line: 'border-purple-500' },
-    teal: { bar: 'bg-teal-100 border-teal-400 text-teal-900', progress: 'bg-teal-300', line: 'border-teal-500' },
-    pink: { bar: 'bg-pink-100 border-pink-400 text-pink-900', progress: 'bg-pink-300', line: 'border-pink-500' },
-    gray: { bar: 'bg-gray-100 border-gray-400 text-gray-800', progress: 'bg-gray-300', line: 'border-gray-500' },
+    blue: { bar: 'bg-blue-bg-strong border-blue-border text-blue-fg', progress: 'bg-blue-border', line: 'border-blue-solid' },
+    green: { bar: 'bg-green-bg-strong border-green-border text-green-fg', progress: 'bg-green-border', line: 'border-green-solid' },
+    red: { bar: 'bg-red-bg-strong border-red-border text-red-fg', progress: 'bg-red-border', line: 'border-red-solid' },
+    amber: { bar: 'bg-amber-bg-strong border-amber-border text-amber-fg', progress: 'bg-amber-border', line: 'border-amber-solid' },
+    purple: { bar: 'bg-purple-bg-strong border-purple-border text-purple-fg', progress: 'bg-purple-border', line: 'border-purple-solid' },
+    teal: { bar: 'bg-teal-bg-strong border-teal-border text-teal-fg', progress: 'bg-teal-border', line: 'border-teal-solid' },
+    pink: { bar: 'bg-pink-bg-strong border-pink-border text-pink-fg', progress: 'bg-pink-border', line: 'border-pink-solid' },
+    gray: { bar: 'bg-surface-muted border-line-strong text-fg', progress: 'bg-line-strong', line: 'border-fg-muted' },
   };
 
   const today = getFechaUnix();
@@ -82,23 +82,23 @@
 </script>
 
 {#if !range || !hasBars}
-  <div class="text-gray-500 text-center py-24">{ui.translate(emptyText)}</div>
+  <div class="text-fg-muted text-center py-24">{ui.translate(emptyText)}</div>
 {:else}
-  <div bind:this={scrollContainer} class={ifcss(css, 'overflow-x-auto border border-gray-200 rounded-[6px] bg-white')}>
+  <div bind:this={scrollContainer} class={ifcss(css, 'overflow-x-auto border border-line rounded-[6px] bg-surface')}>
     <div class="relative" style:width="{labelWidth + timelineWidth}px">
       <!-- Header: months on top, days (week zoom) or ISO weeks (month zoom) below. -->
-      <div class="flex border-b border-gray-200 bg-gray-50">
-        <div class="sticky left-0 z-20 shrink-0 bg-gray-50 border-r border-gray-200" style:width="{labelWidth}px"></div>
+      <div class="flex border-b border-line bg-surface-soft">
+        <div class="sticky left-0 z-20 shrink-0 bg-surface-soft border-r border-line" style:width="{labelWidth}px"></div>
         <div class="relative shrink-0 h-52" style:width="{timelineWidth}px">
           {#each months as month (month.startDay)}
-            <div class="absolute top-0 h-26 px-6 border-l border-gray-200 text-sm font-semibold text-gray-700 truncate leading-[26px]"
+            <div class="absolute top-0 h-26 px-6 border-l border-line text-sm font-semibold text-fg-soft truncate leading-[26px]"
               style:left="{dayX(month.startDay)}px" style:width="{month.days * dayWidth}px">
               {ui.translate(MONTH_NAMES[month.monthIndex])} {month.year}
             </div>
           {/each}
           {#each ticks as tick (tick.startDay)}
             <div class="absolute top-26 h-26 text-center text-sm leading-[26px] truncate
-              {tick.isWeekStart ? 'border-l border-gray-200' : ''} {tick.startDay === today ? 'text-red-600 font-semibold' : 'text-gray-500'}"
+              {tick.isWeekStart ? 'border-l border-line' : ''} {tick.startDay === today ? 'text-red-solid font-semibold' : 'text-fg-muted'}"
               style:left="{dayX(tick.startDay)}px" style:width="{tick.days * dayWidth}px">
               {zoom === 'month' && tick.days >= 4 ? `${ui.translate('W|S')}${tick.number}` : zoom === 'week' ? tick.number : ''}
             </div>
@@ -110,22 +110,22 @@
         <!-- Week (or month) lines, markers and today, under the bars. -->
         <div class="absolute top-0 bottom-0 pointer-events-none" style:left="{labelWidth}px" style:width="{timelineWidth}px">
           {#each zoom === 'week' ? ticks.filter((tick) => tick.isWeekStart) : months as gridCell (gridCell.startDay)}
-            <div class="absolute top-0 bottom-0 border-l border-gray-100" style:left="{dayX(gridCell.startDay)}px"></div>
+            <div class="absolute top-0 bottom-0 border-l border-line-soft" style:left="{dayX(gridCell.startDay)}px"></div>
           {/each}
           {#each markers as marker (marker.day)}
             <div class="absolute top-0 bottom-0 border-l-2 border-dashed {BAR_CSS[marker.color || 'gray'].line}"
               style:left="{dayX(marker.day)}px" title={marker.label}></div>
           {/each}
-          <div class="absolute top-0 bottom-0 border-l-2 border-red-500" style:left="{dayX(today) + dayWidth / 2}px"
+          <div class="absolute top-0 bottom-0 border-l-2 border-red-solid" style:left="{dayX(today) + dayWidth / 2}px"
             title={ui.translate('Today|Hoy')}></div>
         </div>
 
         {#each shownRows as shownRow (shownRow.row.id)}
-          <div class="group flex border-b border-gray-100 hover:bg-gray-50" style:height="{ROW_HEIGHT}px">
-            <div class="sticky left-0 z-10 shrink-0 flex items-center gap-4 pr-8 bg-white group-hover:bg-gray-50 border-r border-gray-200 text-sm min-w-0"
+          <div class="group flex border-b border-line-soft hover:bg-surface-soft" style:height="{ROW_HEIGHT}px">
+            <div class="sticky left-0 z-10 shrink-0 flex items-center gap-4 pr-8 bg-surface group-hover:bg-surface-soft border-r border-line text-sm min-w-0"
               style:width="{labelWidth}px" style:padding-left="{6 + shownRow.depth * 16}px">
               {#if shownRow.hasChildren}
-                <button type="button" class="w-18 h-18 shrink-0 flex items-center justify-center text-gray-500 hover:text-gray-900"
+                <button type="button" class="w-18 h-18 shrink-0 flex items-center justify-center text-fg-muted hover:text-fg"
                   aria-label={ui.translate(collapsedIDs.has(shownRow.row.id) ? 'Expand|Expandir' : 'Collapse|Contraer')}
                   onclick={() => toggleRow(shownRow.row.id)}>
                   <i class={collapsedIDs.has(shownRow.row.id) ? 'icon-[fa--chevron-right]' : 'icon-[fa--chevron-down]'}></i>

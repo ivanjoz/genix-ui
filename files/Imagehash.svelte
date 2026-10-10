@@ -72,7 +72,7 @@
 <style>
 	.image_hash_ctn {
 		position: relative;
-		background-color: white;
+		background-color: var(--surface);
 	}
 	.image_hash_ctn img {
 		position: absolute;

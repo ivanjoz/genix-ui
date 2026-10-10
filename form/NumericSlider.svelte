@@ -204,8 +204,8 @@
     --slider-thumb-d: 22px;
     --slider-track-h: 8px;
     --slider-tick-h: 4px;
-    --slider-fill: var(--slider-fill-color, #5f5fe3);
-    --slider-rest: var(--slider-rest-color, #cfd0dc);
+    --slider-fill: var(--slider-fill-color, var(--accent-solid));
+    --slider-rest: var(--slider-rest-color, var(--line-strong));
     display: inline-flex;
     flex-direction: column;
     padding: 0 calc(var(--slider-thumb-d) / 2);
@@ -215,7 +215,7 @@
   /* Centred over the track: the negative margin on BOTH sides undoes the root's padding, so
      the label spans the full root width and its centre is the track's centre. */
   ._label {
-    color: var(--input-label-color, #6d5dad);
+    color: var(--input-label-color, var(--label));
     font-size: 15px;
     font-family: bold;
     line-height: 1.2;
@@ -265,7 +265,7 @@
     top: calc(50% + var(--slider-track-h) / 2);
     width: 1px;
     height: var(--slider-tick-h);
-    background: #b3b6c7;
+    background: var(--fg-subtle);
   }
 
   ._thumb {
@@ -276,15 +276,15 @@
     height: var(--slider-thumb-d);
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: #fff;
-    border: 1px solid #c9cad6;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
     box-shadow: 0 1px 4px rgb(40 40 70 / 25%);
     transition: box-shadow 0.12s;
   }
 
   ._rail:focus-visible ._thumb,
   ._rail:active ._thumb {
-    box-shadow: 0 1px 4px rgb(40 40 70 / 25%), 0 0 0 4px rgb(95 95 227 / 25%);
+    box-shadow: 0 1px 4px rgb(40 40 70 / 25%), 0 0 0 4px color-mix(in srgb, var(--accent-solid) 25%, transparent);
   }
 
   ._scale-labels {
@@ -305,14 +305,14 @@
 
   ._end-label {
     font-size: 12px;
-    color: #9a9cad;
+    color: var(--fg-subtle);
   }
 
   ._value-label {
     left: var(--value-x);
     font-size: 14px;
     font-weight: 700;
-    color: #3b3d4f;
+    color: var(--fg-soft);
   }
 
   ._disabled {

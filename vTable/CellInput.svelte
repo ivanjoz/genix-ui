@@ -212,12 +212,12 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 	}
 
 	._1:hover {
-		border: 1px solid rgba(0, 0, 0, 0.596);
+		border: 1px solid color-mix(in srgb, var(--fg) 60%, transparent);
 	}
 	._1:focus-within {
-		box-shadow: inset 0 0 0px 1px #dbc1ff;
-    border-color: #b17bff;
-		background-color: #f9f4ff;
+		box-shadow: inset 0 0 0px 1px var(--purple-border);
+    border-color: var(--purple-solid);
+		background-color: var(--purple-bg);
 	}
 
 	.ai-center {
@@ -231,6 +231,6 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 	/* Semantic name, not `.text-red-500`: a scoped rule that reuses a Tailwind utility
 	   name gets hashed by the class hasher and shadows the real utility. */
 	.required-warning-icon {
-		color: #dc3545;
+		color: var(--red-solid);
 	}
 </style>

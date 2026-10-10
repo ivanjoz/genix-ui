@@ -13,8 +13,8 @@
   let { text, color = 'yellow', css = '', children }: InfoProps = $props();
 
   const infoPalettes = {
-    yellow: { background: '#fdf6e3', line: '#e5a000', text: '#6f5d23' },
-    green: { background: '#e9f7ee', line: '#119c50', text: '#1d5c37' },
+    yellow: { background: 'var(--yellow-bg)', line: 'var(--yellow-solid)', text: 'var(--yellow-fg)' },
+    green: { background: 'var(--green-bg)', line: 'var(--green-solid)', text: 'var(--green-fg)' },
   };
 
   const palette = $derived(infoPalettes[color] || infoPalettes.yellow);

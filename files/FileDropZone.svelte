@@ -148,20 +148,20 @@ const clearSelectedFile = (event: MouseEvent) => {
       rounded-[10px] border-2 border-dashed p-14 text-center transition-colors duration-150
       disabled:cursor-not-allowed disabled:opacity-60
       {isDraggingOver
-        ? 'border-[#4b7bec] bg-[#e3eeff]'
-        : 'border-slate-300 bg-slate-50 hover:border-[#7aa2f7] hover:bg-[#edf4ff]'}"
+        ? 'border-blue-solid bg-blue-bg-strong'
+        : 'border-line-strong bg-surface-soft hover:border-blue-border hover:bg-blue-bg'}"
     {disabled}
     onclick={openNativeFilePicker}
   >
     {#if selectedFile}
-      <i class="icon-[fa--file-o] text-[22px] text-[#3c4650]"></i>
-      <span class="max-w-full truncate text-[14px] text-[#2f3a44]">{selectedFile.name}</span>
-      <span class="text-[13px] text-slate-500">{formatFileSize(selectedFile.size)}</span>
+      <i class="icon-[fa--file-o] text-[22px] text-fg-soft"></i>
+      <span class="max-w-full truncate text-[14px] text-fg-soft">{selectedFile.name}</span>
+      <span class="text-[13px] text-fg-muted">{formatFileSize(selectedFile.size)}</span>
     {:else}
-      <i class="icon-[fa--cloud-upload] text-[24px] text-[#4b7bec]"></i>
-      <span class="text-[14px] text-[#2f3a44]">{ui.translate(label)}</span>
+      <i class="icon-[fa--cloud-upload] text-[24px] text-blue-solid"></i>
+      <span class="text-[14px] text-fg-soft">{ui.translate(label)}</span>
       {#if hint}
-        <span class="text-[13px] text-slate-500">{ui.translate(hint)}</span>
+        <span class="text-[13px] text-fg-muted">{ui.translate(hint)}</span>
       {/if}
     {/if}
   </button>
@@ -170,8 +170,8 @@ const clearSelectedFile = (event: MouseEvent) => {
     <button
       type="button"
       class="absolute right-8 top-8 flex h-26 w-26 items-center justify-center rounded-[50%]
-        border border-[#ffcfcf] bg-[#fff3f3] text-[#d72828] transition-colors duration-200
-        hover:border-[#d63232] hover:bg-[#e54545] hover:text-white"
+        border border-red-border bg-red-bg text-red-solid transition-colors duration-200
+        hover:border-red-solid hover:bg-red-solid hover:text-on-solid"
       aria-label={ui.translate('Remove file|Quitar archivo')}
       onclick={clearSelectedFile}
     >

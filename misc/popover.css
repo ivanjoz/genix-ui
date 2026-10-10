@@ -1,8 +1,8 @@
 /* Popover base styles (opt-in: import "@genix/ui/misc/popover.css") */
 
 .popover-container {
-	background: white;
-	border: 1px solid #e5e7eb;
+	background: var(--layer-bg);
+	border: 1px solid var(--line);
 	border-radius: 8px;
 	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 	padding: 12px;
@@ -10,21 +10,9 @@
 }
 
 .popover-content {
-	color: #374151;
+	color: var(--fg-soft);
 	font-size: 14px;
 	line-height: 1.5;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-	.popover-container {
-		background: #1f2937;
-		border-color: #374151;
-	}
-	
-	.popover-content {
-		color: #d1d5db;
-	}
 }
 
 /* Arrow indicators based on placement */
@@ -38,7 +26,7 @@
 	height: 0;
 	border-left: 8px solid transparent;
 	border-right: 8px solid transparent;
-	border-bottom: 8px solid #e5e7eb;
+	border-bottom: 8px solid var(--line);
 }
 
 .popover-container[data-placement^="bottom"]::after {
@@ -51,7 +39,7 @@
 	height: 0;
 	border-left: 8px solid transparent;
 	border-right: 8px solid transparent;
-	border-bottom: 8px solid white;
+	border-bottom: 8px solid var(--surface);
 }
 
 .popover-container[data-placement^="top"]::before {
@@ -64,7 +52,7 @@
 	height: 0;
 	border-left: 8px solid transparent;
 	border-right: 8px solid transparent;
-	border-top: 8px solid #e5e7eb;
+	border-top: 8px solid var(--line);
 }
 
 .popover-container[data-placement^="top"]::after {
@@ -77,16 +65,7 @@
 	height: 0;
 	border-left: 8px solid transparent;
 	border-right: 8px solid transparent;
-	border-top: 8px solid white;
-}
-
-/* Dark mode arrows */
-@media (prefers-color-scheme: dark) {
-	.popover-container[data-placement^="bottom"]::after,
-	.popover-container[data-placement^="top"]::after {
-		border-bottom-color: #1f2937;
-		border-top-color: #1f2937;
-	}
+	border-top: 8px solid var(--surface);
 }
 
 /* Animation */

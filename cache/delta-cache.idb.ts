@@ -12,11 +12,10 @@ import type {
   IRequestLogRow,
 } from './delta-cache.types'
 
-// v6 drops every cached route on upgrade. The watermark a route stores changed shape — one number
-// whose meaning lived in a separate field, now the `upv`/`upd` pair that every sync sends — and a
-// v5 row read under the new shape would offer a timestamp as a write sequence, which the backend
-// answers with nothing at all. Re-syncing once is the cheap half of that trade.
-const CACHE_DB_VERSION = 6
+// v7 drops every cached route on upgrade. The watermark a route stores changed shape — the
+// `upv`/`upd` pair became `upd` plus the window of records below it — and the records' `upd` changed
+// unit (milliseconds since the backend's unix_time_start). Re-syncing once is the cheap fix.
+const CACHE_DB_VERSION = 7
 
 const deltaCacheDatabasesByName = new Map<string, DeltaCacheDatabase>()
 const routeMemoryByLookupKey = new Map<string, ICacheRouteRow>()

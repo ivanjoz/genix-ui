@@ -75,7 +75,7 @@
 
 <style>
   .md {
-    color: #334155;
+    color: var(--fg-soft);
     font-size: 15px;
     line-height: 1.5;
     text-align: left;
@@ -85,15 +85,15 @@
   .md > :global(:last-child) { margin-bottom: 0; }
 
   .md :global(:is(h1, h2, h3, h4, h5, h6)) {
-    color: #1e293b;
+    color: var(--fg);
     font-weight: 700;
     line-height: 1.25;
     margin: 17px 0 7px;
   }
-  .md :global(h1) { font-size: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-  .md :global(h2) { font-size: 18px; color: #1e40af; }
+  .md :global(h1) { font-size: 20px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .md :global(h2) { font-size: 18px; color: var(--blue-fg); }
   .md :global(h3) { font-size: 16px; }
-  .md :global(:is(h4, h5, h6)) { font-size: 15px; color: #475569; }
+  .md :global(:is(h4, h5, h6)) { font-size: 15px; color: var(--fg-soft); }
 
   .md :global(p) { margin: 8px 0; }
 
@@ -103,43 +103,43 @@
   .md :global(li) { margin: 3px 0; }
   .md :global(li > :is(ul, ol, p)) { margin: 2px 0; }
 
-  .md :global(a) { color: #1d4ed8; text-decoration: underline; }
-  .md :global(a:hover) { color: #1e40af; }
-  .md :global(strong) { font-weight: 700; color: #1e293b; }
+  .md :global(a) { color: var(--blue-fg); text-decoration: underline; }
+  .md :global(a:hover) { color: var(--blue-solid); }
+  .md :global(strong) { font-weight: 700; color: var(--fg); }
   .md :global(em) { font-style: italic; }
-  .md :global(del) { text-decoration: line-through; color: #94a3b8; }
+  .md :global(del) { text-decoration: line-through; color: var(--fg-subtle); }
 
   .md :global(code) {
-    background-color: #eef2ff;
-    color: #3730a3;
+    background-color: var(--accent-bg);
+    color: var(--accent-fg);
     font-family: ui-monospace, monospace;
     font-size: 14px;
     padding: 1px 4px;
     border-radius: 4px;
   }
   .md :global(pre) {
-    background-color: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background-color: var(--surface-muted);
+    border: 1px solid var(--line);
     border-radius: 6px;
     padding: 9px 11px;
     margin: 10px 0;
     overflow-x: auto;
   }
-  .md :global(pre code) { background-color: transparent; color: #334155; padding: 0; white-space: pre; }
+  .md :global(pre code) { background-color: transparent; color: var(--fg-soft); padding: 0; white-space: pre; }
 
   .md :global(blockquote) {
-    border-left: 3px solid #a5b4fc;
-    background-color: #f8fafc;
+    border-left: 3px solid var(--accent-border);
+    background-color: var(--surface-soft);
     margin: 10px 0;
     padding: 6px 11px;
-    color: #475569;
+    color: var(--fg-soft);
   }
-  .md :global(hr) { border: none; border-top: 1px solid #e2e8f0; margin: 14px 0; }
+  .md :global(hr) { border: none; border-top: 1px solid var(--line); margin: 14px 0; }
 
   .md :global(table) { border-collapse: collapse; margin: 10px 0; width: 100%; font-size: 14px; }
-  .md :global(:is(th, td)) { border: 1px solid #e2e8f0; padding: 4px 8px; vertical-align: top; }
-  .md :global(th) { background-color: #eef2ff; color: #1e293b; font-weight: 600; }
-  .md :global(tbody tr:nth-child(even)) { background-color: #f8fafc; }
+  .md :global(:is(th, td)) { border: 1px solid var(--line); padding: 4px 8px; vertical-align: top; }
+  .md :global(th) { background-color: var(--accent-bg); color: var(--fg); font-weight: 600; }
+  .md :global(tbody tr:nth-child(even)) { background-color: var(--surface-soft); }
 
-  .md-empty { color: #64748b; font-size: 15px; text-align: left; }
+  .md-empty { color: var(--fg-muted); font-size: 15px; text-align: left; }
 </style>

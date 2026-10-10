@@ -42,8 +42,6 @@
   import { onMount } from "svelte";
 
   type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
-  const parseSVG = (svgContent: string) =>
-    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgContent)}`
 
   const { saveOn, save, css }: {
     saveOn: T
@@ -66,8 +64,8 @@
   ])
   let fontSizeSelection = $state<string>("16pt")
   let headingSelection = $state<HeadingLevel>(0)
-  let textColorValue = $state<string>("#000000")
-  let backgroundColorValue = $state<string>("#ffffff")
+  let textColorValue = $state<string>("var(--fg)")
+  let backgroundColorValue = $state<string>("var(--surface)")
   let fontFamilySelection = $state<string>("Arial")
   let lastSyncedValue = getInitialValue()
   let pendingFormatFrame: number | null = null
@@ -439,7 +437,7 @@
     { label: 'Italic', icon: '<em>I</em>', action: () => withEditor(toggleItalic), active: !!formatState.isItalic },
     {
       label: 'Text Size',
-      icon: `<img class="h-24 w-24" src="${parseSVG(TextSizeIcon)}" alt="" />`,
+      icon: `<span class="block h-24 w-24">${TextSizeIcon}</span>`,
       action: () => { showTextSizeLayer = !showTextSizeLayer },
       active: showTextSizeLayer,
       isLayer: true
@@ -453,8 +451,8 @@
     },
     {
       label: 'Text color',
-      html: `<img class="h-20 w-20 ml-4" src="${parseSVG(TextColorIcon)}" alt="" />
-             <div class="absolute bottom-2 left-2 w-[calc(100%-4px)] h-12 border border-black/70 rounded-[2px]" style="background-color: ${textColorValue};"></div>`,
+      html: `<span class="block h-20 w-20 ml-4">${TextColorIcon}</span>
+             <div class="absolute bottom-2 left-2 w-[calc(100%-4px)] h-12 border border-fg/70 rounded-[2px]" style="background-color: ${textColorValue};"></div>`,
       action: () => { showTextColorLayer = !showTextColorLayer },
       active: showTextColorLayer,
       isLayer: true,
@@ -462,8 +460,8 @@
     },
     {
       label: 'Background color',
-      html: `<img class="h-20 w-20" src="${parseSVG(TextBackgroudColor)}" alt="" />
-             <div class="absolute bottom-2 left-2 w-[calc(100%-4px)] h-12 border border-black/70 rounded-[2px]" style="background-color: ${backgroundColorValue};"></div>`,
+      html: `<span class="block h-20 w-20">${TextBackgroudColor}</span>
+             <div class="absolute bottom-2 left-2 w-[calc(100%-4px)] h-12 border border-fg/70 rounded-[2px]" style="background-color: ${backgroundColorValue};"></div>`,
       action: () => { showBackgroudColorLayer = !showBackgroudColorLayer },
       active: showBackgroudColorLayer,
       isLayer: true,
@@ -500,12 +498,12 @@
     { label: 'Delete column', icon: '🗑 Col', action: () => withEditor(instance => editTable(instance, 'deleteColumn')) },
   ]
 
-  const buttonCss = "mr-4 mb-4 w-32 h-28 flex items-center justify-center rounded bg-indigo-100/50 cursor-pointer text-[13px] text-slate-900 transition-all hover:not(.selected):bg-indigo-100 hover:not(.selected):border-indigo-500 hover:not(.selected):text-indigo-700"
+  const buttonCss = "mr-4 mb-4 w-32 h-28 flex items-center justify-center rounded bg-accent-bg-strong/50 cursor-pointer text-[13px] text-fg transition-all hover:not(.selected):bg-accent-bg-strong hover:not(.selected):border-accent-solid hover:not(.selected):text-accent-fg"
 </script>
 
 <div class={`flex flex-col ${css ?? ""}`}>
   {#if BROWSER}
-    <div class="flex flex-wrap gap-2 items-center p-6 border border-slate-200 rounded-t-[6px] bg-slate-50 relative"
+    <div class="flex flex-wrap gap-2 items-center p-6 border border-line rounded-t-[6px] bg-surface-soft relative"
       role="toolbar"
       aria-label="Editor toolbar"
       tabindex="-1"
@@ -523,7 +521,7 @@
       {#each toolbarItems as item}
         <button type="button"  disabled={!editor}
           class:_6={item.isLayer && item.active}
-          class="_4 {item.active ? 'bg-blue-100 border-blue-500 text-blue-700' : ''} {item.className ?? ''}"
+          class="_4 {item.active ? 'bg-blue-bg-strong border-blue-solid text-blue-fg' : ''} {item.className ?? ''}"
           aria-label={item.label}
           onclick={item.action}
         >
@@ -532,7 +530,7 @@
       {/each}
 
       {#if showLayer}
-        <div class="absolute top-[47px] w-[calc(100%-20px)] left-[10px] border border-[#ab9efc] min-h-[60px] bg-white rounded-lg z-50 shadow-lg p-12 _10"
+        <div class="absolute top-[47px] w-[calc(100%-20px)] left-[10px] border border-accent-border min-h-[60px] bg-surface rounded-lg z-50 shadow-lg p-12 _10"
           role="dialog"
           aria-label="Editor popup"
           tabindex="-1"
@@ -559,12 +557,12 @@
           {#if showTableLayer}
             <div>
               <div class="flex items-start flex-col md:flex-row md:items-center">
-                <div class="w-80 text-sm font-semibold text-slate-600 mb-8">Columnas</div>
+                <div class="w-80 text-sm font-semibold text-fg-muted mb-8">Columnas</div>
                 <div class="flex flex-wrap items-center">
                   {#each Array(12) as _, i}
                     {@const num = i + 1}
                     <button type="button"
-                      class="{buttonCss} {selectedCols >= num ? 'bg-indigo-500 text-white font-semibold' : ''}"
+                      class="{buttonCss} {selectedCols >= num ? 'bg-accent-solid text-on-solid font-semibold' : ''}"
                       class:selected={selectedCols >= num}
                       onclick={() => handleColSelect(num)}
                       aria-label="Select {num} columns"
@@ -575,12 +573,12 @@
                 </div>
               </div>
               <div class="flex items-start flex-col md:flex-row md:items-center">
-                <div class="w-80 text-sm font-semibold text-slate-600 mb-8">Filas</div>
+                <div class="w-80 text-sm font-semibold text-fg-muted mb-8">Filas</div>
                 <div class="flex flex-wrap items-center">
                   {#each Array(12) as _, i}
                     {@const num = i + 1}
                     <button type="button"
-                      class="{buttonCss} {selectedRows >= num ? 'bg-indigo-500 text-white font-semibold' : ''}"
+                      class="{buttonCss} {selectedRows >= num ? 'bg-accent-solid text-on-solid font-semibold' : ''}"
                       class:selected={selectedRows >= num}
                       onclick={() => handleRowSelect(num)}
                       aria-label="Select {num} rows"
@@ -598,7 +596,7 @@
               {#each colors as color }
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div class="h-20 w-32 m-4 border border-black/60 cursor-pointer hover:outline hover:outline-1 hover:outline-black/70"
+                <div class="h-20 w-32 m-4 border border-fg/60 cursor-pointer hover:outline hover:outline-1 hover:outline-fg/70"
                   style="background-color: {color};"
                   onclick={() => {
                     if(showBackgroudColorLayer) handleBackgroundColorChange(color)
@@ -612,7 +610,7 @@
             <div class="flex flex-wrap w-full gap-8">
               {#each editorTextSizes as e }
                 <button type="button"
-                  class="px-12 py-4 hover:bg-slate-100 rounded border border-slate-200"
+                  class="px-12 py-4 hover:bg-surface-muted rounded border border-line"
                   onclick={() => {
                     handleFontSizeChange(`${e.id}px`); showTextSizeLayer = false;
                   }}
@@ -640,10 +638,10 @@
       {/if}
     </div>
 
-    <div class="border border-slate-200 rounded-b-[6px] bg-white min-h-[14rem] shadow-inner" bind:this={editorContainer} style="position: relative;">
+    <div class="border border-line rounded-b-[6px] bg-surface min-h-[14rem] shadow-inner" bind:this={editorContainer} style="position: relative;">
       <div
         bind:this={editorRoot}
-        class="rooster-editor min-h-[14rem] p-16 text-base leading-relaxed text-slate-900 outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none"
+        class="rooster-editor min-h-[14rem] p-16 text-base leading-relaxed text-fg outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-fg-subtleempty:before:pointer-events-none"
         role="textbox"
         aria-label="Rich text editor"
         aria-multiline="true"
@@ -651,7 +649,7 @@
         data-placeholder="Empieza a escribir contenido enriquecido…"></div>
     </div>
   {:else}
-    <div class="border-2 border-dashed border-slate-300 rounded-xl p-16 text-center text-slate-600 bg-slate-50">
+    <div class="border-2 border-dashed border-line-strong rounded-xl p-16 text-center text-fg-muted bg-surface-soft">
       El editor de texto enriquecido se cargará cuando estés en el navegador.
     </div>
   {/if}
@@ -661,12 +659,12 @@
   ._4 {
     width: 42px;
     height: 38px;
-    border: 1px solid #cbd5e1;
-    background-color: white;
+    border: 1px solid var(--line-strong);
+    background-color: var(--surface);
     border-radius: 4px;
     font-size: 14px;
     cursor: pointer;
-    color: #0f172a;
+    color: var(--fg);
     transition-property: color, background-color, border-color;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
@@ -677,8 +675,8 @@
   }
 
   ._4:hover:not(:disabled) {
-    border-color: #3b82f6;
-    color: #1d4ed8;
+    border-color: var(--blue-solid);
+    color: var(--blue-fg);
   }
 
   ._4:disabled {
@@ -687,8 +685,8 @@
   }
   ._6 {
     margin-bottom: -8px;
-    border: 2px solid #996dff;
-    background-color: #faf9ff;
+    border: 2px solid var(--accent-solid);
+    background-color: var(--accent-bg);
     border-bottom: none;
     border-radius: 4px 4px 0 0;
     z-index: 80;
@@ -708,13 +706,13 @@
 
   div :global(.rooster-editor table td),
   div :global(.rooster-editor table th) {
-    border: 1px solid #cbd5f5;
+    border: 1px solid var(--line-strong);
     padding: 0.5rem;
     width: auto !important;
     height: auto !important;
     border-width: 1px !important;
     border-style: solid !important;
-    border-color: #cbd5f5 !important;
+    border-color: var(--line-strong) !important;
     vertical-align: top;
     box-sizing: border-box;
   }
@@ -727,7 +725,7 @@
 
   div :global(.rooster-editor hr) {
     border: none;
-    border-top: 1px solid #cbd5f5;
+    border-top: 1px solid var(--line-strong);
     margin: 1rem 0;
   }
 </style>

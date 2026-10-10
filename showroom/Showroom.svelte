@@ -27,7 +27,7 @@
   let surface = $state(1);
   let tab = $state(1);
 
-  const surfaceCss = $derived(surface === 2 ? 'bg-gray-100' : 'bg-white');
+  const surfaceCss = $derived(surface === 2 ? 'bg-page' : 'bg-surface');
 
   const surfaceOptions: [number, string][] = [[1, 'White|Blanco'], [2, 'Gray|Gris']];
 
@@ -57,7 +57,7 @@
     <OptionsStrip css="ml-auto" selected={surface} options={surfaceOptions} useMobileGrid={true}
       onSelect={(option) => {
         surface = option[0] as number;
-        onSurfaceChange?.(surface === 2 ? 'bg-gray-100' : 'bg-white');
+        onSurfaceChange?.(surface === 2 ? 'bg-page' : 'bg-surface');
       }} />
   </div>
 

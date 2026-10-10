@@ -782,7 +782,7 @@
   }
 
   .mobile-cards-empty-message {
-    color: #6c757d;
+    color: var(--fg-muted);
     text-align: center;
     padding: 32px 16px;
   }
@@ -791,7 +791,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #6c757d;
+    color: var(--fg-muted);
     font-size: 0.875rem;
   }
 
@@ -801,7 +801,7 @@
   }
 
   .mobile-cards-card-compact {
-    background: white;
+    background: var(--surface);
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 12px;
@@ -814,7 +814,7 @@
 
   .mobile-cards-card-cards {
     border-radius: 10px;
-    background-color: #f7f7fa;
+    background-color: var(--surface-soft);
     padding: 12px;
     transition: outline-color 0.15s ease, box-shadow 0.15s ease;
     box-shadow: rgb(69 68 93 / 22%) 0px 1px 3px;
@@ -822,12 +822,12 @@
   }
 
   .mobile-cards-card-cards:hover {
-    outline-color: #cfd4e6;
+    outline-color: var(--line-strong);
   }
 
   .mobile-cards-card-selected {
-    background-color: #f6f6ff;
-    outline: 2px solid var(--color-11);
+    background-color: var(--accent-bg);
+    outline: 2px solid var(--accent-border);
     outline-offset: -1px;
   }
 
@@ -875,7 +875,7 @@
 
   .mobile-cards-label {
     font-size: 15px;
-    color: #6d5dad;
+    color: var(--label);
     line-height: 1;
     margin-left: 8px;
   }
@@ -924,7 +924,7 @@
   }
 
   .mobile-cards-highlight {
-    color: #da3c3c;
+    color: var(--red-solid);
     text-decoration: underline;
   }
 
@@ -945,13 +945,13 @@
   }
 
   .mobile-cards-action-edit {
-    background-color: #eef0ff;
-    color: #5a52c8;
+    background-color: var(--accent-bg);
+    color: var(--accent-fg);
   }
 
   .mobile-cards-action-delete {
-    background-color: #ffe8ea;
-    color: #e55757;
+    background-color: var(--red-bg-strong);
+    color: var(--red-solid);
   }
 
   .mobile-cards-delete-button {
@@ -961,19 +961,19 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background-color: #ffe8ea;
-    color: #e55757;
+    background-color: var(--red-bg-strong);
+    color: var(--red-solid);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: rgb(144 35 35 / 51%) 0 1px 1px 0;
+    box-shadow: color-mix(in srgb, var(--red-solid) 51%, transparent) 0 1px 1px 0;
     z-index: 2;
     font-size: 15px;
   }
 
   .mobile-cards-delete-button:hover {
-    background-color: #c82333;
-    color: white;
+    background-color: var(--red-solid);
+    color: var(--on-solid);
   }
 
   .mobile-cards-editable-border {
@@ -987,7 +987,7 @@
 
   .mobile-cards-editable-border > div {
     width: calc(100% - 4px);
-    border: 1px solid #d2d5e7;
+    border: 1px solid var(--line-strong);
     height: 24px;
     border-top: none;
     box-shadow: #706e9021 0 1px 2px 1px;

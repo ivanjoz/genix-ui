@@ -407,7 +407,7 @@
   /* The calendar anchors against FieldShell's root, which is already positioned; and the
      bare variant's chrome-stripping now lives in field-shell.module.css. */
   ._mobile-placeholder {
-    color: #6d5dad;
+    color: var(--label);
   }
 
   .date-picker-c {
@@ -415,8 +415,8 @@
     top: 100%;
     left: 0;
     margin-top: 4px;
-    background: white;
-    border: 1px solid #c1c5dc;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
     border-radius: 8px;
     padding: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -454,23 +454,23 @@
   }
 
   .dp-day:hover {
-    background-color: #f0f0f5;
+    background-color: var(--surface-muted);
   }
 
   .dp-day.is-out {
-    color: #b0b0c0;
+    color: var(--fg-subtle);
   }
 
   .dp-day.selected {
-    background-color: #6d5dad;
-    color: white;
+    background-color: var(--accent-solid);
+    color: var(--on-solid);
     font-weight: 600;
   }
 
   /* Never combined with .selected (see isFocused): this light background would hide the selected day's white text. */
   .dp-day.focused {
-    background-color: #e8e7f5;
-    outline: 2px solid #9794d6;
+    background-color: var(--accent-bg-strong);
+    outline: 2px solid var(--accent-border);
   }
 
   .ln-today {
@@ -480,12 +480,12 @@
     transform: translateX(-50%);
     width: 4px;
     height: 4px;
-    background-color: #6d5dad;
+    background-color: var(--accent-solid);
     border-radius: 50%;
   }
 
   .dp-day.selected .ln-today {
-    background-color: white;
+    background-color: var(--on-solid);
   }
 
   .bn-d1, .bn-d2 {
@@ -496,10 +496,10 @@
   }
 
   .bn-d1:hover, .bn-d2:hover {
-    background-color: #f0f0f5;
+    background-color: var(--surface-muted);
   }
 
   .bn-d2 {
-    color: #6d5dad;
+    color: var(--label);
   }
 </style>

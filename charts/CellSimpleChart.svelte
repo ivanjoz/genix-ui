@@ -25,11 +25,11 @@
 		minValue = 0,
 		barWidth = 10,
 		barGap = 3,
-		barColor = '#4874f5',
+		barColor = 'var(--blue-solid)',
 		barColors = [],
 		colorScale = [],
 		labelGroup = 1,
-		labelColor = '#374151'
+		labelColor = 'var(--fg-soft)'
 	}: CellSimpleChartProps = $props();
 
 	// Map each value to a color band over the actual data range.

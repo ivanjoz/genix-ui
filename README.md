@@ -531,10 +531,23 @@ Neither menu imports routing, security, or services; all policy arrives as props
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Calendar` **(ui)** | Activities on a month grid (weekdays as columns) or a week grid (ISO weeks as columns, Monday–Sunday as rows) | `mode: 'month'\|'week'`, `month` (YYMM, `2406` = June 2024), `weekStart` / `weekEnd` (YYWW, `2406` = week 6 of 2024), `activities: { date, title, color, icon, text }[]` (`date` = Unix day, `color` = `CalendarColor`), `activityRender` snippet (card content), `css` |
+| `Calendar` **(ui)** | Activities on a month grid (weekdays as columns) or a week grid (ISO weeks as columns, Monday–Sunday as rows) | `mode: 'month'\|'week'`, `month` (YYMM, `2406` = June 2024), `weekStart` / `weekEnd` (YYWW, `2406` = week 6 of 2024), `activities: { date, endDate?, title, color, icon, text }[]` (`date` / `endDate` = Unix days, `color` = `CalendarColor`), `activityRender` snippet (card content), `css` |
 
 The date math (`buildMonthWeeks`, `buildWeekColumns`, `weekCodeOfDay`, `weekCodeStartDay`) is
-pure integer arithmetic in `calendar/calendar.ts`, independent of the browser's time zone.
+pure integer arithmetic in `calendar/calendar.ts`, independent of the browser's time zone. An
+activity with `endDate` covers every day up to it: the month view draws it as one bar across the
+days of each week (`layoutWeekBars` packs overlapping bars in lanes), the week view repeats it on
+each day.
+
+### `gantt/`
+
+| Component | Purpose | Key props |
+| --- | --- | --- |
+| `Gantt` **(ui)** | Rows (a collapsible tree through `parentId`) with bars over a day timeline; sticky label column, months + days (`week` zoom) or ISO weeks (`month` zoom) in the header, dashed markers and a red today line | `rows: { id, label, parentId?, bars: { start, end, color?, label?, progress? }[] }[]` (`start` / `end` = Unix days, `progress` 0..1), `zoom: 'week'\|'month'`, `markers: { day, label?, color? }[]`, `labelWidth`, `rowRender` snippet, `onBarClick(row, bar)`, `emptyText`, `css` |
+
+The range always includes today and opens scrolled to it. Row, bar and marker labels are shown as
+given: the host translates its own data. Date math (`ganttRange`, `barBox`, `monthCells`,
+`tickCells`, `visibleRows`) is pure, in `gantt/gantt.ts`.
 
 ### `misc/` — primitives
 
@@ -663,7 +676,7 @@ genix-ui/
                       # cache, service-worker, security, Renderer, image helpers
   agent/              # agent registry (automation contract)
   assets/             # raw SVG assets
-  buttons/ calendar/ cards/ charts/ editor/ files/ form/ layers/ markdown/ menu/ misc/ navigation/ vTable/
+  buttons/ calendar/ cards/ charts/ editor/ files/ form/ gantt/ layers/ markdown/ menu/ misc/ navigation/ vTable/
   cache/              # delta cache, group cache, cache-by-IDs
   excel/              # import/export + WASM asset
   http/               # HTTP client + GetHandler

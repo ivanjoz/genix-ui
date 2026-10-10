@@ -4,7 +4,7 @@
   import { ifcss } from '../utilities/css.js';
   import { getFechaUnix } from '../utilities/date.js';
   import {
-    buildMonthWeeks, buildWeekColumns, dayOfMonth, groupByDate, monthIndexOf,
+    buildMonthWeeks, buildWeekColumns, dayOfMonth, groupByDate, layoutWeekBars, monthIndexOf,
     type CalendarActivity, type CalendarColor,
   } from './calendar.js';
 
@@ -14,7 +14,8 @@
   //   month — weekdays as columns, the month's weeks as rows (`month` = YYMM, 2406 = June 2024).
   //   week  — ISO weeks as columns (`weekStart`..`weekEnd` = YYWW, 2406 = week 6 of 2024),
   //           Monday to Sunday as rows.
-  // `activityRender` replaces the card's content; the colored card itself stays.
+  // `activityRender` replaces the card's content; the colored card itself stays. An activity with
+  // an `endDate` is a bar across its days in month view, and repeats on each day in week view.
   interface Props {
     mode: 'month' | 'week';
     month?: number;
@@ -54,21 +55,25 @@
     `${String(dayOfMonth(unixDay)).padStart(2, '0')}/${String(monthIndexOf(unixDay) + 1).padStart(2, '0')}`;
 </script>
 
+{#snippet activityContent(activity: T)}
+  {#if activityRender}
+    {@render activityRender(activity)}
+  {:else}
+    <div class="flex items-center gap-4 text-sm font-semibold leading-tight">
+      {#if activity.icon}<i class="{activity.icon} shrink-0"></i>{/if}
+      <span class="truncate">{activity.title}</span>
+    </div>
+    {#if activity.text}
+      <div class="text-sm leading-tight opacity-75 line-clamp-2">{activity.text}</div>
+    {/if}
+  {/if}
+{/snippet}
+
 {#snippet dayActivities(unixDay: number)}
   <div class="flex flex-col gap-3">
     {#each activitiesByDate.get(unixDay) || [] as activity}
       <div class="rounded-[4px] border-l-3 px-6 py-3 {COLOR_CSS[activity.color || 'blue']}">
-        {#if activityRender}
-          {@render activityRender(activity)}
-        {:else}
-          <div class="flex items-center gap-4 text-sm font-semibold leading-tight">
-            {#if activity.icon}<i class="{activity.icon} shrink-0"></i>{/if}
-            <span class="truncate">{activity.title}</span>
-          </div>
-          {#if activity.text}
-            <div class="text-sm leading-tight opacity-75 line-clamp-2">{activity.text}</div>
-          {/if}
-        {/if}
+        {@render activityContent(activity)}
       </div>
     {/each}
   </div>
@@ -84,19 +89,37 @@
 {/snippet}
 
 {#if mode === 'month'}
-  <div class={ifcss(css, 'grid grid-cols-7 border-l border-t border-gray-200 bg-white')}>
-    {#each WEEKDAY_SHORT_NAMES as weekdayName}
-      <div class="border-r border-b border-gray-200 bg-gray-50 px-6 py-6 text-center text-sm font-semibold text-gray-700">
-        {ui.translate(weekdayName)}
-      </div>
-    {/each}
-    {#each monthWeeks as week}
-      {#each week as day}
-        <div class="min-w-0 min-h-100 border-r border-b border-gray-200 p-4 {day.isInMonth ? '' : 'bg-gray-50'}">
-          {@render dayNumber(day.unixDay, !day.isInMonth)}
-          {@render dayActivities(day.unixDay)}
+  <div class={ifcss(css, 'border-l border-t border-gray-200 bg-white')}>
+    <div class="grid grid-cols-7">
+      {#each WEEKDAY_SHORT_NAMES as weekdayName}
+        <div class="border-r border-b border-gray-200 bg-gray-50 px-6 py-6 text-center text-sm font-semibold text-gray-700">
+          {ui.translate(weekdayName)}
         </div>
       {/each}
+    </div>
+    <!-- One grid per week: the day cells span every row behind, the day numbers take the first
+         row and each lane of bars the next ones, so a multi-day activity spans its columns. -->
+    {#each monthWeeks as week}
+      {@const weekBars = layoutWeekBars(week[0].unixDay, activities)}
+      {@const lanesCount = Math.max(0, ...weekBars.map((bar) => bar.lane + 1))}
+      <div class="grid grid-cols-7" style="grid-template-rows: auto repeat({lanesCount}, auto) 1fr">
+        {#each week as day, weekdayIndex}
+          <div class="min-w-0 min-h-100 border-r border-b border-gray-200 {day.isInMonth ? '' : 'bg-gray-50'}"
+            style="grid-column: {weekdayIndex + 1}; grid-row: 1 / -1"></div>
+        {/each}
+        {#each week as day, weekdayIndex}
+          <div class="px-4 pt-4" style="grid-column: {weekdayIndex + 1}; grid-row: 1">
+            {@render dayNumber(day.unixDay, !day.isInMonth)}
+          </div>
+        {/each}
+        {#each weekBars as bar}
+          <div class="min-w-0 mb-3 px-6 py-3 rounded-[4px] {COLOR_CSS[bar.activity.color || 'blue']}
+            {bar.continuesBefore ? 'rounded-l-none ml-0' : 'border-l-3 ml-4'} {bar.continuesAfter ? 'rounded-r-none mr-0' : 'mr-4'}"
+            style="grid-column: {bar.column + 1} / span {bar.span}; grid-row: {bar.lane + 2}">
+            {@render activityContent(bar.activity)}
+          </div>
+        {/each}
+      </div>
     {/each}
   </div>
 {:else}

@@ -306,7 +306,8 @@
         pluginEditor = null
       },
       onPluginEvent: (event: PluginEvent) => {
-        if (event.eventType === "contentChanged") {
+        // Plain typing fires "input" only: contentChanged comes from formatting and paste.
+        if (event.eventType === "contentChanged" || event.eventType === "input") {
           syncEditorHtml()
           if (editorRoot) {
             setTimeout(() => removeUnwantedStyles(editorRoot as HTMLElement), 0)

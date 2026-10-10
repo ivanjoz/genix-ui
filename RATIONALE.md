@@ -2,6 +2,36 @@
 
 Design decisions for the shared UI package, newest first.
 
+## Gantt: own date math, today always in range, display-only labels
+
+**Context** — The projects module needed a Gantt (stories and sprints over time). Open: a
+third-party chart or an own component, how to number the timeline, where it opens, and who
+translates the labels.
+
+**Decision** — `gantt/Gantt.svelte` over pure functions in `gantt/gantt.ts`, reusing the calendar's
+integer day math (Unix days, ISO weeks). Two zooms: `week` (28px a day, day ticks) and `month` (6px
+a day, ISO-week ticks). The range is the bars and markers plus today, with a 3-day margin snapped to
+whole weeks or months, and it opens scrolled to center today (again only when the range or zoom
+change). Rows are a tree through `parentId`, collapsible. Labels are shown as given and bars become
+buttons only with `onBarClick`. No Agent registration: it is a read-only view.
+
+**Rationale** — The libraries checked bring their own date handling and styling, and the need is a
+few hundred lines. Translating labels would be the calendar's mistake to avoid: the host owns its
+data, so it passes translated text. Cost: no drag to reschedule, no dependency arrows, and a range
+of several years in `week` zoom is a very wide element.
+
+## Calendar: activities over several days (`endDate`)
+
+**Context** — Sprints span two weeks; the calendar only placed an activity on one day.
+
+**Decision** — `CalendarActivity.endDate` (optional, inclusive). The month view draws one bar per
+week row across the covered days, packed in lanes by `layoutWeekBars`, with square ends where it
+continues into another week. The week view repeats the activity on each day.
+
+**Rationale** — A bar reads as a span at a glance in the month grid; in the week grid days are rows,
+so a cross-row bar would fight the layout. Cost: bars take a lane above the single-day cards of
+those days.
+
 ## ChatThread: virtualized in place, with in-flow spacers
 
 **Context** — The user wanted a long chat not to keep every message in the DOM (RAM, heavy

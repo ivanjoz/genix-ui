@@ -10,6 +10,7 @@
   import SectionCalendar from './SectionCalendar.svelte';
   import SectionCharts from './SectionCharts.svelte';
   import SectionForm from './SectionForm.svelte';
+  import SectionGantt from './SectionGantt.svelte';
   import SectionMisc from './SectionMisc.svelte';
   import SectionNavigation from './SectionNavigation.svelte';
   import SectionNotify from './SectionNotify.svelte';
@@ -39,6 +40,7 @@
     [8, 'Notify'],
     [6, 'Charts'],
     [9, 'Calendar'],
+    [10, 'Gantt'],
     [7, 'Misc'],
   ];
 </script>
@@ -69,5 +71,6 @@
   {#if tab === 8}<SectionNotify />{/if}
   {#if tab === 6}<SectionCharts />{/if}
   {#if tab === 9}<SectionCalendar />{/if}
+  {#if tab === 10}<SectionGantt />{/if}
   {#if tab === 7}<SectionMisc />{/if}
 </div>

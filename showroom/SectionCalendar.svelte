@@ -26,12 +26,16 @@
     [21, 'Maintenance', 'gray', 'icon-[fa--wrench]', 'Cold room 2'],
     [26, 'Shipment', 'blue', 'icon-[fa--truck]', 'Air freight to Miami'],
   ];
-  const activities: ShowroomActivity[] = activityTemplates.map(([dayOffset, title, color, icon, text], idx) => ({
-    date: juneFirst + dayOffset, title, color, icon, text, crew: `Crew ${idx + 1}`, boxes: 120 + idx * 35,
-  }));
+  const activities: ShowroomActivity[] = [
+    ...activityTemplates.map(([dayOffset, title, color, icon, text], idx) => ({
+      date: juneFirst + dayOffset, title, color, icon, text, crew: `Crew ${idx + 1}`, boxes: 120 + idx * 35,
+    })),
+    // Multi-day: a bar across the days in month view, cut where the week ends.
+    { date: juneFirst + 8, endDate: juneFirst + 19, title: 'Sprint 3', color: 'purple', icon: 'icon-[fa--flag]', text: '12 days', crew: 'Team', boxes: 0 },
+  ];
 </script>
 
-<ShowroomBlock name="Calendar" note="mode month (YYMM) · mode week (YYWW range, weeks as columns) · activities on Unix days">
+<ShowroomBlock name="Calendar" note="mode month (YYMM) · mode week (YYWW range, weeks as columns) · activities on Unix days, endDate for multi-day">
   <div class="grid grid-cols-24 gap-10 mb-12 items-end">
     <OptionsStrip css="col-span-24 md:col-span-6" selected={config.Mode} options={modeOptions}
       onSelect={(option) => { config.Mode = option[0] as number; }} />

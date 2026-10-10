@@ -14,6 +14,9 @@ export type CalendarColor = 'blue' | 'green' | 'red' | 'amber' | 'purple' | 'tea
 export interface CalendarActivity {
   // Unix day.
   date: number;
+  // Last Unix day of a multi-day activity (included). Month view draws it as a bar across the
+  // days, cut at each week's end; week view repeats it on every day.
+  endDate?: number;
   title: string;
   color?: CalendarColor;
   // Iconify class, e.g. 'icon-[fa--truck]'.
@@ -97,11 +100,54 @@ export const buildWeekColumns = (weekStartCode: number, weekEndCode: number): Ca
   return columns;
 };
 
-export const groupByDate = <T extends { date: number }>(activities: T[]): Map<number, T[]> => {
+// An endDate before date is ignored: the activity is one day.
+export const activityLastDay = (activity: { date: number; endDate?: number }): number => Math.max(activity.endDate ?? activity.date, activity.date);
+
+// groupByDate lists each activity under every day it covers.
+export const groupByDate = <T extends { date: number; endDate?: number }>(activities: T[]): Map<number, T[]> => {
   const activitiesByDate = new Map<number, T[]>();
   for (const activity of activities) {
-    const dayActivities = activitiesByDate.get(activity.date);
-    if (dayActivities) { dayActivities.push(activity); } else { activitiesByDate.set(activity.date, [activity]); }
+    for (let unixDay = activity.date; unixDay <= activityLastDay(activity); unixDay++) {
+      const dayActivities = activitiesByDate.get(unixDay);
+      if (dayActivities) { dayActivities.push(activity); } else { activitiesByDate.set(unixDay, [activity]); }
+    }
   }
   return activitiesByDate;
+};
+
+export interface CalendarWeekBar<T> {
+  activity: T;
+  // 0 = Monday … 6 = Sunday.
+  column: number;
+  span: number;
+  // The stacked row it takes inside the week, so bars never overlap.
+  lane: number;
+  continuesBefore: boolean;
+  continuesAfter: boolean;
+}
+
+// layoutWeekBars places the activities touching the week starting at weekStartDay (a Monday) as
+// bars cut to the week, each in the first lane free over its days. Earlier and longer bars
+// take the top lanes; single-day activities keep their input order.
+export const layoutWeekBars = <T extends CalendarActivity>(weekStartDay: number, activities: T[]): CalendarWeekBar<T>[] => {
+  const weekEndDay = weekStartDay + 6;
+  const bars = activities
+    .filter((activity) => activity.date <= weekEndDay && activityLastDay(activity) >= weekStartDay)
+    .map((activity) => {
+      const firstDay = Math.max(activity.date, weekStartDay);
+      const lastDay = Math.min(activityLastDay(activity), weekEndDay);
+      return {
+        activity, column: firstDay - weekStartDay, span: lastDay - firstDay + 1, lane: 0,
+        continuesBefore: activity.date < weekStartDay, continuesAfter: activityLastDay(activity) > weekEndDay,
+      };
+    })
+    .sort((left, right) => left.column - right.column || right.span - left.span);
+  // The last column each lane holds so far.
+  const laneLastColumns: number[] = [];
+  for (const bar of bars) {
+    const freeLane = laneLastColumns.findIndex((laneLastColumn) => laneLastColumn < bar.column);
+    bar.lane = freeLane >= 0 ? freeLane : laneLastColumns.length;
+    laneLastColumns[bar.lane] = bar.column + bar.span - 1;
+  }
+  return bars;
 };

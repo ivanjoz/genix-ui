@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  buildMonthWeeks, buildWeekColumns, dayOfMonth, groupByDate, mondayBasedWeekday,
+  buildMonthWeeks, buildWeekColumns, dayOfMonth, groupByDate, layoutWeekBars, mondayBasedWeekday,
   unixDayFromUTC, weekCodeOfDay, weekCodeStartDay,
 } from './calendar';
 
@@ -45,5 +45,33 @@ describe('calendar date math', () => {
     const grouped = groupByDate([{ date: 5, id: 1 }, { date: 6, id: 2 }, { date: 5, id: 3 }]);
     expect(grouped.get(5)?.map((activity) => activity.id)).toEqual([1, 3]);
     expect(grouped.get(7)).toBeUndefined();
+  });
+
+  test('a multi-day activity is listed under every day it covers', () => {
+    const grouped = groupByDate([{ date: 5, endDate: 7, id: 1 }, { date: 9, endDate: 2, id: 2 }]);
+    expect([5, 6, 7, 8, 9].map((unixDay) => grouped.get(unixDay)?.length || 0)).toEqual([1, 1, 1, 0, 1]);
+  });
+});
+
+describe('layoutWeekBars', () => {
+  // Monday 2026-10-05.
+  const monday = unixDayFromUTC(2026, 9, 5);
+  const title = 'Activity';
+
+  test('a bar is cut to the week and says it continues', () => {
+    const [bar] = layoutWeekBars(monday, [{ date: monday - 3, endDate: monday + 2, title }]);
+    expect(bar).toMatchObject({ column: 0, span: 3, lane: 0, continuesBefore: true, continuesAfter: false });
+    const [longBar] = layoutWeekBars(monday, [{ date: monday + 5, endDate: monday + 20, title }]);
+    expect(longBar).toMatchObject({ column: 5, span: 2, continuesAfter: true });
+  });
+
+  test('overlapping bars stack in lanes; a free lane is reused', () => {
+    const bars = layoutWeekBars(monday, [
+      { date: monday + 1, title: 'day' },
+      { date: monday, endDate: monday + 3, title: 'sprint' },
+      { date: monday + 4, title: 'after' },
+      { date: monday - 10, endDate: monday - 1, title: 'last week' },
+    ]);
+    expect(bars.map((bar) => [bar.activity.title, bar.column, bar.lane])).toEqual([['sprint', 0, 0], ['day', 1, 1], ['after', 4, 0]]);
   });
 });

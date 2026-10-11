@@ -4,16 +4,20 @@ This folder contains the `cache_by_ids` flow used to resolve records by `ID` wit
 
 - in-memory cache
 - IndexedDB persistence
-- backend validation using the per-slot `upd` (the `Updated` of the slot's last write)
+- backend validation using the per-slot **year tick** (the 2-second tick of the slot's last write)
 
-This is the cache used by features that ask for many individual records by `ID` and want to avoid downloading unchanged rows repeatedly.
+This is the cache used by features that ask for many individual records by `ID` and want to avoid
+downloading unchanged rows repeatedly. It also serves partitioned tables, whose IDs are unique only
+inside a partition (stories per project): one request can cover several partitions.
 
 ## Files
 
 - `cache-by-ids.svelte.ts`
   Public API for reads, batching, stale detection, and server delta fetch.
+- `cache-by-ids.wire.ts`
+  Pure: year cycles, `toYearTick`, and `encodeCachedIDsRequest` (the `cc` parameter).
 - `cache-by-ids.idb.ts`
-  IndexedDB persistence layer keyed by `ID`.
+  IndexedDB persistence layer keyed by `[storeName, ID]`.
 
 ## Frontend Flow
 
@@ -21,9 +25,10 @@ This is the cache used by features that ask for many individual records by `ID` 
 
 Main APIs:
 
-- `getRecordsByID(apiRoute, ids)`
-- `getRecordByID(apiRoute, id)`
-- `getRecordWithCache(apiRoute, id)`
+- `getRecordsByID(apiRoute, ids)`: a table without Partition → `Map<ID, record>`
+- `getRecordsByID(apiRoute, { [partition]: ids })`: a partitioned table, any number of partitions
+  in one request → `Map<partition, Map<ID, record>>`
+- `getRecordByID(apiRoute, id)`, `getRecordWithCache(apiRoute, id)`: partition 0
 
 ### 2. Cache checks happen in this order
 
@@ -33,14 +38,17 @@ For each requested ID:
 2. IndexedDB
 3. backend request only if missing or stale
 
-If a record is found in IndexedDB, it is promoted to memory.
+If a record is found in IndexedDB, it is promoted to memory. A partition is cached under its own
+namespace: `<apiRoute>:<partition>`, or `<apiRoute>` for partition 0. The namespace is the memory map
+key and the IndexedDB `storeName`.
 
 ### 3. Stale detection
 
 Each cached record stores:
 
-- `ID`: unique record identifier
-- `upd`: the slot's last write, as returned by the backend (`0` = unknown, always forces a fetch)
+- `ID`: unique record identifier (inside its partition)
+- `upd`: the slot's year tick as an Updated value, as returned by the backend (`0` = unknown,
+  always forces a fetch)
 - `_fch`: fetch timestamp in seconds
 - `ss`: status, where `0` means deleted/tombstone
 
@@ -52,74 +60,105 @@ nowSeconds() - _fch > CACHE_TIME
 
 Fresh local records return immediately without network.
 
-### 4. Delta request sent to backend
+### 4. The request sent to the backend
 
-When the frontend needs server validation, it sends:
+When a partition has a missing or stale record, the frontend sends that partition with **every** ID
+it requests from it, in one `cc` parameter for all partitions (`encodeCachedIDsRequest`):
 
-- `ids`
-  IDs that do not exist locally
-- `cc-ids`
-  IDs that exist locally
-- `cc-upd`
-  the slot `upd` held for each `cc-id`
+```
+GET <apiRoute>?cc=<base64url>
 
-Important:
+[cycle year − 2000: u8]
+[partition count: uvarint]
+per partition, ascending:
+  [partition delta: uvarint]                  the first one is absolute
+  [slot count: uvarint]
+  [slot: u8][year tick: u24 LE] × slot count   ascending by slot, ticks ≥ 1
+  [ID count: uvarint]
+  [ID delta: uvarint] × ID count              ascending IDs, the first one absolute
+```
 
-- `cc-ids` and `cc-upd` are positional pairs
-- they must stay aligned after compact encoding. `cc-ids` uses `concatenateInts`, which buckets by
-  magnitude; `cc-upd` uses `concatenateUint48s` (`utilities/parsers.ts`), one base64url array of
-  6-byte little-endian values, reordered into the same bucket order so bucketing cannot break the
-  alignment
-- `0` means "nothing held" and always forces a read
+- A held record's tick is `toYearTick(upd)`. A record not held counts as tick 0.
+- One tick per slot: the **lowest** among the slot's requested IDs. A held tick is never above the
+  slot's, so "lowest == slot" proves every record of the slot current. A lower one makes the
+  backend return them all, after which they agree. A slot with tick 0 isn't listed.
+- The format is pinned by `backend/genix-orm/dynamo/testdata/year_tick_vectors.json`, which the Go
+  decoder and berryapps' `frontend/core/cache-by-ids-wire.test.ts` both check.
 
-If backend does not return a cached ID, frontend treats that row as unchanged and only refreshes `_fch`.
+If the backend does not return a requested ID, the frontend treats that row as unchanged and only
+refreshes `_fch`. A failed request refreshes nothing.
+
+## Year ticks
+
+A year cycle starts on **January 1 at 07:00 UTC**. A tick counts 2 seconds from it (a leap year is
+15,811,200 ticks, under uint24's 16,777,215):
+
+| Tick | Meaning |
+|---|---|
+| 0 | unknown: always forces a read |
+| 1 | no write to the slot in this cycle |
+| ≥ 2 | a write: `floor((Updated − cycleStart) / 2000) + 2` |
+
+The backend returns a tick as `upd = cycleStart + (tick − 1) × 2000`, the end of its window, and
+`toYearTick(upd) = floor((upd − cycleStart) / 2000) + 1` turns it back. A value from an earlier cycle
+converts to 0, so on January 1 every record is read once more: that is the yearly reset, with no job
+and no browser clear. `cycleStart` is in Updated units (milliseconds since the backend's epoch), which
+the host gives through `CreateUiRuntimeOptions.getUpdatedEpochSeconds`.
 
 ## Backend Flow
 
-The backend endpoint reads the params and calls `QueryCachedIDs` (`genix-orm/dynamo/cache_by_ids.go`):
+The backend endpoint decodes the request and calls `QueryCachedIDs`
+(`genix-orm/dynamo/cache_by_ids.go`):
 
 ```go
-cachedIDs := req.ExtractCachedIDs() // []db.CachedID{ID, Updated}
-records, err := types.Products.QueryCachedIDs(cachedIDs, partitionValues...)
+func GetStoriesByIDs(req *core.HandlerArgs) core.HandlerResponse {
+	cachedIDs, err := req.ExtractCachedIDs() // db.CachedIDsRequest{CycleYear, IDs: []{Partition, ID, YearTick}}
+	if err != nil {
+		return req.MakeErr(err)
+	}
+	if len(cachedIDs.IDs) == 0 {
+		return req.MakeErr("No story IDs were sent.")
+	}
+	cachedPartitions, err := types.Stories.QueryCachedIDs(cachedIDs)
+	if err != nil {
+		return req.MakeErrCode(http.StatusInternalServerError, "Could not load the stories:", err)
+	}
+	return req.MakeResponse(cachedPartitions) // [{p: 3, r: [...]}, ...]
+}
 ```
 
-Records are bucketed into 256 slots per partition by `uint8(ID)`. One slot item per partition holds,
-for each slot, the `Updated` of its last write; every write sets it after the records are written.
-`QueryCachedIDs` reads that item once and compares each client value against its slot's.
+Records are bucketed into 256 slots per partition by `uint8(ID)`. Each partition has, per cycle, a
+768-byte slot file in S3 (256 uint24 ticks); every write raises its slot after the records are
+written. `QueryCachedIDs` reads the file of each requested partition and compares each held tick
+against its slot's.
 
 Behavior:
 
-- matching value: row is omitted from response
-- different value (or `0`): row is read consistently from the main table and returned
-- the returned row's `upd` is overwritten with its **slot** value, not its own `Updated` — that is
-  the value the client must send back next time
-- a slot value younger than 4 seconds is returned as `0`: a concurrent write could still stamp that
-  millisecond or land late, so it is not trusted yet, and the next revalidation reads the row again
+- matching tick: row is omitted from the response
+- different tick (or `0`): row is read consistently from the main table and returned
+- the returned row's `upd` is its **slot's** tick, not its own `Updated`: that is the value the
+  client must send back next time
+- a tick whose window ended less than 4 seconds ago is returned as `upd` 0: a write stamped inside
+  it may still land, so it is not trusted yet, and the next revalidation reads the row again
+- a request whose cycle year isn't the backend's has every tick ignored
 
-### Why the slot value, not the record's own
+The response is one entry per partition with changed records: `[{ p: <partition>, r: [records] }]`.
+minijson omits a zero `p`, so the frontend reads `p || 0`.
+
+### Why the slot tick, not the record's own
 
 A write moves the whole slot. If the client kept a record's own `upd`, a record sharing a slot with a
 more recently written one would mismatch forever and be refetched on every request. Returning the
-slot value makes the comparison converge after one fetch.
+slot tick makes the comparison converge after one fetch.
 
-The cost: a record that reached this cache from a **delta** list carries its own `upd`, which equals
-the slot value only if it was the slot's last write. Otherwise that costs exactly one revalidation
-fetch, after which the record holds the right value. This is expected, not a bug. For the same
-reason, IndexedDB rows written before a protocol change heal themselves: an old value never matches a
-slot.
-
-So the response contains only:
-
-- missing records
-- changed records
-
-Unchanged cached records are not sent again.
+The cost: a record that reached this cache from a **delta** list carries its own `upd`, which converts
+to a tick one below its slot's. That costs exactly one revalidation fetch, after which the record
+holds the right value. For the same reason, IndexedDB rows written before a protocol change heal
+themselves.
 
 ## Requirements To Use This
 
 ### Frontend record shape
-
-The frontend record type must include at least:
 
 ```ts
 export interface IMinimalRecord {
@@ -130,26 +169,19 @@ export interface IMinimalRecord {
 }
 ```
 
-Minimum practical requirements:
-
-- `ID`
-  Required. Used as cache key.
-- `upd`
-  Required for backend delta validation, and read by `getRecordByIDUpdated`.
-- `ss`
-  Required. `0` is treated as deleted.
-- `_fch`
-  Internal frontend timestamp used for stale detection.
+- `ID`: required, the cache key inside its partition.
+- `upd`: required for backend validation, and read by `getRecordByIDUpdated`.
+- `ss`: required. `0` is treated as deleted.
+- `_fch`: internal frontend timestamp used for stale detection.
 
 ### Backend schema requirements
 
-The backend table schema must enable the by-IDs cache:
-
 ```go
-func (table ProductTable) GetSchema() db.Schema {
+func (table StoryTable) GetSchema() db.Schema {
 	return db.Schema{
-		Entity:     "example_product",
-		Keys:       db.Cols(table.ID.Size(32)),
+		Entity:     "projects_story",
+		Partition:  db.Cols(table.ProjectID.Size(32)), // optional: at most one integer column
+		Keys:       db.Cols(table.ID.Size(32)),        // exactly one integer column
 		CacheByIDs: true,
 	}
 }
@@ -158,138 +190,51 @@ func (table ProductTable) GetSchema() db.Schema {
 Requirements enforced by the ORM:
 
 - `CacheByIDs: true`
-- exactly one integer `Keys` column (the ID)
-- an `int64` field named `Updated` (`json:"upd"`)
-- a `Partition` is optional; when present, pass its values to `QueryCachedIDs`
+- exactly one integer `Keys` column (the ID), at most one `Partition` column
+- an `int64` field named `Updated` (`json:"upd"`), in **both** the record and the table struct
+- berryapps: `[ids_cache].bucket` set, where the slot files live
 
-### Backend response struct requirements
-
-The response struct must expose the managed `Updated`:
-
-```go
-type Product struct {
-	ID      int32 `json:"ID" cb:"1"`
-	Status  int8  `json:"ss" cb:"7"`
-	Updated int64 `json:"upd" cb:"8"`
-}
-```
-
-Requirements:
-
-- field name `Updated`, type `int64`, JSON tag `upd`, in **both** the record and the table struct
-- the ORM stamps it on every write; handlers never set it
-- `ID` must be present in the response
-
-If `upd` is missing from the response, the frontend cannot validate cached rows correctly.
-
-## Expected Endpoint Pattern
-
-The `*-ids` endpoint usually does this:
-
-1. parse `ids`, `cc-ids`, `cc-upd` (`req.ExtractCachedIDs()`)
-2. guard against an empty list
-3. call `Repo.QueryCachedIDs`
-4. return only changed/new rows
-
-Example:
-
-```go
-func GetClientsByIDs(req *core.HandlerArgs) core.HandlerResponse {
-	cachedIDs := req.ExtractCachedIDs()
-	if len(cachedIDs) == 0 {
-		return req.MakeErr("No client IDs were sent.")
-	}
-	clients, err := types.Clients.QueryCachedIDs(cachedIDs)
-	if err != nil {
-		return req.MakeErrCode(http.StatusInternalServerError, "Could not load the clients:", err)
-	}
-	return req.MakeResponse(clients)
-}
-```
+The ORM stamps `Updated` on every write; handlers never set it. If `upd` is missing from the
+response, the frontend cannot validate cached rows.
 
 ## IndexedDB Rules
 
-Each route gets its own object store.
+One shared Dexie table, keyed by `[storeName, ID]`.
 
-- store name = `apiRoute`
-- key path = `ID`
-
-IndexedDB stores the full record object, including:
-
-- `ID`
-- `upd`
-- `_fch`
-- `ss`
-- domain fields
+- store name = the cache namespace (`apiRoute`, or `apiRoute:partition`)
+- the full record object is stored: `ID`, `upd`, `_fch`, `ss`, domain fields
 
 ## Batching Rules
 
-`getRecordByID` uses a small buffer window (`buffetMaxTime`) so many card/component requests become one backend request per route.
-
-This means:
-
-- many components can ask for records independently
-- frontend still sends one batched request per table/route
-
-## Conditions For Correct Behavior
-
-This cache works correctly only if all of these are true:
-
-1. frontend sends `ID` and `upd` for cached rows
-2. backend response includes the slot `upd`
-3. backend schema has `CacheByIDs: true`
-4. backend response model exposes `Updated int64` as `upd`
-5. `cc-ids` and `cc-upd` stay aligned in the same order
-6. returned records are merged into memory and IndexedDB
-7. unchanged cached records refresh `_fch`
-
-If any of these fail, the usual symptom is:
-
-- backend keeps returning the same rows again and again
+`getRecordByID` uses a small buffer window (`buffetMaxTime`) so many card/component requests become
+one backend request per route. `getRecordsByID` with several partitions makes one request for all of
+them.
 
 ## Important Limitation
 
-The backend groups slot state by `uint8(id)`, one value per slot in each partition's slot item.
-
-That means different IDs share the same slot when:
-
-```text
-uint8(idA) == uint8(idB)
-```
-
-Example:
-
-- `26`
-- `282`
-- `538`
-
-All share the same group key modulo `256`.
-
-This is compact and fast, but it means unrelated rows can invalidate together.
+Different IDs of one partition share a slot when `uint8(idA) == uint8(idB)` (26, 282, 538...). A
+write to one refetches the others once. This is compact and fast, but unrelated rows invalidate
+together.
 
 ## Debugging Checklist
 
-If the same rows keep coming back from backend:
+If the same rows keep coming back from the backend:
 
-1. check frontend request snapshot for `ID`, `upd`, `_fch`
-2. check IndexedDB stored value for the same `ID`
-3. check backend received the slot `upd`
-4. check backend response `upd`
-5. confirm `cc-ids` and `cc-upd` stay aligned
+1. check the record's `upd` in memory and IndexedDB, and `toYearTick(upd)`
+2. decode the `cc` parameter (`DecodeCachedIDsRequest`) and check the tick sent for its slot
+3. check the backend response `upd`
+4. check `getUpdatedEpochSeconds` matches the backend's `unix_time_start`: a wrong epoch shifts
+   every tick, and nothing ever matches
 
 Typical failure patterns:
 
-- IndexedDB has correct `upd`, but backend receives another one
-  Usually transport ordering/alignment bug.
-- backend returns rows with no `upd`
-  Response struct is missing `Updated`.
-- backend returns `upd` 0
-  The slot was written less than 4 seconds ago; it settles on the next revalidation.
-- every cached row always fetches again
-  `_fch` is not refreshed, local rows are always stale, or the rows came from a delta list and still
-  carry their own `upd` instead of the slot's (self-heals after one fetch).
+- backend returns rows with no `upd`: the response struct is missing `Updated`.
+- backend returns `upd` 0: the slot was written less than 4 seconds ago; it settles on the next
+  revalidation.
+- every cached row always fetches again: `_fch` is not refreshed, the epoch is wrong, or the rows
+  came from a delta list (self-heals after one fetch).
 
 ## Related References
 
 - `backend/genix-orm/dynamo/cache_by_ids.go`
-- `backend/core/cache_by_ids.go` (`ExtractCachedIDs`, `parseConcatenatedUint48s`)
+- `backend/core/cache_by_ids.go` (`ExtractCachedIDs`), `backend/core/idscache` (the S3 store)

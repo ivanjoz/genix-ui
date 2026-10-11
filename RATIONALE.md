@@ -2,6 +2,27 @@
 
 Design decisions for the shared UI package, newest first.
 
+## By-IDs cache: one `cc` request with year ticks, partitions as cache namespaces
+
+**Context** — The backend now keeps, per partition and slot, a 2-second year tick instead of the
+slot's `upd`, and decodes one compact `cc` parameter (one tick per slot, sorted delta IDs, several
+partitions). Left open: how a page asks for records of several partitions, where they are cached,
+and what happens when the request fails.
+
+**Decision** — `getRecordsByID(route, ids)` keeps its shape; `getRecordsByID(route, { [partition]: ids
+})` asks for any number of partitions in one GET and answers `Map<partition, Map<ID, record>>`. Each
+partition is cached under `<route>:<partition>` (partition 0 under `<route>`), in memory and in the
+same IndexedDB table, so the database version doesn't change. Only partitions with a missing or
+stale record are sent, each with every ID it holds. The default fetcher now throws on a failed
+request, and a failed request leaves the held records' fetch time alone. The wire encoder is a pure
+module (`cache-by-ids.wire.ts`); the host gives the Updated epoch through
+`getUpdatedEpochSeconds`. `concatenateUint48s`, `ids`, `cc-ids`, `cc-upd` and `cmp` are gone.
+
+**Rationale** — Namespacing by partition keeps every cache layer keyed by ID alone, which is what
+it already was. Treating a failed request as "unchanged" (the old behavior) marked stale records
+fresh for another 5 seconds without asking anyone. Old cached rows need no migration: their
+millisecond `upd` converts to a tick that matches no slot, so each costs one refetch.
+
 ## Caches sync on one millisecond `upd`: a fingerprinted overlap window, slot `upd` by ID
 
 **Context** — The backend dropped `upv`, the per-partition write sequence that cost a DynamoDB call

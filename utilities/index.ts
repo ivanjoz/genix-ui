@@ -2,8 +2,9 @@ export {
   base64ToBytes,
   checksum,
   checksumBase64_6,
+  appendUvarint,
+  bytesToBase64Url,
   concatenateInts,
-  concatenateUint48s,
 } from './parsers.js';
 export {
   DateHelper,

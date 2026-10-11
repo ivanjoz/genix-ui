@@ -2,17 +2,21 @@
  * Goal:
  * Resolve records by IDs using a 3-layer strategy:
  * 1) in-memory map, 2) IndexedDB persistent cache, 3) server delta sync.
- * It sends `ids`, `cc-ids`, and `cc-upd` so backend returns only new/changed records.
+ * One request (`cc`, cache-by-ids.wire.ts) names the IDs per partition with the year tick held for
+ * each of their slots, so the backend returns only new/changed records.
  *
  * `upd` on a record fetched through this path is its *slot's* last write, not its own: the backend
- * groups records into 256 slots and stamps a slot on every write to it, so the slot value is what
- * proves a cached copy is still current. The backend returns 0 while that value is too recent to
- * trust, which forces one more revalidation. A record that arrived from a delta list carries its
- * own `upd`, which matches its slot only when it was the slot's last write; otherwise it costs one
- * revalidation fetch, after which the record holds the slot value.
+ * groups records into 256 slots per partition and keeps, per slot, the year tick (2 seconds) of its
+ * last write. The record carries that tick as an Updated value, which `toYearTick` turns back. The
+ * backend returns 0 while the tick is too recent to trust, which forces one more revalidation.
+ *
+ * A partitioned table (IDs unique only inside a partition, e.g. stories per project) caches each
+ * partition under its own namespace, `<apiRoute>:<partition>`; partition 0 is `<apiRoute>`.
  */
-import { concatenateInts, concatenateUint48s } from '../utilities/index.js'
 import { clearCacheByIDsDatabase, readRecordsFromIDBByIDs, upsertRecordsIntoIDB } from "./cache-by-ids.idb"
+import {
+	cycleStartUpdated, encodeCachedIDsRequest, toYearTick, yearCycleOf, type CachedIDsPartitionRequest,
+} from './cache-by-ids.wire.js'
 import { clearQueryByIdMemoryCache } from "./cache-query-by-id"
 import { getCacheRuntime } from './runtime.js'
 
@@ -22,7 +26,7 @@ export interface IMinimalRecord {
 	ID: number /* ID f the record */
 	ss: number /* status: 1 active, 0 deleted */
 	_fch?: number /* fetched: when the record was last fetched (in seconds) */
-	upd: number /* the slot's last write (see above); 0 means "unknown" and always forces a fetch */
+	upd: number /* the slot's year tick as an Updated value (see above); 0 means "unknown" and always forces a fetch */
 }
 
 const cacheRecordIdTable: Map<string,Map<number,IMinimalRecord>> = new Map()
@@ -40,102 +44,42 @@ const inFlightStaticBatchPromiseByTable: Map<
 > = new Map()
 
 const LOG_PREFIX = "[cache-by-ids]"
-const DEBUG_CACHE_RECORD_IDS = new Set<number>([26])
 
-const shouldDebugCacheRecord = (id: number): boolean => {
-	return DEBUG_CACHE_RECORD_IDS.has(id)
-}
+// cacheNamespaceOf is where a partition's records are cached, in memory and in IndexedDB.
+const cacheNamespaceOf = (apiRoute: string, partition: number): string =>
+	partition ? `${apiRoute}:${partition}` : apiRoute
 
-const logDebugCacheRecord = (
-	stage: string,
-	apiRoute: string,
-	id: number,
-	record: Partial<IMinimalRecord> | null | undefined,
-	extra?: Record<string, unknown>,
-) => {
-	if (!shouldDebugCacheRecord(id)) return
-	console.debug(`${LOG_PREFIX} debug ${apiRoute} | ${stage}`, {
-		id,
-		_fch: record?._fch,
-		ss: record?.ss,
-		upd: record?.upd,
-		...extra,
-	})
+// One partition of a by-IDs response: the records that moved. The backend's minijson omits a zero
+// partition, so `p` is missing for a table without Partition.
+export interface CachedPartitionResponse<T> {
+	partition: number
+	records: T[]
 }
 
 export type CacheByIDsFetchFromServer = <T extends IMinimalRecord>(
 	apiRoute: string,
-	ids: number[],
-	ccIDs: number[],
-	ccUpd: number[],
-) => Promise<T[]>
+	cycleYear: number,
+	partitions: CachedIDsPartitionRequest[],
+) => Promise<CachedPartitionResponse<T>[]>
 
-const buildFetchUriParams = (
-	ids: number[], ccIDs: number[], ccUpd: number[],
-): string => {
-	const cachedRecordsU8IDs: number[] = []
-	const cachedRecordsU8Updated: number[] = []
-	const cachedRecordsU16IDs: number[] = []
-	const cachedRecordsU16Updated: number[] = []
-	const cachedRecordsU32IDs: number[] = []
-	const cachedRecordsU32Updated: number[] = []
-
-	for (let index = 0; index < ccIDs.length; index++) {
-		const cachedID = ccIDs[index]
-		const cachedUpdated = ccUpd[index] || 0
-
-		// `cc-ids` is magnitude-bucketed by the compact encoder, so the upd values are reordered into
-		// the same bucket order before being emitted as one fixed-width array.
-		if (cachedID >= 0 && cachedID <= 255) {
-			cachedRecordsU8IDs.push(cachedID)
-			cachedRecordsU8Updated.push(cachedUpdated)
-			continue
-		}
-		if (cachedID >= 0 && cachedID <= 65535) {
-			cachedRecordsU16IDs.push(cachedID)
-			cachedRecordsU16Updated.push(cachedUpdated)
-			continue
-		}
-		cachedRecordsU32IDs.push(cachedID)
-		cachedRecordsU32Updated.push(cachedUpdated)
-	}
-
-	const alignedCachedIDs = [...cachedRecordsU8IDs, ...cachedRecordsU16IDs, ...cachedRecordsU32IDs]
-	const alignedCachedUpdated = [...cachedRecordsU8Updated, ...cachedRecordsU16Updated, ...cachedRecordsU32Updated]
-
-	return [
-		ids.length > 0 && `ids=${concatenateInts(ids)}`,
-		alignedCachedIDs.length > 0 && `cc-ids=${concatenateInts(alignedCachedIDs)}`,
-		// One fixed width, never magnitude-bucketed: that is what keeps cc-upd aligned with cc-ids.
-		alignedCachedUpdated.length > 0 && `cc-upd=${concatenateUint48s(alignedCachedUpdated)}`,
-	].filter(Boolean).join("&")
-}
-
-// Configure this from your app when the backend endpoint is ready.
+// The default fetcher throws when the request fails, so the caller doesn't take the silence for
+// "nothing changed".
 let fetchFromServer: CacheByIDsFetchFromServer = async <T extends IMinimalRecord>(
 	apiRoute: string,
-	ids: number[],
-	ccIDs: number[],
-	ccUpd: number[],
-): Promise<T[]> => {
-	const uriParams = buildFetchUriParams(ids, ccIDs, ccUpd)
-	try {
-		const runtime = getCacheRuntime()
-		// `apiRoute` is treated as the backend route (example: `p-productos-ids`).
-		const responsePayload = await runtime.get({
-			route: `${apiRoute}?${uriParams}&cmp=${runtime.getCompanyID()}`
-		})
-
-		// Support both raw array responses and wrapped `{ records: [...] }` payloads.
-		if (Array.isArray(responsePayload)) return responsePayload as T[]
-		if (Array.isArray(responsePayload?.records)) return responsePayload.records as T[]
-
-		console.warn(`${LOG_PREFIX} ${apiRoute} unexpected server response shape; returning empty list`, responsePayload)
-		return []
-	} catch (serverFetchError) {
-		console.warn(`${LOG_PREFIX} ${apiRoute} failed to fetch records from server; returning empty list`, serverFetchError)
-		return []
+	cycleYear: number,
+	partitions: CachedIDsPartitionRequest[],
+): Promise<CachedPartitionResponse<T>[]> => {
+	// `apiRoute` is treated as the backend route (example: `p-productos-ids`).
+	const responsePayload = await getCacheRuntime().get({
+		route: `${apiRoute}?cc=${encodeCachedIDsRequest(cycleYear, partitions)}`,
+	})
+	if (!Array.isArray(responsePayload)) {
+		throw new Error(`${LOG_PREFIX} ${apiRoute} unexpected server response shape`)
 	}
+	return responsePayload.map((cachedPartition) => ({
+		partition: cachedPartition?.p || 0,
+		records: Array.isArray(cachedPartition?.r) ? cachedPartition.r : [],
+	}))
 }
 
 export const configureCacheByIDs = (fetcher: CacheByIDsFetchFromServer) => {
@@ -144,30 +88,30 @@ export const configureCacheByIDs = (fetcher: CacheByIDsFetchFromServer) => {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
-const getOrCreateTableCache = (apiRoute: string): Map<number, IMinimalRecord> => {
-	const existingTableCache = cacheRecordIdTable.get(apiRoute)
+const getOrCreateTableCache = (cacheNamespace: string): Map<number, IMinimalRecord> => {
+	const existingTableCache = cacheRecordIdTable.get(cacheNamespace)
 	if (existingTableCache) return existingTableCache
 	const createdTableCache = new Map<number, IMinimalRecord>()
-	cacheRecordIdTable.set(apiRoute, createdTableCache)
+	cacheRecordIdTable.set(cacheNamespace, createdTableCache)
 	return createdTableCache
 }
 
 const getOrCreateInFlightRecordsTable = (
-	apiRoute: string,
+	cacheNamespace: string,
 ): Map<number, Promise<Map<number, IMinimalRecord>>> => {
-	const existingInFlightTable = inFlightRecordsBatchPromiseByTable.get(apiRoute)
+	const existingInFlightTable = inFlightRecordsBatchPromiseByTable.get(cacheNamespace)
 	if (existingInFlightTable) return existingInFlightTable
 	const createdInFlightTable = new Map<number, Promise<Map<number, IMinimalRecord>>>()
-	inFlightRecordsBatchPromiseByTable.set(apiRoute, createdInFlightTable)
+	inFlightRecordsBatchPromiseByTable.set(cacheNamespace, createdInFlightTable)
 	return createdInFlightTable
 }
 
 const mergeFetchedRecordsIntoCache = async <T extends IMinimalRecord>(
-	apiRoute: string,
+	cacheNamespace: string,
 	records: T[],
 	fetchedAtSeconds: number,
 ): Promise<Map<number, T>> => {
-	const tableCache = getOrCreateTableCache(apiRoute)
+	const tableCache = getOrCreateTableCache(cacheNamespace)
 	const mergedRecords = new Map<number, T>()
 
 	// Normalize server rows before writing so memory and IDB keep the same invariant.
@@ -181,25 +125,13 @@ const mergeFetchedRecordsIntoCache = async <T extends IMinimalRecord>(
 		// The API's minijson skips zero values: a record without `ss` is a deleted one (ss = 0).
 		if (typeof fetchedRecord.ss !== "number") fetchedRecord.ss = 0
 		tableCache.set(fetchedRecord.ID, fetchedRecord)
-		logDebugCacheRecord("server record merged into memory", apiRoute, fetchedRecord.ID, fetchedRecord)
 		mergedRecords.set(fetchedRecord.ID, fetchedRecord)
 	}
 
 	if (mergedRecords.size > 0) {
-		await upsertRecordsIntoIDB<T>(apiRoute, Array.from(mergedRecords.values()))
-		for (const mergedRecord of mergedRecords.values()) {
-			if (!shouldDebugCacheRecord(mergedRecord.ID)) continue
-			const idbRecord = (await readRecordsFromIDBByIDs<T>(apiRoute, [mergedRecord.ID])).get(mergedRecord.ID)
-			logDebugCacheRecord("record read back from indexedDB after upsert", apiRoute, mergedRecord.ID, idbRecord)
-		}
+		await upsertRecordsIntoIDB<T>(cacheNamespace, Array.from(mergedRecords.values()))
 	}
-
 	return mergedRecords
-}
-
-const summarizeIDs = (ids: number[]) => {
-	if (ids.length <= 10) return ids.join(",")
-	return `${ids.slice(0, 10).join(",")} ... (+${ids.length - 10})`
 }
 
 const normalizePositiveIDs = (ids: number[]): number[] => {
@@ -218,339 +150,234 @@ const normalizePositiveIDs = (ids: number[]): number[] => {
 	return normalizedIDs
 }
 
-export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
+// What a by-IDs call knows locally about one partition, and what it must ask the server.
+interface PartitionLookup {
+	partition: number
+	cacheNamespace: string
+	requestedIDs: number[]
+	idTicks: [number, number][] // every requested ID but tombstones, with the tick held (0: not held)
+	heldIDs: number[] // the ones held locally: a request revalidates them
+	needsServer: boolean // a record is missing, or a held one went stale
+}
+
+// lookUpPartition resolves a partition's IDs from memory, then IndexedDB. A held record older than
+// CACHE_TIME still answers, but makes the call revalidate the whole partition with the server.
+const lookUpPartition = async <T extends IMinimalRecord>(
 	apiRoute: string,
+	partition: number,
 	ids: number[],
+	cycleStart: number,
+	currentTimeSeconds: number,
 	cacheHintsByID?: Map<number, T | false>,
-): Promise<Map<number, T>> => {
-	// Normalize early to avoid duplicated work and to keep deterministic order.
-	const normalizedSortedIDs = normalizePositiveIDs(ids)
-	const currentTimeSeconds = nowSeconds()
+): Promise<PartitionLookup> => {
+	const cacheNamespace = cacheNamespaceOf(apiRoute, partition)
+	const tableCache = getOrCreateTableCache(cacheNamespace)
+	const lookup: PartitionLookup = {
+		partition, cacheNamespace, requestedIDs: normalizePositiveIDs(ids), idTicks: [], heldIDs: [], needsServer: false,
+	}
 
-	console.debug(`${LOG_PREFIX} getRecordsByIDs start.`, {
-		apiRoute,
-		idsCount: normalizedSortedIDs.length,
-		ids: summarizeIDs(normalizedSortedIDs),
-	})
+	const holdRecord = (id: number, record: T) => {
+		// Tombstone: never fetch again, and never return as "active" record.
+		if (record.ss === 0) return
+		lookup.heldIDs.push(id)
+		lookup.idTicks.push([id, toYearTick(record.upd, cycleStart)])
+		if (currentTimeSeconds - (record._fch || 0) > CACHE_TIME) lookup.needsServer = true
+	}
+	const markMissing = (id: number) => {
+		lookup.idTicks.push([id, 0])
+		lookup.needsServer = true
+	}
 
-	const tableCache = getOrCreateTableCache(apiRoute)
-
-	// Classify each requested ID into:
-	// - missing cache (needs IDB lookup),
-	// - cached entries (send ID + slot upd for server-side validation),
-	// - stale cache count (forces revalidation call).
-	const idsMissingFromMemoryCache: number[] = []
-	const idsCachedOnMemory: number[] = []
-	const idsCachedFromIndexedDB: number[] = []
-	const staleIDsToFetch: number[] = []
-	const recordsWitoutCache: number[] = []
-	const recordsCachedIDs: number[] = []
-	const recordsCachedSlotUpdated: number[] = []
-
-	// Count cached records that exceeded CACHE_TIME.
-	// These records may still be unchanged (same slot upd), but we must revalidate with backend.
-	let staleCachedRecordsCount = 0
-
-	for (const id of normalizedSortedIDs) {
+	const idsMissingFromMemory: number[] = []
+	for (const id of lookup.requestedIDs) {
 		// Optional hint path: caller already knows local cache state for this ID.
-		if (cacheHintsByID && cacheHintsByID.has(id)) {
+		if (cacheHintsByID?.has(id)) {
 			const hintedRecord = cacheHintsByID.get(id)
-			if (hintedRecord === false) {
-				recordsWitoutCache.push(id)
-				continue
-			}
 			if (!hintedRecord) {
-				recordsWitoutCache.push(id)
+				markMissing(id)
 				continue
 			}
-			// Tombstone: never fetch again, and never return as "active" record.
-			if (hintedRecord.ss === 0) continue
-
-			idsCachedOnMemory.push(id)
-			recordsCachedIDs.push(id)
-			recordsCachedSlotUpdated.push(hintedRecord.upd || 0)
-
-			const recordFetchAgeSeconds = currentTimeSeconds-(hintedRecord._fch || 0)
-			if (recordFetchAgeSeconds > CACHE_TIME) {
-				staleCachedRecordsCount++
-				staleIDsToFetch.push(id)
-			}
-
 			// Keep memory cache aligned with caller-provided local state.
 			tableCache.set(id, hintedRecord)
+			holdRecord(id, hintedRecord)
 			continue
 		}
-
-		const cachedRecord = tableCache.get(id) as T | undefined
-		if (!cachedRecord) {
-			logDebugCacheRecord("memory miss before indexedDB lookup", apiRoute, id, null)
-			idsMissingFromMemoryCache.push(id)
+		const memoryRecord = tableCache.get(id) as T | undefined
+		if (memoryRecord) {
+			holdRecord(id, memoryRecord)
 			continue
 		}
-		logDebugCacheRecord("memory hit before stale check", apiRoute, id, cachedRecord)
-
-		// Tombstone: never fetch again, and never return as "active" record.
-		if (cachedRecord.ss === 0) continue
-
-		idsCachedOnMemory.push(id)
-		recordsCachedIDs.push(id)
-		recordsCachedSlotUpdated.push(cachedRecord.upd || 0)
-
-		const recordFetchAgeSeconds = currentTimeSeconds - (cachedRecord._fch || 0)
-		if (recordFetchAgeSeconds > CACHE_TIME) {
-			staleCachedRecordsCount++
-			staleIDsToFetch.push(id)
-		}
+		idsMissingFromMemory.push(id)
 	}
 
 	// Resolve all memory misses from persistent cache in one batch read.
-	if (idsMissingFromMemoryCache.length > 0) {
-		console.debug(`${LOG_PREFIX} ${apiRoute} idb:start ids=${idsMissingFromMemoryCache.length}`)
-		console.debug(`${LOG_PREFIX} Reading from IndexedDB.`, {
-			apiRoute,
-			idsCount: idsMissingFromMemoryCache.length,
-			ids: summarizeIDs(idsMissingFromMemoryCache),
-		})
-
-		const idbRecordsByID = await readRecordsFromIDBByIDs<T>(apiRoute, idsMissingFromMemoryCache)
-		console.debug(`${LOG_PREFIX} ${apiRoute} idb:end ids=${idsMissingFromMemoryCache.length} hits=${idbRecordsByID.size}`)
-
-		for (const id of idsMissingFromMemoryCache) {
+	if (idsMissingFromMemory.length > 0) {
+		const idbRecordsByID = await readRecordsFromIDBByIDs<T>(cacheNamespace, idsMissingFromMemory)
+		for (const id of idsMissingFromMemory) {
 			const idbRecord = idbRecordsByID.get(id)
 			if (!idbRecord) {
-				logDebugCacheRecord("indexedDB miss", apiRoute, id, null)
-				recordsWitoutCache.push(id)
+				markMissing(id)
 				continue
 			}
-			logDebugCacheRecord("indexedDB hit before promotion", apiRoute, id, idbRecord)
-
 			// Promote from IndexedDB to memory cache.
 			tableCache.set(id, idbRecord)
-			logDebugCacheRecord("indexedDB record promoted to memory", apiRoute, id, idbRecord)
-
-			// Tombstone: never fetch again, and never return as "active" record.
-			if (idbRecord.ss === 0) continue
-
-			idsCachedFromIndexedDB.push(id)
-			recordsCachedIDs.push(id)
-			recordsCachedSlotUpdated.push(idbRecord.upd || 0)
-
-			const recordFetchAgeSeconds = currentTimeSeconds - (idbRecord._fch || 0)
-			if (recordFetchAgeSeconds > CACHE_TIME) {
-				staleCachedRecordsCount++
-				staleIDsToFetch.push(id)
-			}
+			holdRecord(id, idbRecord)
 		}
 	}
-
-	console.debug(`${LOG_PREFIX} ${apiRoute} memory cache hits`, idsCachedOnMemory)
-	console.debug(`${LOG_PREFIX} ${apiRoute} indexedDB cache hits`, idsCachedFromIndexedDB)
-	console.debug(`${LOG_PREFIX} ${apiRoute} stale IDs to fetch`, staleIDsToFetch)
-	console.debug(`${LOG_PREFIX} ${apiRoute} missing IDs to fetch`, recordsWitoutCache)
-
-	// Build delta-validation payload:
-	// - `ids`: records with no local cache.
-	// - `cc-ids`: records that exist locally and can be checked by backend.
-	// - `cc-upd`: local slot upd values aligned by position with `cc-ids`.
-	const uriParams = buildFetchUriParams(
-		recordsWitoutCache,
-		recordsCachedIDs,
-		recordsCachedSlotUpdated,
-	)
-
-	// Why not only `uriParams.length > 0`?
-	// Because `cached` can be non-empty even when data is still fresh. In that case, network
-	// call is unnecessary. We fetch only when:
-	// 1) there are cache misses (`recordsWitoutCache`), or
-	// 2) cached entries became stale and must be revalidated (`staleCachedRecordsCount`).
-	// `uriParams.length > 0` is still required to avoid calling backend with empty query.
-	const shouldFetchFromServer =
-		(recordsWitoutCache.length > 0 || staleCachedRecordsCount > 0) && uriParams.length > 0
-
-	for (const id of normalizedSortedIDs) {
-		if (!shouldDebugCacheRecord(id)) continue
-		logDebugCacheRecord("request payload version snapshot", apiRoute, id, {
-			ID: id,
-			upd: recordsCachedIDs.includes(id)
-				? recordsCachedSlotUpdated[recordsCachedIDs.indexOf(id)]
-				: undefined,
-			_fch: (tableCache.get(id) as T | undefined)?._fch,
-			ss: (tableCache.get(id) as T | undefined)?.ss,
-		}, {
-			isMissing: recordsWitoutCache.includes(id),
-			isStale: staleIDsToFetch.includes(id),
-			willFetch: shouldFetchFromServer,
-		})
-	}
-
-	console.debug(
-		`${LOG_PREFIX} ${apiRoute} cache partitioned` +
-		` | memory=${idsCachedOnMemory.length}` +
-		` | indexedDB=${idsCachedFromIndexedDB.length}` +
-		` | stale=${staleCachedRecordsCount}` +
-		` | missing=${recordsWitoutCache.length}` +
-		` | fetch=${shouldFetchFromServer}`,
-	)
-	if (!shouldFetchFromServer) {
-		console.debug(`${LOG_PREFIX} ${apiRoute} skip server fetch | stale=${staleCachedRecordsCount} | missing=${recordsWitoutCache.length}`)
-	}
-
-	let updatedOrNewRecordsFromServer: T[] = []
-	if (shouldFetchFromServer) {
-		try {
-			console.log(
-				`${LOG_PREFIX} ${apiRoute} fetching from server` +
-				` | stale=${staleCachedRecordsCount}` +
-				` | missing=${recordsWitoutCache.length}` +
-				` | cached=${recordsCachedIDs.length}`,
-			)
-			updatedOrNewRecordsFromServer = await fetchFromServer<T>(
-				apiRoute,
-				recordsWitoutCache,
-				recordsCachedIDs,
-				recordsCachedSlotUpdated,
-			)
-			for (const fetchedRecord of updatedOrNewRecordsFromServer) {
-				if (!fetchedRecord || typeof fetchedRecord.ID !== "number") continue
-				logDebugCacheRecord("server response record", apiRoute, fetchedRecord.ID, fetchedRecord)
-			}
-			console.log(`${LOG_PREFIX} ${apiRoute} server response received | records=${updatedOrNewRecordsFromServer.length}`)
-		} catch (error) {
-			console.warn(`${LOG_PREFIX} Server fetch failed. Using local cache only.`, error)
-			updatedOrNewRecordsFromServer = []
-		}
-	}
-
-	// Backend delta response includes only changed/new cached IDs.
-	// Any cached ID not returned is validated as unchanged and should refresh `_fch`.
-	if (shouldFetchFromServer && recordsCachedIDs.length > 0) {
-		const returnedUpdatedIDs = new Set<number>()
-		for (const updatedRecord of updatedOrNewRecordsFromServer) {
-			if (!updatedRecord || typeof updatedRecord.ID !== "number") continue
-			returnedUpdatedIDs.add(updatedRecord.ID)
-		}
-		for (const cachedID of recordsCachedIDs) {
-			if (returnedUpdatedIDs.has(cachedID)) continue
-			const existingCachedRecord = tableCache.get(cachedID)
-			if (!existingCachedRecord) continue
-			existingCachedRecord._fch = currentTimeSeconds
-			tableCache.set(cachedID, existingCachedRecord)
-			logDebugCacheRecord("unchanged cached record refreshed in memory", apiRoute, cachedID, existingCachedRecord)
-		}
-	}
-
-	if (updatedOrNewRecordsFromServer.length > 0) {
-		await mergeFetchedRecordsIntoCache<T>(apiRoute, updatedOrNewRecordsFromServer, currentTimeSeconds)
-	}
-
-	// Final read is stable by requested ID order; tombstones remain hidden.
-	const resolvedRecordsByID = new Map<number, T>()
-	for (const id of normalizedSortedIDs) {
-		const record = tableCache.get(id) as T | undefined
-		if (!record) continue
-		if (record.ss === 0) continue
-		resolvedRecordsByID.set(id, record)
-	}
-
-	console.debug(`${LOG_PREFIX} getRecordsByIDs done.`, {
-		apiRoute,
-		requestedCount: normalizedSortedIDs.length,
-		returnedCount: resolvedRecordsByID.size,
-	})
-	console.debug(`${LOG_PREFIX} ${apiRoute} done requested=${normalizedSortedIDs.length} returned=${resolvedRecordsByID.size}`)
-
-	return resolvedRecordsByID
+	return lookup
 }
 
-export const getRecordsByID = async <T extends IMinimalRecord>(
-	apiRoute: string, ids: number[],
-): Promise<Map<number, T>> => {
-	// Keep one canonical pass so duplicated/invalid IDs do not create duplicated waits.
-	const normalizedIDs = normalizePositiveIDs(ids)
-	if (normalizedIDs.length === 0) return new Map<number, T>()
-
+/**
+ * doGetRecordsByIDs resolves IDs of any number of partitions with at most one request: only the
+ * partitions with a missing or stale record are sent, each with every ID it holds, so the backend
+ * revalidates them all at once. Hints apply to partition 0, the only one getRecordByID buffers.
+ */
+export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
+	apiRoute: string,
+	idsByPartition: Map<number, number[]>,
+	cacheHintsByID?: Map<number, T | false>,
+): Promise<Map<number, Map<number, T>>> => {
 	const currentTimeSeconds = nowSeconds()
-	const tableCache = cacheRecordIdTable.get(apiRoute)
-	const resolvedRecordsByID = new Map<number, T>()
+	const cycleYear = yearCycleOf(Date.now())
+	const cycleStart = cycleStartUpdated(cycleYear, getCacheRuntime().getUpdatedEpochSeconds())
 
-	const inFlightTable = getOrCreateInFlightRecordsTable(apiRoute)
-	const existingBatchPromisesByID = new Map<number, Promise<Map<number, T>>>()
-	const idsWithoutPromise: number[] = []
+	const lookups = await Promise.all([...idsByPartition].map(([partition, ids]) =>
+		lookUpPartition<T>(apiRoute, partition, ids, cycleStart, currentTimeSeconds, partition === 0 ? cacheHintsByID : undefined)))
+	const lookupsToFetch = lookups.filter((lookup) => lookup.needsServer && lookup.idTicks.length > 0)
 
-	for (const id of normalizedIDs) {
-		const cachedRecord = tableCache?.get(id) as T | undefined
-		if (cachedRecord) {
-			if (cachedRecord.ss === 0) continue
+	let fetchedPartitions: CachedPartitionResponse<T>[] = []
+	let isFetchAnswered = false
+	if (lookupsToFetch.length > 0) {
+		console.debug(`${LOG_PREFIX} ${apiRoute} fetching | partitions=${lookupsToFetch.length}`
+			+ ` | ids=${lookupsToFetch.reduce((count, lookup) => count + lookup.idTicks.length, 0)}`)
+		try {
+			fetchedPartitions = await fetchFromServer<T>(apiRoute, cycleYear,
+				lookupsToFetch.map(({ partition, idTicks }) => ({ partition, idTicks })))
+			isFetchAnswered = true
+		} catch (error) {
+			console.warn(`${LOG_PREFIX} ${apiRoute} server fetch failed. Using local cache only.`, error)
+		}
+	}
+	const fetchedRecordsByPartition = new Map(fetchedPartitions.map(({ partition, records }) => [partition, records]))
 
-			const cachedRecordAgeSeconds = currentTimeSeconds - (cachedRecord._fch || 0)
-			const cachedRecordIsStale = cachedRecordAgeSeconds > CACHE_TIME
+	const recordsByPartition = new Map<number, Map<number, T>>()
+	for (const lookup of lookups) {
+		const tableCache = getOrCreateTableCache(lookup.cacheNamespace)
+		if (isFetchAnswered && lookupsToFetch.includes(lookup)) {
+			// The response holds only the changed records: a held ID it leaves out is validated as
+			// unchanged, so its fetch time is refreshed.
+			const fetchedRecords = fetchedRecordsByPartition.get(lookup.partition) || []
+			const returnedIDs = new Set(fetchedRecords.map((record) => record?.ID))
+			for (const heldID of lookup.heldIDs) {
+				const heldRecord = tableCache.get(heldID)
+				if (heldRecord && !returnedIDs.has(heldID)) heldRecord._fch = currentTimeSeconds
+			}
+			if (fetchedRecords.length > 0) {
+				await mergeFetchedRecordsIntoCache<T>(lookup.cacheNamespace, fetchedRecords, currentTimeSeconds)
+			}
+		}
+		// Final read is stable by requested ID order; tombstones remain hidden.
+		const resolvedRecordsByID = new Map<number, T>()
+		for (const id of lookup.requestedIDs) {
+			const record = tableCache.get(id) as T | undefined
+			if (record && record.ss !== 0) resolvedRecordsByID.set(id, record)
+		}
+		recordsByPartition.set(lookup.partition, resolvedRecordsByID)
+	}
+	return recordsByPartition
+}
 
+// resolveRecordsByPartition is getRecordsByID for any number of partitions: fresh memory hits answer
+// at once, IDs another call is already fetching wait for it, and the rest go in one request.
+const resolveRecordsByPartition = async <T extends IMinimalRecord>(
+	apiRoute: string,
+	idsByPartition: Map<number, number[]>,
+): Promise<Map<number, Map<number, T>>> => {
+	const currentTimeSeconds = nowSeconds()
+	const recordsByPartition = new Map<number, Map<number, T>>()
+	const pendingByPartition = new Map<number, Map<number, Promise<Map<number, T>>>>()
+	const idsToFetchByPartition = new Map<number, number[]>()
+
+	for (const [partition, ids] of idsByPartition) {
+		const cacheNamespace = cacheNamespaceOf(apiRoute, partition)
+		const tableCache = cacheRecordIdTable.get(cacheNamespace)
+		const inFlightTable = getOrCreateInFlightRecordsTable(cacheNamespace)
+		const resolvedRecordsByID = new Map<number, T>()
+		const pendingByID = new Map<number, Promise<Map<number, T>>>()
+		const idsToFetch: number[] = []
+		for (const id of normalizePositiveIDs(ids)) {
+			const cachedRecord = tableCache?.get(id) as T | undefined
+			if (cachedRecord?.ss === 0) continue
 			// Fresh memory rows are authoritative for this call and must not re-enter batching.
-			if (!cachedRecordIsStale) {
+			if (cachedRecord && currentTimeSeconds - (cachedRecord._fch || 0) <= CACHE_TIME) {
 				resolvedRecordsByID.set(id, cachedRecord)
 				continue
 			}
-		}
-
-		const existingBatchPromise = inFlightTable.get(id) as Promise<Map<number, T>> | undefined
-		if (existingBatchPromise) {
-			existingBatchPromisesByID.set(id, existingBatchPromise)
-			continue
-		}
-		idsWithoutPromise.push(id)
-	}
-
-	console.debug(
-		`${LOG_PREFIX} ${apiRoute} getRecordsByID partition` +
-		` | requested=${normalizedIDs.length}` +
-		` | freshMemory=${resolvedRecordsByID.size}` +
-		` | inFlight=${existingBatchPromisesByID.size}` +
-		` | fetch=${idsWithoutPromise.length}`,
-	)
-
-	let createdFetchPromise: Promise<Map<number, T>> | null = null
-	if (idsWithoutPromise.length > 0) {
-		// Assign one shared batch promise per missing ID to avoid creating per-ID derived promises.
-		createdFetchPromise = doGetRecordsByIDs<T>(apiRoute, idsWithoutPromise)
-		for (const id of idsWithoutPromise) {
-			inFlightTable.set(
-				id,
-				createdFetchPromise as Promise<Map<number, IMinimalRecord>>,
-			)
-			existingBatchPromisesByID.set(id, createdFetchPromise)
-		}
-		void createdFetchPromise.finally(() => {
-			const currentInFlightTable = inFlightRecordsBatchPromiseByTable.get(apiRoute)
-			if (!currentInFlightTable) return
-			for (const id of idsWithoutPromise) {
-				const currentPromise = currentInFlightTable.get(id)
-				if (currentPromise !== createdFetchPromise) continue
-				currentInFlightTable.delete(id)
+			const existingBatchPromise = inFlightTable.get(id) as Promise<Map<number, T>> | undefined
+			if (existingBatchPromise) {
+				pendingByID.set(id, existingBatchPromise)
+				continue
 			}
-			if (currentInFlightTable.size === 0) {
-				inFlightRecordsBatchPromiseByTable.delete(apiRoute)
+			idsToFetch.push(id)
+		}
+		recordsByPartition.set(partition, resolvedRecordsByID)
+		pendingByPartition.set(partition, pendingByID)
+		if (idsToFetch.length > 0) idsToFetchByPartition.set(partition, idsToFetch)
+	}
+
+	if (idsToFetchByPartition.size > 0) {
+		const createdFetchPromise = doGetRecordsByIDs<T>(apiRoute, idsToFetchByPartition)
+		// One shared batch promise per partition, registered for each of its IDs.
+		for (const [partition, idsToFetch] of idsToFetchByPartition) {
+			const cacheNamespace = cacheNamespaceOf(apiRoute, partition)
+			const partitionPromise = createdFetchPromise.then((fetched) => fetched.get(partition) || new Map<number, T>())
+			const inFlightTable = getOrCreateInFlightRecordsTable(cacheNamespace)
+			for (const id of idsToFetch) {
+				inFlightTable.set(id, partitionPromise as Promise<Map<number, IMinimalRecord>>)
+				pendingByPartition.get(partition)!.set(id, partitionPromise)
 			}
-		})
+			void partitionPromise.finally(() => {
+				const currentInFlightTable = inFlightRecordsBatchPromiseByTable.get(cacheNamespace)
+				if (!currentInFlightTable) return
+				for (const id of idsToFetch) {
+					if (currentInFlightTable.get(id) === (partitionPromise as Promise<Map<number, IMinimalRecord>>)) {
+						currentInFlightTable.delete(id)
+					}
+				}
+				if (currentInFlightTable.size === 0) inFlightRecordsBatchPromiseByTable.delete(cacheNamespace)
+			})
+		}
 	}
 
-	const resolvedEntries = await Promise.all(
-		normalizedIDs.map(async (id) => {
-			const pendingBatchPromise = existingBatchPromisesByID.get(id)
-			if (!pendingBatchPromise) return null
-			const recordsByID = await pendingBatchPromise
-			const record = recordsByID.get(id)
-			if (!record) return null
-			if (record.ss === 0) return null
-			return [id, record] as const
-		}),
-	)
-
-	for (const resolvedEntry of resolvedEntries) {
-		if (!resolvedEntry) continue
-		resolvedRecordsByID.set(resolvedEntry[0], resolvedEntry[1])
+	for (const [partition, pendingByID] of pendingByPartition) {
+		const resolvedRecordsByID = recordsByPartition.get(partition)!
+		for (const [id, pendingBatchPromise] of pendingByID) {
+			const record = (await pendingBatchPromise).get(id)
+			if (record && record.ss !== 0) resolvedRecordsByID.set(id, record)
+		}
 	}
+	return recordsByPartition
+}
 
-	return resolvedRecordsByID
+/**
+ * getRecordsByID resolves records by ID, cache first and revalidated with the server.
+ * - `getRecordsByID(route, ids)`: a table without Partition → Map<ID, record>.
+ * - `getRecordsByID(route, { [partition]: ids })`: a partitioned table, any number of partitions in
+ *   one request → Map<partition, Map<ID, record>>.
+ */
+export function getRecordsByID<T extends IMinimalRecord>(apiRoute: string, ids: number[]): Promise<Map<number, T>>
+export function getRecordsByID<T extends IMinimalRecord>(
+	apiRoute: string, idsByPartition: Record<number, number[]>,
+): Promise<Map<number, Map<number, T>>>
+export async function getRecordsByID<T extends IMinimalRecord>(
+	apiRoute: string, ids: number[] | Record<number, number[]>,
+): Promise<Map<number, T> | Map<number, Map<number, T>>> {
+	if (Array.isArray(ids)) {
+		const recordsByPartition = await resolveRecordsByPartition<T>(apiRoute, new Map([[0, ids]]))
+		return recordsByPartition.get(0) || new Map<number, T>()
+	}
+	const idsByPartition = new Map(Object.entries(ids).map(([partition, partitionIDs]) => [Number(partition), partitionIDs]))
+	return resolveRecordsByPartition<T>(apiRoute, idsByPartition)
 }
 
 const buffetMaxTime = 80 // milliseconds
@@ -671,7 +498,7 @@ const flushBufferedRequests = async () => {
 
 			// One batched call per table, then fan out by ID.
 			console.debug(`${LOG_PREFIX} ${apiRoute} flush table batch | ids=${ids.length} | hints=${cacheHintsByID.size}`)
-			const recordsByID = await doGetRecordsByIDs<any>(apiRoute, ids, cacheHintsByID)
+			const recordsByID = (await doGetRecordsByIDs<any>(apiRoute, new Map([[0, ids]]), cacheHintsByID)).get(0)!
 
 			for (const id of ids) {
 				const key = `${apiRoute}:${id}`
@@ -725,7 +552,10 @@ const flushBufferedUpdatedRequests = async () => {
 	for (const { apiRoute, ids } of idsByTableToFetch) {
 		try {
 			console.debug(`${LOG_PREFIX} ${apiRoute} flush updated table batch | ids=${ids.length}`)
-			const fetchedRecords = await fetchFromServer<any>(apiRoute, ids, [], [])
+			// Nothing held is sent: every record comes back.
+			const fetchedPartitions = await fetchFromServer<any>(apiRoute, yearCycleOf(Date.now()),
+				[{ partition: 0, idTicks: ids.map((id): [number, number] => [id, 0]) }])
+			const fetchedRecords = fetchedPartitions.flatMap((cachedPartition) => cachedPartition.records)
 			const fetchedRecordsByID = await mergeFetchedRecordsIntoCache<any>(apiRoute, fetchedRecords, nowSeconds())
 
 			for (const id of ids) {
@@ -896,17 +726,11 @@ const fetchStaticRecordsFromServer = async <T extends { ID: number }>(
 	ids: number[],
 ): Promise<T[]> => {
 	if (ids.length === 0) return []
-	// Reuse the compact encoder so the backend's ExtractUpdatedVersionValues parses this the same as other routes.
-	const uriParams = buildFetchUriParams(ids, [], [])
 	try {
-		const runtime = getCacheRuntime()
-		const responsePayload = await runtime.get({
-			route: `${apiRoute}?${uriParams}&cmp=${runtime.getCompanyID()}`,
-		})
-		if (Array.isArray(responsePayload)) return responsePayload as T[]
-		if (Array.isArray(responsePayload?.records)) return responsePayload.records as T[]
-		console.warn(`${LOG_PREFIX} ${apiRoute} unexpected static response shape; returning empty list`, responsePayload)
-		return []
+		// The by-IDs request with nothing held: the backend returns every record.
+		const fetchedPartitions = await fetchFromServer<any>(apiRoute, yearCycleOf(Date.now()),
+			[{ partition: 0, idTicks: ids.map((id): [number, number] => [id, 0]) }])
+		return fetchedPartitions.flatMap((cachedPartition) => cachedPartition.records) as T[]
 	} catch (serverFetchError) {
 		console.warn(`${LOG_PREFIX} ${apiRoute} static fetch failed; returning empty list`, serverFetchError)
 		return []

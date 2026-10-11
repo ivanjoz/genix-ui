@@ -34,25 +34,22 @@ export const concatenateInts = (values: number[], sorted?: boolean): string => {
 		.map((s) => s.replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_")).join(".");
 };
 
-// concatenateInts buckets by magnitude, which reorders a mixed-width list. Anything that has to
-// stay positionally aligned with another array — cc-upd against cc-ids — needs one fixed width
-// instead, so the decoded order is exactly the order it was sent in. 6 little-endian bytes per value
-// hold any `upd` (milliseconds, 48 bits last ~8900 years); the backend's parseConcatenatedUint48s reads it.
-export const concatenateUint48s = (values: number[]): string => {
-	if (values.length === 0) return ""
-
-	const bytes = new Uint8Array(values.length * 6)
-	for (let index = 0; index < values.length; index++) {
-		// Division, not bit shifts: JS shifts truncate to 32 bits.
-		let remaining = values[index]
-		for (let byteIndex = 0; byteIndex < 6; byteIndex++) {
-			bytes[index * 6 + byteIndex] = remaining % 256
-			remaining = Math.floor(remaining / 256)
-		}
+// appendUvarint writes value as an unsigned LEB128 varint (Go's binary.AppendUvarint): 7 bits per
+// byte, low first, the high bit set on every byte but the last. Division, not shifts: JS shifts
+// truncate to 32 bits.
+export const appendUvarint = (bytes: number[], value: number): void => {
+	let remaining = value
+	while (remaining >= 0x80) {
+		bytes.push((remaining % 0x80) | 0x80)
+		remaining = Math.floor(remaining / 0x80)
 	}
+	bytes.push(remaining)
+}
 
+// bytesToBase64Url is unpadded base64url (Go's base64.RawURLEncoding), safe in a query parameter.
+export const bytesToBase64Url = (bytes: ArrayLike<number>): string => {
 	let binary = ""
-	for (let index = 0; index < bytes.byteLength; index++) {
+	for (let index = 0; index < bytes.length; index++) {
 		binary += String.fromCharCode(bytes[index])
 	}
 	return btoa(binary).replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_")

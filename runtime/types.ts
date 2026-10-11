@@ -149,9 +149,6 @@ export interface CreateUiRuntimeOptions {
   getToken?: () => string;
   getCompanyID: () => number;
   getEnvironment: () => string;
-  // The backend's Updated epoch (unix seconds): every record's `upd` counts milliseconds from it.
-  // The by-IDs cache needs it to turn a record's `upd` into its slot's year tick. Default 0.
-  getUpdatedEpochSeconds?: () => number;
   getWorkerUrl: () => string;
   navigate: (
     target: string,

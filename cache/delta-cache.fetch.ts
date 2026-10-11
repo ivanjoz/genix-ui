@@ -23,8 +23,9 @@ import {
   verifyRouteMemoryState,
 } from './delta-cache.idb';
 import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync, IRefreshDeltaRoutesArgs } from './delta-cache.types';
-import { watermarkParamOfDefaultKey } from './delta-cache.types';
-import { formatWatermark, lowestWatermark, makeEmptyWatermark, mergeIntoWatermark } from './delta-cache.watermark';
+import { deltaCursorParamOfDefaultKey } from './delta-cache.types';
+import { formatDeltaCursor, readDeltaKeyResponse } from './delta-cache.cursor';
+import { packDeltaLogID } from './delta-log.wire';
 import type { serviceHttpProps } from './service-http.types.js';
 import { parseObject } from './parse-object.js';
 import { parsePsvResponse } from './psv-parse';
@@ -389,28 +390,47 @@ const buildRouteRowsFromResponse = (
   return { rows, responseKeys }
 }
 
-// listReceivedUpdated lists, per response key, the [record ID, upd] of every record a delta brought,
-// deleted ones included: the input of the watermark and of its window.
-const listReceivedUpdated = (args: serviceHttpProps, content: CacheContent) => {
-  const receivedUpdatedByKey: { [key: string]: [string, number][] } = {}
-  for(const [key, records] of listRecordResponseEntries(content)){
-    receivedUpdatedByKey[key] = (records || []).map((record) => [
-      String(getRequiredRecordID(args, record, args.route, key)), record?.upd || 0,
-    ])
+// makeRecordIDOfLogID maps a delta log ID to the cached record's ID. A route keyed by one field holds
+// the log ID as its ID. A route keyed by several (keyID as a list) is looked up over its held records:
+// the log ID is their last field, or their last fields packed with logIDColumnBits when the table's
+// log ID packs several key columns.
+const makeRecordIDOfLogID = (args: serviceHttpProps, responseKey: string, heldRecords: any[]) => {
+  const keyFields = getRecordKeyFields(args, responseKey)
+  let recordIDByLogID: Map<number, CacheRecordID> | undefined
+  return (logID: number, logIDColumnBits: number[]): CacheRecordID | undefined => {
+    if(!Array.isArray(keyFields)){ return logID }
+    if(!recordIDByLogID){
+      recordIDByLogID = new Map()
+      const logIDFields = keyFields.slice(-Math.max(logIDColumnBits.length, 1))
+      for(const record of heldRecords){
+        const logIDValues = logIDFields.map((field) => Number(record?.[field] || 0))
+        const heldLogID = logIDColumnBits.length > 0 ? packDeltaLogID(logIDValues, logIDColumnBits) : logIDValues[0] as number
+        recordIDByLogID.set(heldLogID, getRequiredRecordID(args, record, args.route, responseKey))
+      }
+    }
+    return recordIDByLogID.get(logID)
   }
-  return receivedUpdatedByKey
 }
 
-// mergeReceivedIntoRoute folds a delta into the route's watermarks; true when any of them moved.
-const mergeReceivedIntoRoute = (args: serviceHttpProps, routeRow: ICacheRouteRow, content: CacheContent) => {
-  let hasChanged = false
-  for(const [key, receivedUpdated] of Object.entries(listReceivedUpdated(args, content))){
-    const merged = mergeIntoWatermark(routeRow.updatedStatus[key] || makeEmptyWatermark(), receivedUpdated)
-    if(!merged.hasChanged){ continue }
-    routeRow.updatedStatus[key] = merged.watermark
-    hasChanged = true
+// readDeltaLogs strips every response key's Metadata records, turns their log entries into the cached
+// records to remove, and moves the key's cursor on routeRow. Keys answered with `replace` hold their
+// whole view: the caller drops the held records they don't bring.
+const readDeltaLogs = (
+  args: serviceHttpProps, routeRow: ICacheRouteRow, response: CacheContent, heldContent?: CacheContent,
+) => {
+  const removedRecordIDsByKey = new Map<string, CacheRecordID[]>()
+  const replacedResponseKeys = new Set<string>()
+  for(const [responseKey, records] of listRecordResponseEntries(response)){
+    const heldRecords = Array.isArray(heldContent?.[responseKey]) ? heldContent[responseKey] : []
+    const keyResponse = readDeltaKeyResponse(
+      records, routeRow.deltaCursors[responseKey] || {}, makeRecordIDOfLogID(args, responseKey, heldRecords),
+    )
+    response[responseKey] = keyResponse.records
+    if(keyResponse.cursor){ routeRow.deltaCursors[responseKey] = keyResponse.cursor }
+    if(keyResponse.removedRecordIDs.length > 0){ removedRecordIDsByKey.set(responseKey, keyResponse.removedRecordIDs) }
+    if(keyResponse.isReplace){ replacedResponseKeys.add(responseKey) }
   }
-  return hasChanged
+  return { removedRecordIDsByKey, replacedResponseKeys }
 }
 
 const countResponseRecords = (response: CacheContent) => {
@@ -508,7 +528,8 @@ const readCachedContent = async (routeRow?: ICacheRouteRow): Promise<CacheConten
 }
 
 const getNextRouteURL = (args: serviceHttpProps, routeRow?: ICacheRouteRow) => {
-  // Build the backend delta URL from the current cache watermarks.
+  // Build the backend delta URL from the response keys' cursors: one param per key, named after it
+  // (`up` for a bare-array response). A key without a cursor sends none: a first sync for it.
   const lastSync = routeRow || makeEmptyLastSync(args.__version__ || 1)
   let route = args.routeParsed || args.route
 
@@ -516,32 +537,17 @@ const getNextRouteURL = (args: serviceHttpProps, routeRow?: ICacheRouteRow) => {
     route = addToRoute(route, args.partition.param || args.partition.key, args.partition.value)
   }
 
-  for(const field of args.fields || []){
-    if(!lastSync.updatedStatus[field]){
-      route = addToRoute(route, field, formatWatermark(makeEmptyWatermark()))
-    }
-  }
-
   if(!routeRow?.fetchTime){
     return { route, lastSync }
   }
 
-  if(lastSync.updatedStatus._default){
-    route = addToRoute(route, watermarkParamOfDefaultKey,
-      formatWatermark(lastSync.updatedStatus._default))
-    return { route, lastSync }
-  }
-
   const fields = args.fields || []
-  for(const [key, watermark] of Object.entries(lastSync.updatedStatus)){
+  for(const [key, cursor] of Object.entries(lastSync.deltaCursors)){
     if(fields.length > 0 && !fields.includes(key)){ continue }
-    route = addToRoute(route, key, formatWatermark(watermark))
+    const formattedCursor = formatDeltaCursor(cursor)
+    if(!formattedCursor){ continue }
+    route = addToRoute(route, key === '_default' ? deltaCursorParamOfDefaultKey : key, formattedCursor)
   }
-
-  // The backend reads one watermark, `up`, for every key of a multi-key route: the lowest, so no key
-  // skips a record. Its fingerprint only matches that key's window; the other keys get theirs resent.
-  route = addToRoute(route, watermarkParamOfDefaultKey,
-    formatWatermark(lowestWatermark(Object.values(lastSync.updatedStatus))))
   return { route, lastSync }
 }
 
@@ -576,7 +582,7 @@ const shouldUseNetwork = async (
   }
 
   for(const field of args.fields || []){
-    if(!lastSync.updatedStatus[field]){
+    if(!lastSync.deltaCursors[field]){
       return { doFetch: true, remaining }
     }
   }
@@ -631,23 +637,30 @@ const handleFetchResponse = async (
     routeRow.isSingle = isArrayResponse
   }
 
+  const baseSnapshot = (await readCachedContent(routeRow)) || ({ __version__: routeRow.__version__ } as CacheContent)
   const idsToRemoveByResponseKey = listIDsToRemoveByResponseKey(response)
-  // Any delta carrying at least one record is applied. An unmoved watermark does not say the values
-  // did not change: the current day's row is rewritten in place under a fixed time frame, so its
-  // watermark stays the same all day and comparing only that froze the route until the next day.
-  // An empty response still means "nothing new", which is what the backend answers when the
-  // client's watermark already covers everything.
-  // doNothingOnSameValue restores the watermark comparison, for routes whose watermark identifies
-  // every write and where rewriting the cache with identical values only costs IndexedDB: a resent
-  // window that only repeats what the watermark holds is then skipped.
-  let hasChanged = [...idsToRemoveByResponseKey.values()].some((idsToRemove) => idsToRemove.length > 0)
-    || (!args.doNothingOnSameValue && countResponseRecords(response) > 0)
-  if(mergeReceivedIntoRoute(args, routeRow, response)){ hasChanged = true }
+  // The delta logs say which held records left each view, and move the keys' cursors.
+  const deltaLogs = readDeltaLogs(args, routeRow, response, baseSnapshot)
+  for(const [responseKey, removedRecordIDs] of deltaLogs.removedRecordIDsByKey){
+    idsToRemoveByResponseKey.set(responseKey, [...(idsToRemoveByResponseKey.get(responseKey) || []), ...removedRecordIDs])
+  }
+  // A replaced key brings its whole view: every held record it doesn't bring goes.
+  for(const responseKey of deltaLogs.replacedResponseKeys){
+    const incomingRecordIDs = new Set((response[responseKey] || []).map((record) => getRequiredRecordID(args, record, args.route, responseKey)))
+    const heldRecords = Array.isArray(baseSnapshot[responseKey]) ? baseSnapshot[responseKey] : []
+    const leftRecordIDs = heldRecords
+      .map((record) => getRequiredRecordID(args, record, args.route, responseKey))
+      .filter((recordID) => !incomingRecordIDs.has(recordID))
+    idsToRemoveByResponseKey.set(responseKey, [...(idsToRemoveByResponseKey.get(responseKey) || []), ...leftRecordIDs])
+  }
+  // Any delta carrying a record or a removal is applied; an empty one means nothing new.
+  const hasChanged = [...idsToRemoveByResponseKey.values()].some((idsToRemove) => idsToRemove.length > 0)
+    || countResponseRecords(response) > 0
 
   console.log("Fetch cache ha cambiado?:", hasChanged, "|", args.route, "|", makeStats(response))
 
   if(!hasChanged && args.cacheMode !== 'updateOnly'){
-    response = (await readCachedContent(routeRow)) as CacheContent
+    response = baseSnapshot
   } else if(hasChanged){
     const incomingResponseKeys = listRecordResponseEntries(response).map(([responseKey]) => responseKey)
     // Register any new responseKeys (including those referenced only via `_IDsToRemove` flags)
@@ -659,7 +672,6 @@ const handleFetchResponse = async (
     await extendRouteResponseKeys(routeRow, [...allResponseKeysToRegister])
     console.log("[DeltaCache] aplicando delta:", routeRow.cacheKey, incomingResponseKeys)
 
-    const baseSnapshot = (await readCachedContent(routeRow)) || ({ __version__: routeRow.__version__ } as CacheContent)
     const nextSnapshot = { ...baseSnapshot } as CacheContent
 
     if(routeRow.isSingle){
@@ -707,6 +719,8 @@ const handleFetchResponse = async (
       for(const record of incomingRecords){
         const recordID = getRequiredRecordID(args, record, args.route, responseKey)
         const prevRecord = nextRecordsByID.get(recordID)
+        // The same version is the same record: no IndexedDB write.
+        if(prevRecord && record.ver && prevRecord.ver === record.ver && !allowColumnarMerge){ continue }
         let nextRecord = record
 
         if(prevRecord && allowColumnarMerge){
@@ -757,8 +771,9 @@ const saveInitialSnapshot = async (
   // First sync writes the full route snapshot as indexed rows.
   const routeRow = await ensureCacheRouteRow(routeReference)
   routeRow.fetchTime = fetchTime
-  routeRow.updatedStatus = {}
-  mergeReceivedIntoRoute(args, routeRow, response)
+  routeRow.deltaCursors = {}
+  // A first sync holds nothing yet: its Metadata records only set the cursors.
+  readDeltaLogs(args, routeRow, response)
   accumulateRouteFetchStats(routeRow, response, args.contentLength)
   routeRow.__version__ = args.__version__ || 1
   routeRow.forceNetwork = false
@@ -770,11 +785,11 @@ const saveInitialSnapshot = async (
   return rememberRouteSnapshot(routeRow, response)
 }
 
-export const getDeltaUpdatedStatus = async (args: serviceHttpProps) => {
+export const getDeltaCursors = async (args: serviceHttpProps) => {
   const routeReference = makeRouteReference(args)
   const routeRow = await getCacheRouteRow(routeReference)
   const lastSync = routeRow || makeEmptyLastSync(routeReference.version)
-  return { updatedStatus: lastSync.updatedStatus || {}, updated: lastSync.fetchTime || 0 }
+  return { deltaCursors: lastSync.deltaCursors || {}, fetchTime: lastSync.fetchTime || 0 }
 }
 
 // firstSyncFromSnapshotFile bootstraps a route from a static CDN snapshot file (.db) instead of
@@ -810,7 +825,8 @@ const firstSyncFromSnapshotFile = async (
     return null
   }
 
-  // Seeded: run one server delta from the file-derived watermarks so the first load is fresh.
+  // Seeded: the file carries no delta cursor, so this request is a first sync: the server sends the
+  // whole list and its log cursors, merged over the seed.
   const routeRow = await getCacheRouteRow(routeReference)
   try {
     const { route } = getNextRouteURL(args, routeRow)

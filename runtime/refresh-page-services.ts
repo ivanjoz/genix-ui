@@ -6,7 +6,7 @@ import { sendServiceMessage } from '../service-worker/client.js';
 // we hand the service worker the routes this page read and it flags them (forceNetwork) — the flag
 // lives in IndexedDB, survives the reload, and makes the very next read of each route hit the
 // server. It is consumed once per route, so the pages the user did not ask to refresh keep their
-// cache. The request stays a delta: the watermark is still sent and the server answers with the
+// cache. The request stays a delta: the cursor is still sent and the server answers with the
 // changes only.
 export const markPageServicesForRefresh = async (pathname?: string): Promise<number> => {
   const routesByModule = getPageCachedRoutesByModule(pathname);

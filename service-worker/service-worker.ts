@@ -4,7 +4,7 @@ import {
   clearDeltaModuleCache,
   fetchDeltaCache,
   getDeltaCacheStats,
-  getDeltaUpdatedStatus,
+  getDeltaCursors,
   readDeltaCacheSubObject,
   refreshDeltaRoutes,
   setDeltaRouteForceNetwork,
@@ -30,9 +30,9 @@ HandlersMap.set(11, async () => {
   return await triggerDeltaForceFetchWindow()
 })
 
-// Action 12 exposes the latest per-response updated watermark for a route.
+// Action 12 exposes the delta cursor of each response key of a route.
 HandlersMap.set(12, async (args: serviceHttpProps) => {
-  return await getDeltaUpdatedStatus(args)
+  return await getDeltaCursors(args)
 })
 
 // Action 13 applies delta payloads produced by write endpoints into the cache.

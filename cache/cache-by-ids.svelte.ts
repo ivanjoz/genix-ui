@@ -239,7 +239,7 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 ): Promise<Map<number, Map<number, T>>> => {
 	const currentTimeSeconds = nowSeconds()
 	const cycleYear = yearCycleOf(Date.now())
-	const cycleStart = cycleStartUpdated(cycleYear, getCacheRuntime().getUpdatedEpochSeconds())
+	const cycleStart = cycleStartUpdated(cycleYear)
 
 	const lookups = await Promise.all([...idsByPartition].map(([partition, ids]) =>
 		lookUpPartition<T>(apiRoute, partition, ids, cycleStart, currentTimeSeconds, partition === 0 ? cacheHintsByID : undefined)))

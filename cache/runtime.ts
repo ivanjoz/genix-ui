@@ -12,8 +12,6 @@ export interface CacheNavigateOptions {
 export interface CacheRuntime {
 	getCompanyID: () => number
 	getEnvironment: () => string
-	// The backend's Updated epoch in unix seconds (see CreateUiRuntimeOptions.getUpdatedEpochSeconds).
-	getUpdatedEpochSeconds: () => number
 	get: (request: CacheGetRequest) => Promise<any>
 	navigate: (target: string, options?: CacheNavigateOptions) => void | Promise<void>
 }
@@ -22,7 +20,6 @@ export interface CacheRuntime {
 let cacheRuntime: CacheRuntime = {
 	getCompanyID: () => 0,
 	getEnvironment: () => 'main',
-	getUpdatedEpochSeconds: () => 0,
 	get: () => Promise.reject(new Error('Cache GET adapter is not configured.')),
 	navigate: (target, options) => {
 		if (typeof location === 'undefined') { return }

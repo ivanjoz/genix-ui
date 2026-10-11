@@ -12,10 +12,9 @@ import type {
   IRequestLogRow,
 } from './delta-cache.types'
 
-// v7 drops every cached route on upgrade. The watermark a route stores changed shape — the
-// `upv`/`upd` pair became `upd` plus the window of records below it — and the records' `upd` changed
-// unit (milliseconds since the backend's unix_time_start). Re-syncing once is the cheap fix.
-const CACHE_DB_VERSION = 7
+// v8 drops every cached route on upgrade: the `upd` watermark became the delta log cursor, records
+// carry `ver`, and `upd` changed unit (a SUnixTime). Re-syncing once is the cheap fix.
+const CACHE_DB_VERSION = 8
 
 const deltaCacheDatabasesByName = new Map<string, DeltaCacheDatabase>()
 const routeMemoryByLookupKey = new Map<string, ICacheRouteRow>()
@@ -127,7 +126,7 @@ const getPersistedRouteRow = async (routeRef: IDeltaCacheRouteRef): Promise<ICac
 
 export const makeEmptyLastSync = (version: number): ILastSync => ({
   fetchTime: 0,
-  updatedStatus: {},
+  deltaCursors: {},
   fetchedRecordsCount: 0,
   fetchedBytes: 0,
   __version__: version,

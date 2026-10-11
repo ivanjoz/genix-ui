@@ -2,7 +2,8 @@ export type CacheRecordID = string | number
 
 export interface ILastSync {
   fetchTime: number
-  updatedStatus: { [key: string]: IDeltaWatermark }
+  // The delta cursor of each response key (delta-cache.cursor.ts).
+  deltaCursors: { [key: string]: DeltaCursor }
   fetchedRecordsCount: number
   fetchedBytes: number
   forceNetwork?: boolean
@@ -36,22 +37,12 @@ export interface ICacheRouteRow extends ILastSync {
   isSingle?: boolean
 }
 
-// What a response key holds of its delta: `upd` is the highest `upd` received (milliseconds since
-// the backend's unix_time_start), and `window` the `upd` of every record received in the
-// overlap below it, `[upd - deltaOverlapMillis, upd]`, keyed by record ID (deleted records too). The
-// backend resends that window unless the fingerprint of `window` matches its own: a write stamped
-// inside it can land after the client read past it.
-export interface IDeltaWatermark {
-  upd: number
-  window: Record<string, number>
-}
+// What a response key holds of its delta log: per log file still open (its 10-minute bucket), how many
+// of its bytes the browser applied.
+export type DeltaCursor = Record<number, number>
 
-// genix-orm/dynamo's DeltaOverlap: the window a later sync re-checks below its watermark.
-export const deltaOverlapMillis = 4000
-
-// A watermark travels as one query param per response key, `"<upd>.<fingerprint>"`. The backend
-// reads `up`, which carries the lowest key's.
-export const watermarkParamOfDefaultKey = 'up'
+// A cursor travels as one query param per response key; a bare-array response's key sends `up`.
+export const deltaCursorParamOfDefaultKey = 'up'
 
 export interface ICacheRecordRowMulti {
   _r: number

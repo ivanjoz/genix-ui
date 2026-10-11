@@ -93,7 +93,6 @@ export const createUiRuntime = <UserInfoType = unknown>(
   configureCacheRuntime({
     getCompanyID: options.getCompanyID,
     getEnvironment: options.getEnvironment,
-    getUpdatedEpochSeconds: options.getUpdatedEpochSeconds ?? (() => 0),
     get: http.GET,
     navigate: options.navigate,
   });

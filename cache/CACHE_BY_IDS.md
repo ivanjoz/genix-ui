@@ -90,20 +90,19 @@ refreshes `_fch`. A failed request refreshes nothing.
 
 ## Year ticks
 
-A year cycle starts on **January 1 at 07:00 UTC**. A tick counts 2 seconds from it (a leap year is
-15,811,200 ticks, under uint24's 16,777,215):
+A year cycle starts on **January 1 at 07:00 UTC**. A tick counts 2 seconds from it, one Updated
+(SUnixTime) unit (a leap year is 15,811,200 ticks, under uint24's 16,777,215):
 
 | Tick | Meaning |
 |---|---|
 | 0 | unknown: always forces a read |
 | 1 | no write to the slot in this cycle |
-| ≥ 2 | a write: `floor((Updated − cycleStart) / 2000) + 2` |
+| ≥ 2 | a write: `Updated − cycleStart + 2` |
 
-The backend returns a tick as `upd = cycleStart + (tick − 1) × 2000`, the end of its window, and
-`toYearTick(upd) = floor((upd − cycleStart) / 2000) + 1` turns it back. A value from an earlier cycle
-converts to 0, so on January 1 every record is read once more: that is the yearly reset, with no job
-and no browser clear. `cycleStart` is in Updated units (milliseconds since the backend's epoch), which
-the host gives through `CreateUiRuntimeOptions.getUpdatedEpochSeconds`.
+The backend returns a tick as `upd = cycleStart + tick − 1`, the end of its window, and
+`toYearTick(upd) = upd − cycleStart + 1` turns it back. A value from an earlier cycle converts to 0,
+so on January 1 every record is read once more: that is the yearly reset, with no job and no browser
+clear. `cycleStart` is the cycle's start as SUnixTime, `(unix seconds − 1e9) / 2`.
 
 ## Backend Flow
 
@@ -191,8 +190,8 @@ Requirements enforced by the ORM:
 
 - `CacheByIDs: true`
 - exactly one integer `Keys` column (the ID), at most one `Partition` column
-- an `int64` field named `Updated` (`json:"upd"`), in **both** the record and the table struct
-- berryapps: `[ids_cache].bucket` set, where the slot files live
+- an `int32` field named `Updated` (`json:"upd"`), in **both** the record and the table struct
+- berryapps: `[file_store].bucket` set, where the slot files live (`ids-cache/`)
 
 The ORM stamps `Updated` on every write; handlers never set it. If `upd` is missing from the
 response, the frontend cannot validate cached rows.
@@ -223,8 +222,6 @@ If the same rows keep coming back from the backend:
 1. check the record's `upd` in memory and IndexedDB, and `toYearTick(upd)`
 2. decode the `cc` parameter (`DecodeCachedIDsRequest`) and check the tick sent for its slot
 3. check the backend response `upd`
-4. check `getUpdatedEpochSeconds` matches the backend's `unix_time_start`: a wrong epoch shifts
-   every tick, and nothing ever matches
 
 Typical failure patterns:
 
@@ -237,4 +234,4 @@ Typical failure patterns:
 ## Related References
 
 - `backend/genix-orm/dynamo/cache_by_ids.go`
-- `backend/core/cache_by_ids.go` (`ExtractCachedIDs`), `backend/core/idscache` (the S3 store)
+- `backend/core/cache_by_ids.go` (`ExtractCachedIDs`), `backend/core/filestore` (the S3 store)

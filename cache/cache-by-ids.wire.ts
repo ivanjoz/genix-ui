@@ -2,14 +2,12 @@
  * The by-IDs request (`cc`) and the year ticks it carries. Pure: no fetch, no Svelte.
  *
  * The backend keeps, per partition and slot (`uint8(ID)`), the year tick of the slot's last write: a
- * 2-second counter from the year cycle's start, January 1 at 07:00 UTC. A by-IDs record's `upd` is its
- * slot's tick as an Updated value (the end of the tick's window); `toYearTick` turns it back. The Go
- * side is genix-orm/dynamo/cache_by_ids.go (DecodeCachedIDsRequest, yearTickToUpdated), and both are
- * pinned by genix-orm/dynamo/testdata/year_tick_vectors.json.
+ * 2-second counter from the year cycle's start, January 1 at 07:00 UTC: one Updated (SUnixTime) unit. A
+ * by-IDs record's `upd` is its slot's tick as an Updated value (the end of the tick's window);
+ * `toYearTick` turns it back. The Go side is genix-orm/dynamo/cache_by_ids.go (DecodeCachedIDsRequest,
+ * yearTickToUpdated), and both are pinned by genix-orm/dynamo/testdata/year_tick_vectors.json.
  */
 import { appendUvarint, bytesToBase64Url } from '../utilities/index.js'
-
-const YEAR_TICK_MILLIS = 2000
 
 // yearCycleOf is the year cycle holding a moment: the calendar year, until its 07:00 UTC January 1.
 export const yearCycleOf = (unixMillis: number): number => {
@@ -17,16 +15,16 @@ export const yearCycleOf = (unixMillis: number): number => {
 	return unixMillis < Date.UTC(year, 0, 1, 7) ? year - 1 : year
 }
 
-// cycleStartUpdated is a cycle's start in Updated units: milliseconds since the backend's epoch.
-export const cycleStartUpdated = (cycleYear: number, epochSeconds: number): number =>
-	Date.UTC(cycleYear, 0, 1, 7) - epochSeconds * 1000
+// cycleStartUpdated is a cycle's start in Updated units: SUnixTime, (unix seconds − 1e9) / 2.
+export const cycleStartUpdated = (cycleYear: number): number =>
+	(Date.UTC(cycleYear, 0, 1, 7) / 1000 - 1e9) / 2
 
 // toYearTick is the tick a held record's `upd` stands for. 0 (nothing known) and a value from an
 // earlier cycle both give 0, which makes the server read the record again: on January 1 every
 // record is read once more, the yearly reset.
 export const toYearTick = (upd: number, cycleStart: number): number => {
 	if (!upd || upd < cycleStart) return 0
-	return Math.floor((upd - cycleStart) / YEAR_TICK_MILLIS) + 1
+	return upd - cycleStart + 1
 }
 
 export interface CachedIDsPartitionRequest {

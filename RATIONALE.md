@@ -2,6 +2,29 @@
 
 Design decisions for the shared UI package, newest first.
 
+## The delta cache follows the backend's change log with a byte cursor; `upd` is a SUnixTime
+
+**Context** — The backend replaced the `upd` watermark and its fingerprinted window with a change log:
+one file per delta index, pinned value and 10-minute bucket, each response ending with Metadata
+records (a negative ID, `mdt` = the file in Safe85). Records carry a per-record `ver`, and `upd` is
+now an `int32` SUnixTime. Left open: what the client keeps, how it sends it, and what a same-`ver`
+record does.
+
+**Decision** — Per response key the route row keeps `deltaCursors[key]`: `{ [bucket]: bytes
+applied }` of every file still open. It travels as `<bucket>.<bytes>` pairs joined by dots, in the
+key's own param (`up` for a bare array). `delta-cache.cursor.ts` (pure) strips the Metadata records,
+decodes the entries past the held bytes (last entry per log ID wins), removes the records whose
+entry is deleted, forgets sealed buckets, and reports a `replace` (the held records the response
+doesn't bring are dropped). A route answering no Metadata record keeps its cursor as it was. A
+record whose `ver` equals the held one is not written to IndexedDB again. A packed log ID is mapped
+back to a held record through `keyID` as a list. The IndexedDB delta cache goes to v8, dropping
+every route. The by-IDs ticks are computed in SUnixTime units (`upd − cycleStart + 1`), and
+`getUpdatedEpochSeconds` is gone with the epoch.
+
+**Rationale** — The cursor makes a missed write impossible inside the log's 7 days, whatever order
+the appends landed in, and a sync with nothing new costs the server one read per open file. The
+cost: each response carries the whole content of the files it read (small: a few bytes per write).
+
 ## By-IDs cache: one `cc` request with year ticks, partitions as cache namespaces
 
 **Context** — The backend now keeps, per partition and slot, a 2-second year tick instead of the

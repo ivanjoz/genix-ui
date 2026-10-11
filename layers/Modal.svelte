@@ -449,8 +449,8 @@
 
 	._2 {
 		/* body */
-		background-color: var(--surface-soft);
 		transform: translateY(-80px);
+		--surface: var(--panel-surface);
 		background-color: var(--surface);
 		opacity: 0;
 		transition:

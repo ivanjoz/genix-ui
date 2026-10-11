@@ -154,6 +154,7 @@
     right: 0;
     bottom: 0;
     height: calc(100vh - var(--header-height) - 8px);
+    --surface: var(--panel-surface);
     background: var(--surface);
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -10px 26px rgb(15 23 42 / 0.22), 0 0 0 1px var(--layer-edge);

@@ -101,6 +101,10 @@ body {
 	--layer-bg: var(--surface);
 	--layer-outline: transparent;
 	--layer-shadow: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -1px rgb(0 0 0 / 6%);
+	/* The surface of a side or modal panel (Layer, Modal, MobileLayerVertical). Each panel assigns
+	   it to its own --surface, so the tables and cards inside follow it. Dark mode steps it below the
+	   card surface to keep a moderate contrast with the recessed fields. */
+	--panel-surface: var(--surface);
 
 	--accent-bg: #f5f4ff;
 	--accent-bg-strong: #e7e4ff;
@@ -206,6 +210,7 @@ body.dark {
 	--layer-bg: #191d2d;
 	--layer-outline: rgb(255 255 255 / 13%);
 	--layer-shadow: 0 4px 6px -1px rgb(250 250 250 / 10%), 0 2px 4px -1px rgb(255 255 255 / 6%);
+	--panel-surface: #141b2a;
 
 	--accent-solid: #7f7ff0;
 	--accent-fg: #bdbbff;

@@ -290,6 +290,7 @@ import { ifcss } from '../utilities/css.js';
     width: 800px;
     height: calc(100vh - var(--header-height));
     right: 0;
+    --surface: var(--panel-surface);
     background-color: var(--surface);
     box-shadow:
       -7px 0px 15px 0px #00000024,
@@ -308,6 +309,7 @@ import { ifcss } from '../utilities/css.js';
     height: auto;
     width: 800px;
     right: 0;
+    --surface: var(--panel-surface);
     background-color: var(--surface);
     box-shadow:
       -7px 0px 15px 0px #00000024,

@@ -144,7 +144,6 @@
     "excelize-wasm": "^0.1.1",
     "leafer-ui": "^2.0.3",
     "normalize-html-whitespace": "^1.0.0",
-    "roosterjs": "^9.41.0",
     "svelte-awesome-color-picker": "^4.1.0"
   },
   "devDependencies": {

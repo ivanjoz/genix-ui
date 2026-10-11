@@ -1,652 +1,320 @@
 <script lang="ts" generics="T">
   import { BROWSER } from 'esm-env';
-  import {
-    editorBackgroundColors,
-    editorTextColors,
-    editorTextSizes,
-    TextBackgroudColor,
-    TextColorIcon,
-    TextSizeIcon
-  } from "./HTMLEditor"
-  import * as pkg from "roosterjs";
-  const {
-    ChangeSource,
-    clearFormat,
-    createDomToModelContext,
-    createDomToModelContextWithConfig,
-    createEditor,
-    domToContentModel,
-    editTable,
-    getFormatState,
-    insertTable,
-    setAlignment,
-    setBackgroundColor,
-    setFontName,
-    setFontSize,
-    setHeadingLevel,
-    setTextColor,
-    TableEditPlugin,
-    toggleBold,
-    toggleBullet,
-    toggleItalic,
-    toggleNumbering,
-    toggleStrikethrough,
-    toggleUnderline
-  } = pkg;
-
-  type ContentModelDocument = pkg.ContentModelDocument;
-  type ContentModelFormatState = pkg.ContentModelFormatState;
-  type EditorPlugin = pkg.EditorPlugin;
-  type IEditor = pkg.IEditor;
-  type PluginEvent = pkg.PluginEvent;
   import { onMount } from "svelte";
+  import { Editor, type ChainedCommands } from "@tiptap/core";
+  import StarterKit from "@tiptap/starter-kit";
+  import TextAlign from "@tiptap/extension-text-align";
+  import { TextStyleKit } from "@tiptap/extension-text-style";
+  import { TableKit } from "@tiptap/extension-table";
+  import EditorTablePicker from "./EditorTablePicker.svelte";
+  import EditorTableHandles from "./EditorTableHandles.svelte";
+  // Aliased: the generic record parameter of this component is already named T.
+  import TranslatedText from "../misc/T.svelte";
+  import { editorBackgroundColors, editorTextColors, editorTextSizes } from "./HTMLEditor"
+  import {
+    editorIconAlignCenter,
+    editorIconAlignJustify,
+    editorIconAlignLeft,
+    editorIconAlignRight,
+    editorIconBackgroundColor,
+    editorIconBold,
+    editorIconBulletList,
+    editorIconClearFormat,
+    editorIconHorizontalRule,
+    editorIconItalic,
+    editorIconNumberedList,
+    editorIconRedo,
+    editorIconTable,
+    editorIconTextColor,
+    editorIconTextSize,
+    editorIconUnderline,
+    editorIconUndo,
+  } from "./icons"
 
-  type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
-
-  const { saveOn, save, css }: {
+  const { saveOn, save, css, placeholder = "Start writing rich content…|Empieza a escribir contenido enriquecido…" }: {
     saveOn: T
     save: keyof T
     css?: string
+    /** Bilingual "English|Spanish" text shown while the editor is empty. */
+    placeholder?: string
   } = $props()
 
-  const getInitialValue = () =>
+  const readBoundHtml = () =>
     (saveOn && save && ((saveOn[save] as string) ?? "")) || ""
 
   let editorRoot = $state<HTMLDivElement | null>(null)
-  let editorContainer = $state<HTMLDivElement | null>(null)
-  let editor = $state<IEditor | null>(null)
-  let editorValue = $state<string>(getInitialValue())
-  let formatState = $state<ContentModelFormatState>({})
-  let isInTable = $state(false)
-  let fontSizeOptions = $state<string[]>([
-    "8pt", "9pt", "10pt", "11pt", "12pt", "14pt",
-    "16pt", "18pt", "20pt", "24pt", "28pt", "32pt"
-  ])
-  let fontSizeSelection = $state<string>("16pt")
-  let headingSelection = $state<HeadingLevel>(0)
-  let textColorValue = $state<string>("var(--fg)")
-  let backgroundColorValue = $state<string>("var(--surface)")
-  let fontFamilySelection = $state<string>("Arial")
-  let lastSyncedValue = getInitialValue()
-  let pendingFormatFrame: number | null = null
+  let editorFrame = $state<HTMLDivElement>()
+  let toolbarElement = $state<HTMLDivElement>()
+  // Raw: the tiptap Editor is a mutable class instance and must not be wrapped in a proxy.
+  let editor = $state.raw<Editor | null>(null)
+  // Bumped on every transaction so the toolbar's active states re-derive from the editor.
+  let transactionTick = $state(0)
+  // Last HTML exchanged with saveOn[save], to tell our own writes from external changes.
+  let lastSyncedHtml = readBoundHtml()
 
-  // Layers state
-  let showTableLayer = $state(false)
-  let showTextColorLayer = $state(false)
-  let showBackgroudColorLayer = $state(false)
-  let showTextSizeLayer = $state(false)
+  // Popovers opened from a toolbar button: centered under it, with an arrow pointing at it
+  type ToolbarPopover = "textSize" | "table" | "textColor" | "backgroundColor" | "align"
+  let openPopover = $state<ToolbarPopover | null>(null)
+  let popoverAnchor = $state.raw<HTMLElement | null>(null)
+  let popoverElement = $state<HTMLDivElement>()
+  // Toolbar coordinates: the anchor button's horizontal center and the popover's top-left corner
+  let popoverAnchorCenter = $state(0)
+  let popoverTop = $state(0)
+  let popoverLeft = $state(0)
 
-  // Table state
-  let selectedRows = $state(0)
-  let selectedCols = $state(0)
+  const textAlignOptions = [
+    { value: "left", label: "Align left", icon: editorIconAlignLeft },
+    { value: "center", label: "Align center", icon: editorIconAlignCenter },
+    { value: "right", label: "Align right", icon: editorIconAlignRight },
+    { value: "justify", label: "Justify", icon: editorIconAlignJustify },
+  ]
 
-  const getEditorCore = () => {
-    const current = editor as (IEditor & { core?: any }) | null
-    return current?.core
+  // An empty document serializes as "<p></p>": store it as "" so an untouched field stays empty.
+  const getEditorHtml = (instance: Editor) => instance.isEmpty ? "" : instance.getHTML()
+
+  const isActive = (nameOrAttributes: string | Record<string, unknown>, attributes?: Record<string, unknown>) => {
+    transactionTick
+    if (!editor) return false
+    return typeof nameOrAttributes === "string"
+      ? editor.isActive(nameOrAttributes, attributes)
+      : editor.isActive(nameOrAttributes)
   }
 
-  const ensureFontSizeOption = (size: string) => {
-    if (!size) return
-    if (!fontSizeOptions.includes(size)) {
-      fontSizeOptions = [...fontSizeOptions, size]
-    }
-  }
+  const isEditorEmpty = $derived.by(() => { transactionTick; return editor?.isEmpty ?? true })
+  // The color swatches show the color under the cursor, falling back to the theme defaults.
+  const textColorValue = $derived.by(() => {
+    transactionTick
+    return editor?.getAttributes("textStyle").color || "var(--fg)"
+  })
+  const backgroundColorValue = $derived.by(() => {
+    transactionTick
+    return editor?.getAttributes("textStyle").backgroundColor || "var(--surface)"
+  })
+  const currentFontSize = $derived.by(() => {
+    transactionTick
+    return editor?.getAttributes("textStyle").fontSize || ""
+  })
 
-  const createModelFromHtml = (
-    html: string,
-    core?: ReturnType<typeof getEditorCore>
-  ): ContentModelDocument | undefined => {
-    if (!BROWSER) return undefined
-
-    const normalized = html?.trim() ? html : "<p></p>"
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(normalized, "text/html")
-    const body = doc.body
-    if (!body) return undefined
-
-    const context = core
-      ? createDomToModelContextWithConfig(
-          core.environment.domToModelSettings.calculated,
-          core.api.createEditorContext(core, false)
-        )
-      : createDomToModelContext()
-
-    return domToContentModel(body, context)
-  }
-
-  let layerInput = $state<HTMLInputElement>()
-  let avoidCloseOnBlur = false
-
-  const sanitizeHtml = (html: string): string => {
-    if (!BROWSER) return html
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(html, "text/html")
-
-    const removeStyles = (elements: NodeListOf<HTMLElement>, props: string[]) => {
-      elements.forEach(el => props.forEach(p => el.style.removeProperty(p)))
-    }
-
-    removeStyles(doc.querySelectorAll('div'),
-      ['margin-top', 'margin-bottom', 'font-family' /*, 'font-size', 'color' */])
-
-    removeStyles(doc.querySelectorAll('td, th'),
-      ['width', 'height', 'border-width', 'border-style', 'border-color'])
-
-    return doc.body.innerHTML
-  }
-
-  const applyHtmlToEditor = (html: string) => {
-    const core = getEditorCore()
-    if (!core) return
-
-    const sanitizedHtml = sanitizeHtml(html)
-    const model = createModelFromHtml(sanitizedHtml, core)
-    if (!model) return
-
-    core.api.setContentModel(core, model, { ignoreSelection: true })
-    core.api.triggerEvent(
-      core,
-      { eventType: "contentChanged", source: ChangeSource.SetContent },
-      true
-    )
-
-    setTimeout(() => {
-      if (editorRoot) removeUnwantedStyles(editorRoot)
-    }, 0)
-  }
-
-  const removeUnwantedStyles = (element: HTMLElement) => {
-    const removeStyles = (elements: NodeListOf<HTMLElement>, props: string[]) => {
-      elements.forEach(el => props.forEach(p => el.style.removeProperty(p)))
-    }
-
-    removeStyles(element.querySelectorAll('div'),
-      ['margin-top', 'margin-bottom', 'font-family', 'font-size', 'color'])
-
-    removeStyles(element.querySelectorAll('td, th'),
-      ['width', 'height', 'border-width', 'border-style', 'border-color'])
-  }
-
-  const syncEditorHtml = () => {
-    if (!editorRoot) return
-    removeUnwantedStyles(editorRoot)
-    const nextValue = editorRoot.innerHTML
-    if (nextValue !== editorValue) {
-      editorValue = nextValue
-    }
-  }
-
-  const checkIfInTable = () => {
-    if (!editor || !editorRoot) {
-      isInTable = false
-      return
-    }
-
-    const selection = editor.getDOMSelection()
-    if (!selection) {
-      isInTable = false
-      return
-    }
-
-    if (selection.type === 'table') {
-      isInTable = true
-      return
-    }
-
-    if (selection.type === 'range') {
-      const range = selection.range
-      const nodesToCheck: Node[] = [range.startContainer, range.commonAncestorContainer]
-
-      for (const startNode of nodesToCheck) {
-        let node: Node | null = startNode
-        while (node && node !== editorRoot) {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const tagName = (node as HTMLElement).tagName?.toUpperCase()
-            if (['TABLE', 'TD', 'TH', 'TR', 'TBODY', 'THEAD', 'TFOOT'].includes(tagName)) {
-              isInTable = true
-              return
-            }
-          }
-          node = node.parentNode
-        }
-      }
-    }
-
-    isInTable = false
-  }
-
-  const refreshFormatState = () => {
-    if (!editor) {
-      formatState = {}
-      isInTable = false
-      return
-    }
-    formatState = getFormatState(editor) ?? {}
-    if (formatState.fontSize) {
-      ensureFontSizeOption(formatState.fontSize)
-      fontSizeSelection = formatState.fontSize
-    }
-    headingSelection = (formatState.headingLevel ?? 0) as HeadingLevel
-    if (formatState.fontName) {
-      fontFamilySelection = formatState.fontName
-    }
-    checkIfInTable()
-  }
-
-  const scheduleFormatStateRefresh = () => {
-    if (!BROWSER) {
-      refreshFormatState()
-      return
-    }
-    if (pendingFormatFrame !== null) {
-      cancelAnimationFrame(pendingFormatFrame)
-    }
-    pendingFormatFrame = requestAnimationFrame(() => {
-      pendingFormatFrame = null
-      refreshFormatState()
-    })
-  }
-
-  const createSyncPlugin = (): EditorPlugin => {
-    let pluginEditor: IEditor | null = null
-    let mutationObserver: MutationObserver | null = null
-
-    return {
-      getName: () => "svelte-sync",
-      initialize: (ed: IEditor) => {
-        pluginEditor = ed
-        editor = ed
-        syncEditorHtml()
-        refreshFormatState()
-
-        if (editorRoot && BROWSER) {
-          mutationObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-              mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                  const element = node as HTMLElement
-                  removeUnwantedStyles(element)
-
-                  if (element.tagName === 'DIV') {
-                    element.style.removeProperty('margin-top')
-                    element.style.removeProperty('margin-bottom')
-                    element.style.removeProperty('font-family')
-                    //element.style.removeProperty('font-size')
-                    //element.style.removeProperty('color')
-                  } else if (element.tagName === 'TD' || element.tagName === 'TH') {
-                    element.style.removeProperty('width')
-                    element.style.removeProperty('height')
-                    element.style.removeProperty('border-width')
-                    element.style.removeProperty('border-style')
-                    element.style.removeProperty('border-color')
-                  }
-                }
-              })
-            })
-          })
-
-          mutationObserver.observe(editorRoot, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['style']
-          })
-        }
-      },
-      dispose: () => {
-        if (mutationObserver) {
-          mutationObserver.disconnect()
-          mutationObserver = null
-        }
-        if (pluginEditor && editor === pluginEditor) {
-          editor = null
-        }
-        pluginEditor = null
-      },
-      onPluginEvent: (event: PluginEvent) => {
-        // Plain typing fires "input" only: contentChanged comes from formatting and paste.
-        if (event.eventType === "contentChanged" || event.eventType === "input") {
-          syncEditorHtml()
-          if (editorRoot) {
-            setTimeout(() => removeUnwantedStyles(editorRoot as HTMLElement), 0)
-          }
-        }
-        if (event.eventType === "contentChanged" || event.eventType === "selectionChanged") {
-          if (event.eventType === "selectionChanged") {
-            checkIfInTable()
-          }
-          scheduleFormatStateRefresh()
-        }
-      }
-    }
-  }
-
-  const withEditor = (cb: (instance: IEditor) => void) => {
+  // Every toolbar action starts a chain that gives the focus (and the selection) back to the editor.
+  const runCommand = (command: (chain: ChainedCommands) => ChainedCommands) => {
     if (!editor) return
-    editor.focus()
-    cb(editor)
-    scheduleFormatStateRefresh()
+    command(editor.chain().focus()).run()
   }
 
-  const handleAlignment = (alignment: "left" | "center" | "right" | "justify") => {
-    withEditor(instance => setAlignment(instance, alignment))
+  const togglePopover = (popover: ToolbarPopover, ev: MouseEvent) => {
+    openPopover = openPopover === popover ? null : popover
+    if (!openPopover) return
+    popoverAnchor = ev.currentTarget as HTMLElement
+    popoverAnchorCenter = popoverAnchor.offsetLeft + popoverAnchor.offsetWidth / 2
+    popoverTop = popoverAnchor.offsetTop + popoverAnchor.offsetHeight + 8
   }
 
-  const handleFontSizeChange = (size: string) => {
-    fontSizeSelection = size
-    withEditor(instance => setFontSize(instance, size))
+  // Once the popover is rendered and its width known: centered under the button, kept inside the toolbar.
+  $effect(() => {
+    if (!openPopover || !popoverElement || !toolbarElement) return
+    const popoverWidth = popoverElement.offsetWidth
+    const centeredLeft = popoverAnchorCenter - popoverWidth / 2
+    popoverLeft = Math.max(0, Math.min(centeredLeft, toolbarElement.clientWidth - popoverWidth))
+  })
+
+  const closePopoverOnOutsidePointer = (ev: PointerEvent) => {
+    const target = ev.target as Node
+    if (!openPopover || popoverElement?.contains(target) || popoverAnchor?.contains(target)) return
+    openPopover = null
   }
 
-  const handleInsertTable = () => {
-    if (selectedRows > 0 && selectedCols > 0) {
-      withEditor(instance => insertTable(instance, selectedCols, selectedRows))
-      showTableLayer = false
-      selectedRows = 0
-      selectedCols = 0
-    }
+  const insertTable = (rows: number, cols: number) => {
+    runCommand(chain => chain.insertTable({ rows, cols, withHeaderRow: false }))
+    openPopover = null
   }
 
-  const handleRowSelect = (rows: number) => {
-    selectedRows = rows
-    if (selectedRows > 0 && selectedCols > 0) handleInsertTable()
+  const applyTextAlign = (alignment: string) => {
+    runCommand(chain => chain.setTextAlign(alignment))
+    openPopover = null
   }
 
-  const handleColSelect = (cols: number) => {
-    selectedCols = cols
-    if (selectedRows > 0 && selectedCols > 0) handleInsertTable()
+  const applyFontSize = (fontSize: string) => {
+    runCommand(chain => chain.setFontSize(fontSize))
+    openPopover = null
   }
 
-  const closeTableDialog = () => {
-    showTableLayer = false
-    selectedRows = 0
-    selectedCols = 0
-  }
-
-  const handleInsertHR = () => {
-    if (editor) {
-      const core = getEditorCore()
-      if (core) {
-        core.api.insertNode(core, document.createElement('hr'))
-      }
-    }
-  }
-
-  const handleTextColorChange = (color: string) => {
-    textColorValue = color
-    withEditor(instance => setTextColor(instance, color))
-  }
-
-  const handleBackgroundColorChange = (color: string) => {
-    backgroundColorValue = color
-    withEditor(instance => setBackgroundColor(instance, color))
+  const applyColor = (color: string) => {
+    if (openPopover === "backgroundColor") runCommand(chain => chain.setBackgroundColor(color))
+    else runCommand(chain => chain.setColor(color))
+    openPopover = null
   }
 
   onMount(() => {
     if (!BROWSER || !editorRoot) return
 
-    const initialModel = createModelFromHtml(editorValue)
-    const syncPlugin = createSyncPlugin()
-    const tableEditPlugin = new TableEditPlugin()
-    const instance = createEditor(editorRoot, [syncPlugin, tableEditPlugin], initialModel)
+    const instance = new Editor({
+      element: editorRoot,
+      extensions: [
+        StarterKit.configure({ link: { openOnClick: false } }),
+        TextStyleKit,
+        TextAlign.configure({ types: ["heading", "paragraph"] }),
+        // Dragging a column border resizes it; the widths are stored as colwidth on the cells.
+        TableKit.configure({ table: { resizable: true } }),
+      ],
+      content: lastSyncedHtml,
+      editorProps: {
+        attributes: {
+          class: "min-h-[14rem] p-16 text-base leading-relaxed text-fg outline-none",
+          role: "textbox",
+          "aria-label": "Rich text editor",
+          "aria-multiline": "true",
+        }
+      },
+      onTransaction: () => { transactionTick++ },
+      onUpdate: ({ editor: updatedEditor }) => {
+        const nextHtml = getEditorHtml(updatedEditor)
+        if (nextHtml === lastSyncedHtml) return
+        lastSyncedHtml = nextHtml
+        if (saveOn && save) saveOn[save] = nextHtml as NonNullable<T>[keyof T]
+      },
+    })
     editor = instance
 
-    const handleClick = () => setTimeout(checkIfInTable, 0)
-
-    editorRoot.addEventListener('click', handleClick)
-    editorRoot.addEventListener('focus', handleClick)
-
     return () => {
-      if (pendingFormatFrame !== null) {
-        cancelAnimationFrame(pendingFormatFrame)
-        pendingFormatFrame = null
-      }
-      editorRoot?.removeEventListener('click', handleClick)
-      editorRoot?.removeEventListener('focus', handleClick)
-      instance.dispose()
+      instance.destroy()
       editor = null
     }
   })
 
-  const showLayer = $derived(showTableLayer || showTextColorLayer || showBackgroudColorLayer || showTextSizeLayer)
-
+  // External changes to saveOn[save] (another record loaded) replace the document without echoing back.
   $effect(() => {
-    if(showLayer){ layerInput?.focus() }
+    const incomingHtml = readBoundHtml()
+    if (!editor || incomingHtml === lastSyncedHtml) return
+    lastSyncedHtml = incomingHtml
+    editor.commands.setContent(incomingHtml, { emitUpdate: false })
   })
 
-  $effect(() => {
-    if (!saveOn || !save) return
-    if (editorValue !== lastSyncedValue) {
-      lastSyncedValue = editorValue
-      saveOn[save] = editorValue as NonNullable<T>[keyof T]
-    }
-  })
+  // Paragraphs without an explicit alignment read as left aligned.
+  const currentTextAlign = $derived(
+    textAlignOptions.find(option => option.value !== "left" && isActive({ textAlign: option.value })) ?? textAlignOptions[0]
+  )
 
-  $effect(() => {
-    if (!BROWSER || !saveOn || !save) return
-    const incoming = ((saveOn[save] as string) ?? "") || ""
-    if (incoming !== editorValue) {
-      lastSyncedValue = incoming
-      editorValue = incoming
-      if (editor) applyHtmlToEditor(incoming)
-    }
-  })
-
-  // Button Configuration
-  const toolbarItems = $derived([
-    { label: 'Bold', icon: '<strong>B</strong>', action: () => withEditor(toggleBold), active: !!formatState.isBold },
-    { label: 'Italic', icon: '<em>I</em>', action: () => withEditor(toggleItalic), active: !!formatState.isItalic },
+  // Button Configuration. swatchColor draws the color bar under the text/background color icons.
+  type ToolbarItem = {
+    label: string
+    icon: string
+    action: (ev: MouseEvent) => void
+    active?: boolean
+    swatchColor?: string
+  }
+  const toolbarItems = $derived<ToolbarItem[]>([
+    { label: 'Bold', icon: editorIconBold, action: () => runCommand(chain => chain.toggleBold()), active: isActive("bold") },
+    { label: 'Italic', icon: editorIconItalic, action: () => runCommand(chain => chain.toggleItalic()), active: isActive("italic") },
+    { label: 'Text Size', icon: editorIconTextSize, action: (ev) => togglePopover("textSize", ev), active: openPopover === "textSize" },
+    { label: 'Insert table', icon: editorIconTable, action: (ev) => togglePopover("table", ev), active: openPopover === "table" },
     {
-      label: 'Text Size',
-      icon: `<span class="block h-24 w-24">${TextSizeIcon}</span>`,
-      action: () => { showTextSizeLayer = !showTextSizeLayer },
-      active: showTextSizeLayer,
-      isLayer: true
+      label: 'Text color', icon: editorIconTextColor, swatchColor: textColorValue,
+      action: (ev) => togglePopover("textColor", ev), active: openPopover === "textColor",
     },
     {
-      label: 'Insert table',
-      icon: '⊞',
-      action: () => { showTableLayer = !showTableLayer },
-      active: showTableLayer,
-      isLayer: true
+      label: 'Background color', icon: editorIconBackgroundColor, swatchColor: backgroundColorValue,
+      action: (ev) => togglePopover("backgroundColor", ev), active: openPopover === "backgroundColor",
     },
-    {
-      label: 'Text color',
-      html: `<span class="block h-20 w-20 ml-4">${TextColorIcon}</span>
-             <div class="absolute bottom-2 left-2 w-[calc(100%-4px)] h-12 border border-fg/70 rounded-[2px]" style="background-color: ${textColorValue};"></div>`,
-      action: () => { showTextColorLayer = !showTextColorLayer },
-      active: showTextColorLayer,
-      isLayer: true,
-      className: 'pb-12'
-    },
-    {
-      label: 'Background color',
-      html: `<span class="block h-20 w-20">${TextBackgroudColor}</span>
-             <div class="absolute bottom-2 left-2 w-[calc(100%-4px)] h-12 border border-fg/70 rounded-[2px]" style="background-color: ${backgroundColorValue};"></div>`,
-      action: () => { showBackgroudColorLayer = !showBackgroudColorLayer },
-      active: showBackgroudColorLayer,
-      isLayer: true,
-      className: 'pb-12'
-    },
-    { label: 'Align left', icon: '⬅', action: () => handleAlignment("left"), active: formatState.textAlign === "left" || !formatState.textAlign },
-    { label: 'Align center', icon: '⬍', action: () => handleAlignment("center"), active: formatState.textAlign === "center" },
-    { label: 'Align right', icon: '➡', action: () => handleAlignment("right"), active: formatState.textAlign === "right" },
-    { label: 'Underline', icon: '<u>U</u>', action: () => withEditor(toggleUnderline), active: !!formatState.isUnderline },
-    { label: 'Strikethrough', icon: '<s>S</s>', action: () => withEditor(toggleStrikethrough), active: !!formatState.isStrikeThrough },
-    { label: 'Justify', icon: '☰', action: () => handleAlignment("justify"), active: formatState.textAlign === "justify" },
-    { label: 'Bulleted list', icon: '••', action: () => withEditor(toggleBullet), active: !!formatState.isBullet },
-    { label: 'Numbered list', icon: '1.', action: () => withEditor(toggleNumbering), active: !!formatState.isNumbering },
-    { label: 'Insert horizontal rule', icon: '─', action: handleInsertHR },
-    { label: 'Clear format', icon: 'Clear', action: () => withEditor(clearFormat) },
-    {
-      label: 'Undo',
-      icon: '↶',
-      action: () => { if (editor && getEditorCore()) { getEditorCore()?.api.undo(getEditorCore()!); scheduleFormatStateRefresh() } }
-    },
-    {
-      label: 'Redo',
-      icon: '↷',
-      action: () => { if (editor && getEditorCore()) { getEditorCore()?.api.redo(getEditorCore()!); scheduleFormatStateRefresh() } }
-    },
+    // Shows the current alignment; the four options open in a popover.
+    { label: 'Text alignment', icon: currentTextAlign.icon, action: (ev) => togglePopover("align", ev), active: openPopover === "align" },
+    { label: 'Underline', icon: editorIconUnderline, action: () => runCommand(chain => chain.toggleUnderline()), active: isActive("underline") },
+    { label: 'Bulleted list', icon: editorIconBulletList, action: () => runCommand(chain => chain.toggleBulletList()), active: isActive("bulletList") },
+    { label: 'Numbered list', icon: editorIconNumberedList, action: () => runCommand(chain => chain.toggleOrderedList()), active: isActive("orderedList") },
+    { label: 'Insert horizontal rule', icon: editorIconHorizontalRule, action: () => runCommand(chain => chain.setHorizontalRule()) },
+    { label: 'Clear format', icon: editorIconClearFormat, action: () => runCommand(chain => chain.unsetAllMarks().clearNodes().unsetTextAlign()) },
+    { label: 'Undo', icon: editorIconUndo, action: () => runCommand(chain => chain.undo()) },
+    { label: 'Redo', icon: editorIconRedo, action: () => runCommand(chain => chain.redo()) },
   ])
-
-  const tableButtons = [
-    { label: 'Add row above', icon: '⬆ Row', action: () => withEditor(instance => editTable(instance, 'insertAbove')) },
-    { label: 'Add row below', icon: '⬇ Row', action: () => withEditor(instance => editTable(instance, 'insertBelow')) },
-    { label: 'Add column left', icon: '⬅ Col', action: () => withEditor(instance => editTable(instance, 'insertLeft')) },
-    { label: 'Add column right', icon: '➡ Col', action: () => withEditor(instance => editTable(instance, 'insertRight')) },
-    { label: 'Delete row', icon: '🗑 Row', action: () => withEditor(instance => editTable(instance, 'deleteRow')) },
-    { label: 'Delete column', icon: '🗑 Col', action: () => withEditor(instance => editTable(instance, 'deleteColumn')) },
-  ]
-
-  const buttonCss = "mr-4 mb-4 w-32 h-28 flex items-center justify-center rounded bg-accent-bg-strong/50 cursor-pointer text-[13px] text-fg transition-all hover:not(.selected):bg-accent-bg-strong hover:not(.selected):border-accent-solid hover:not(.selected):text-accent-fg"
 </script>
+
+<svelte:window onpointerdown={closePopoverOnOutsidePointer} />
 
 <div class={`flex flex-col ${css ?? ""}`}>
   {#if BROWSER}
-    <div class="flex flex-wrap gap-2 items-center p-6 border border-line rounded-t-[6px] bg-surface-soft relative"
+    <div bind:this={toolbarElement}
+      class="flex flex-wrap gap-2 items-center p-6 border border-line rounded-t-[6px] bg-surface-soft relative"
       role="toolbar"
       aria-label="Editor toolbar"
       tabindex="-1"
-      onclick={(e) => {
-        if (showTableLayer && !(e.target as HTMLElement).closest('._10')) {
-          // closeTableDialog()
-        }
-      }}
-      onkeydown={(e) => {
-        if (e.key === 'Escape' && showTableLayer) {
-          // closeTableDialog()
-        }
-      }}
     >
       {#each toolbarItems as item}
         <button type="button"  disabled={!editor}
-          class:_6={item.isLayer && item.active}
-          class="_4 {item.active ? 'bg-blue-bg-strong border-blue-solid text-blue-fg' : ''} {item.className ?? ''}"
+          class="_4 {item.active ? 'bg-blue-bg-strong border-blue-solid text-blue-fg' : ''} {item.swatchColor ? 'pb-10' : ''}"
           aria-label={item.label}
+          title={item.label}
           onclick={item.action}
         >
-          {@html item.html || item.icon}
+          <span class="flex text-[20px]">{@html item.icon}</span>
+          {#if item.swatchColor}
+            <div class="absolute bottom-3 left-6 right-6 h-6 border border-fg/40 rounded-[2px]" style="background-color: {item.swatchColor};"></div>
+          {/if}
         </button>
       {/each}
 
-      {#if showLayer}
-        <div class="absolute top-[47px] w-[calc(100%-20px)] left-[10px] border border-accent-border min-h-[60px] bg-surface rounded-lg z-50 shadow-lg p-12 _10"
+      {#if openPopover}
+        <div bind:this={popoverElement}
+          class="absolute z-50 bg-surface border border-line rounded-[10px] shadow-lg"
+          style="left: {popoverLeft}px; top: {popoverTop}px;"
           role="dialog"
-          aria-label="Editor popup"
+          aria-label={popoverAnchor?.getAttribute("aria-label")}
           tabindex="-1"
-          onmousedown={() => avoidCloseOnBlur = true}
-          onclick={(e) => e.stopPropagation()}
-          onkeydown={(e) => { if (e.key === 'Escape') closeTableDialog() }}
+          onkeydown={(e) => { if (e.key === 'Escape') openPopover = null }}
         >
-          <input type="text" bind:this={layerInput}
-            inputmode="none" autocomplete="off"
-            class="opacity-0 h-2 w-1 absolute z-[-1]"
-            onblur={(ev => {
-              // return
-              if(avoidCloseOnBlur){
-                avoidCloseOnBlur = false;
-                (ev.target as HTMLInputElement).focus()
-                return
-              }
-              showTableLayer = false
-              showTextColorLayer = false
-              showBackgroudColorLayer = false
-              showTextSizeLayer = false
-            })}
-          >
-          {#if showTableLayer}
-            <div>
-              <div class="flex items-start flex-col md:flex-row md:items-center">
-                <div class="w-80 text-sm font-semibold text-fg-muted mb-8">Columnas</div>
-                <div class="flex flex-wrap items-center">
-                  {#each Array(12) as _, i}
-                    {@const num = i + 1}
-                    <button type="button"
-                      class="{buttonCss} {selectedCols >= num ? 'bg-accent-solid text-on-solid font-semibold' : ''}"
-                      class:selected={selectedCols >= num}
-                      onclick={() => handleColSelect(num)}
-                      aria-label="Select {num} columns"
-                    >
-                      {num}
-                    </button>
-                  {/each}
-                </div>
-              </div>
-              <div class="flex items-start flex-col md:flex-row md:items-center">
-                <div class="w-80 text-sm font-semibold text-fg-muted mb-8">Filas</div>
-                <div class="flex flex-wrap items-center">
-                  {#each Array(12) as _, i}
-                    {@const num = i + 1}
-                    <button type="button"
-                      class="{buttonCss} {selectedRows >= num ? 'bg-accent-solid text-on-solid font-semibold' : ''}"
-                      class:selected={selectedRows >= num}
-                      onclick={() => handleRowSelect(num)}
-                      aria-label="Select {num} rows"
-                    >
-                      {num}
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            </div>
-          {/if}
-          {#if showBackgroudColorLayer || showTextColorLayer}
-            {@const colors = showBackgroudColorLayer ? editorBackgroundColors : editorTextColors }
-            <div class="flex flex-wrap w-full">
-              {#each colors as color }
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div class="h-20 w-32 m-4 border border-fg/60 cursor-pointer hover:outline hover:outline-1 hover:outline-fg/70"
-                  style="background-color: {color};"
-                  onclick={() => {
-                    if(showBackgroudColorLayer) handleBackgroundColorChange(color)
-                    else handleTextColorChange(color)
-                  }}
-                ></div>
+          <!-- Arrow: a square turned 45deg showing only its top-left borders, centered on the anchor button -->
+          <div class="absolute -top-7 w-12 h-12 rotate-45 bg-surface border-l border-t border-line"
+            style="left: {popoverAnchorCenter - popoverLeft - 6}px;"></div>
+          {#if openPopover === "textSize"}
+            <div class="flex gap-4 p-6">
+              {#each editorTextSizes as textSize}
+                <button type="button"
+                  class="_4 {currentFontSize === `${textSize.id}px` ? 'bg-blue-bg-strong border-blue-solid text-blue-fg' : ''}"
+                  onclick={() => applyFontSize(`${textSize.id}px`)}
+                >
+                  {textSize.name}
+                </button>
               {/each}
             </div>
-          {/if}
-          {#if showTextSizeLayer}
-            <div class="flex flex-wrap w-full gap-8">
-              {#each editorTextSizes as e }
+          {:else if openPopover === "table"}
+            <EditorTablePicker onInsert={insertTable} />
+          {:else if openPopover === "textColor" || openPopover === "backgroundColor"}
+            <div class="grid grid-cols-8 gap-6 p-10">
+              {#each openPopover === "backgroundColor" ? editorBackgroundColors : editorTextColors as color}
                 <button type="button"
-                  class="px-12 py-4 hover:bg-surface-muted rounded border border-line"
-                  onclick={() => {
-                    handleFontSizeChange(`${e.id}px`); showTextSizeLayer = false;
-                  }}
+                  class="h-22 w-22 rounded-[4px] border border-fg/30 cursor-pointer hover:outline-2 hover:outline-offset-1 hover:outline-blue-solid"
+                  style="background-color: {color};"
+                  aria-label={color}
+                  onclick={() => applyColor(color)}
+                ></button>
+              {/each}
+            </div>
+          {:else}
+            <div class="flex gap-4 p-6">
+              {#each textAlignOptions as option}
+                <button type="button"
+                  class="_4 {currentTextAlign.value === option.value ? 'bg-blue-bg-strong border-blue-solid text-blue-fg' : ''}"
+                  aria-label={option.label}
+                  title={option.label}
+                  onclick={() => applyTextAlign(option.value)}
                 >
-                  {e.name}
+                  <span class="flex text-[20px]">{@html option.icon}</span>
                 </button>
               {/each}
             </div>
           {/if}
         </div>
       {/if}
-
-      {#if isInTable}
-        {#each tableButtons as item}
-          <button
-            type="button"
-            disabled={!editor}
-            class="_4"
-            aria-label={item.label}
-            onclick={item.action}
-          >
-            {item.icon}
-          </button>
-        {/each}
-      {/if}
     </div>
 
-    <div class="border border-line rounded-b-[6px] bg-surface min-h-[14rem] shadow-inner" bind:this={editorContainer} style="position: relative;">
-      <div
-        bind:this={editorRoot}
-        class="rooster-editor min-h-[14rem] p-16 text-base leading-relaxed text-fg outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-fg-subtleempty:before:pointer-events-none"
-        role="textbox"
-        aria-label="Rich text editor"
-        aria-multiline="true"
-        contenteditable="true"
-        data-placeholder="Empieza a escribir contenido enriquecido…"></div>
+    <div bind:this={editorFrame} class="tiptap-editor border border-line rounded-b-[6px] bg-surface min-h-[14rem] shadow-inner relative">
+      {#if isEditorEmpty}
+        <div class="absolute top-16 left-16 text-fg-subtle pointer-events-none">
+          <TranslatedText text={placeholder} />
+        </div>
+      {/if}
+      <div bind:this={editorRoot}></div>
+      {#if editor && editorFrame}
+        <EditorTableHandles {editor} {editorFrame} {transactionTick} />
+      {/if}
     </div>
   {:else}
     <div class="border-2 border-dashed border-line-strong rounded-xl p-16 text-center text-fg-muted bg-surface-soft">
@@ -683,47 +351,72 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
-  ._6 {
-    margin-bottom: -8px;
-    border: 2px solid var(--accent-solid);
-    background-color: var(--accent-bg);
-    border-bottom: none;
-    border-radius: 4px 4px 0 0;
-    z-index: 80;
-  }
 
-  /* Global editor styles that are hard to tailwind-ize inside the contenteditable div */
-  div :global(.rooster-editor p) {
+  /* Styles for the ProseMirror document tiptap renders inside the editor root */
+  .tiptap-editor :global(.tiptap p) {
     margin: 0 0 6px;
   }
 
-  div :global(.rooster-editor table) {
+  .tiptap-editor :global(.tiptap ul) {
+    list-style: disc;
+    padding-left: 1.5rem;
+  }
+
+  .tiptap-editor :global(.tiptap ol) {
+    list-style: decimal;
+    padding-left: 1.5rem;
+  }
+
+  /* Resizable tables are wrapped by tiptap's TableView: columns wider than the editor scroll sideways. */
+  .tiptap-editor :global(.tiptap .tableWrapper) {
+    margin: 6px 0;
+    overflow-x: auto;
+    /* overflow-x alone turns overflow-y to auto too, and the resize bar's overhang would show a vertical scrollbar */
+    overflow-y: hidden;
+  }
+
+  .tiptap-editor :global(.tiptap table) {
     width: 100%;
     border-collapse: collapse;
-    margin: 6px 0;
+    table-layout: fixed;
+  }
+
+  /* Bar shown on the column border under the pointer while it can be dragged */
+  .tiptap-editor :global(.tiptap .column-resize-handle) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -2px;
+    width: 4px;
+    background-color: var(--accent-solid);
+    pointer-events: none;
+  }
+
+  .tiptap-editor :global(.tiptap.resize-cursor) {
+    cursor: col-resize;
+  }
+
+  .tiptap-editor :global(.tiptap table td),
+  .tiptap-editor :global(.tiptap table th) {
+    border: 1px solid var(--line-strong);
+    padding: 0.5rem;
+    vertical-align: top;
+    box-sizing: border-box;
     position: relative;
   }
 
-  div :global(.rooster-editor table td),
-  div :global(.rooster-editor table th) {
-    border: 1px solid var(--line-strong);
-    padding: 0.5rem;
-    width: auto !important;
-    height: auto !important;
-    border-width: 1px !important;
-    border-style: solid !important;
-    border-color: var(--line-strong) !important;
-    vertical-align: top;
-    box-sizing: border-box;
+  /* Cells covered by a multi-cell (CellSelection) selection */
+  .tiptap-editor :global(.tiptap .selectedCell) {
+    background-color: var(--accent-bg);
   }
 
-  div :global(.rooster-editor img) {
+  .tiptap-editor :global(.tiptap img) {
     max-width: 100%;
     height: auto;
     margin: 0.75rem 0;
   }
 
-  div :global(.rooster-editor hr) {
+  .tiptap-editor :global(.tiptap hr) {
     border: none;
     border-top: 1px solid var(--line-strong);
     margin: 1rem 0;

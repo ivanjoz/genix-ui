@@ -1,4 +1,4 @@
-// Static SVG icons of HTMLEditor2 and its table components, rendered with {@html}.
+// Static SVG icons of HTMLEditor and its table components, rendered with {@html}.
 // Paths copied from Material Design Icons (@iconify-json/mdi, Apache 2.0); the horizontal rule is drawn here.
 // Sized 1em and filled with currentColor: the font-size and text color of the container style them.
 

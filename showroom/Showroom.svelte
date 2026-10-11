@@ -62,7 +62,7 @@
   </div>
 
   <!-- One {#if} per section so the heavy demos (5k-row tables, canvas charts, the
-       RoosterJS editor) never mount until their tab is selected. -->
+       tiptap editor) never mount until their tab is selected. -->
   {#if tab === 1}<SectionForm />{/if}
   {#if tab === 2}<SectionButtons />{/if}
   {#if tab === 3}<SectionNavigation />{/if}

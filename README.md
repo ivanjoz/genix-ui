@@ -416,6 +416,7 @@ component writes straight into it (bindable, no event plumbing).
 | `NumericSlider` **(ui)** | Single-value slider over a whole-pixel tick scale (`numeric-slider-scale.ts`); writes while dragging, `onChange` once on release | `min`, `max`, `referenceWidth`, `step`, `saveOn`, `save`, `value`, `label`, `prefix`, `suffix`, `scaleLabels` (default `[min, max]`), `onChange` |
 | `FilterInput` **(ui)** | Throttled search box | `value` (bindable), `throttle`, `icon`, `placeholder` |
 | `ColorPicker` **(ui)** | Color value picker | `saveOn`, `save`, `label`, `onChange` |
+| `ColorSelect` **(ui)** | One color of a fixed palette: the trigger is the current color as a rounded swatch (as tall as a field); it opens a `ButtonLayer` with every color as a swatch, 4 per row | `options`, `keyId`, `keyColorCss` (background class, e.g. `bg-blue-solid`), `keyName` (tooltip / aria), `saveOn`, `save`, `onChange`, `label` (accessible only), `css` |
 | `LabelText` | Read-only label + value pair | `label`, `text`, `css`, `contentCss` |
 | `LoginForm` | Skeleton user/password layout (no submit logic — wire your own) | `css`, `isMobile` |
 
@@ -595,8 +596,7 @@ $effect(() => { const routeId = page.route.id || ''; untrack(() => showRouteGuid
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `HTMLEditor` | RoosterJS rich-text editor bound with `saveOn`/`save` | `saveOn`, `save`, `css` |
-| `HTMLEditor2` | Tiptap rewrite of `HTMLEditor`: same toolbar and binding | `saveOn`, `save`, `css` |
+| `HTMLEditor` | Tiptap rich-text editor bound with `saveOn`/`save`: tables with row/column handles and resizable columns | `saveOn`, `save`, `css` |
 
 ### `runtime/`
 

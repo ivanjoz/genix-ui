@@ -22,11 +22,9 @@
   let droppedFile = $state<File | undefined>(undefined);
   let isPortalVisible = $state(false);
   let lastRendererClick = $state('—');
-  // HTMLEditor pulls in RoosterJS, the heaviest import on the page, so it loads on demand.
+  // HTMLEditor pulls in tiptap, the heaviest import on the page, so it loads on demand.
   let isEditorLoaded = $state(false);
   let editorForm = $state({ Html: '<p>Editable <b>rich text</b>.</p>' });
-  let isEditor2Loaded = $state(false);
-  let editor2Form = $state({ Html: '<p>Editable <b>rich text</b>.</p>' });
 
   const rendererTree: ElementAST[] = [
     { tagName: 'DIV', css: 'text-sm text-fg-soft', text: 'Rendered from an ElementAST tree:' },
@@ -148,7 +146,7 @@
   </div>
 </ShowroomBlock>
 
-<ShowroomBlock name="HTMLEditor" note="RoosterJS rich text bound with saveOn/save · loaded on demand">
+<ShowroomBlock name="HTMLEditor" note="Tiptap rich text bound with saveOn/save · loaded on demand">
   {#if isEditorLoaded}
     {#await import('../editor/HTMLEditor.svelte') then editorModule}
       <editorModule.default saveOn={editorForm} save="Html" css="min-h-200" />
@@ -157,17 +155,5 @@
   {:else}
     <Button name="Load editor|Cargar editor" color="purple" icon="icon-[fa--pencil]"
       onClick={() => { isEditorLoaded = true; }} />
-  {/if}
-</ShowroomBlock>
-
-<ShowroomBlock name="HTMLEditor2" note="Tiptap rich text bound with saveOn/save · loaded on demand">
-  {#if isEditor2Loaded}
-    {#await import('../editor/HTMLEditor2.svelte') then editorModule}
-      <editorModule.default saveOn={editor2Form} save="Html" css="min-h-200" />
-    {/await}
-    <pre class="text-xs text-fg-muted mt-8 overflow-x-auto">{editor2Form.Html}</pre>
-  {:else}
-    <Button name="Load editor|Cargar editor" color="purple" icon="icon-[fa--pencil]"
-      onClick={() => { isEditor2Loaded = true; }} />
   {/if}
 </ShowroomBlock>

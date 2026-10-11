@@ -2,6 +2,7 @@
   import Checkbox from '../form/Checkbox.svelte';
   import CheckboxOptions from '../form/CheckboxOptions.svelte';
   import ColorPicker from '../form/ColorPicker.svelte';
+  import ColorSelect from '../form/ColorSelect.svelte';
   import DateInput from '../form/DateInput.svelte';
   import FilterInput from '../form/FilterInput.svelte';
   import Input from '../form/Input.svelte';
@@ -34,10 +35,16 @@
     StartMinute: 510,
     Percent: 40,
     Color: '#4874f5',
+    Tone: 'green',
     Steps: [{ Text: 'Write the spec', Done: true }, { Text: 'Review it', Done: false }],
   });
 
   let filterText = $state('');
+  const toneOptions = [
+    { id: 'blue', name: 'Blue|Azul', css: 'bg-blue-solid' }, { id: 'green', name: 'Green|Verde', css: 'bg-green-solid' },
+    { id: 'red', name: 'Red|Rojo', css: 'bg-red-solid' }, { id: 'amber', name: 'Amber|Ámbar', css: 'bg-amber-solid' },
+    { id: 'purple', name: 'Purple|Morado', css: 'bg-purple-solid' }, { id: 'teal', name: 'Teal|Turquesa', css: 'bg-teal-solid' },
+  ];
 
   // Excluded from this tab: nothing. All form/ controls are backend-free.
 </script>
@@ -140,13 +147,15 @@
   </div>
 </ShowroomBlock>
 
-<ShowroomBlock name="FilterInput · ColorPicker · LabelText" note="throttled search · color value · read-only pair">
+<ShowroomBlock name="FilterInput · ColorPicker · ColorSelect · LabelText" note="throttled search · color value · color of a palette · read-only pair">
   <div class="grid grid-cols-24 gap-10 items-end">
     <FilterInput bind:value={filterText} css="col-span-24 md:col-span-8"
       placeholder="Filter…|Filtrar…" throttle={200} />
     <ColorPicker saveOn={form} save="Color" label="Color" css="col-span-24 md:col-span-6" />
+    <ColorSelect saveOn={form} save="Tone" options={toneOptions} keyId="id" keyName="name" keyColorCss="css"
+      label="Tone|Tono" css="col-span-24 md:col-span-2" />
     <LabelText label="Filter value|Valor del filtro" text={filterText || '—'}
-      css="col-span-24 md:col-span-6" />
+      css="col-span-24 md:col-span-4" />
   </div>
 </ShowroomBlock>
 

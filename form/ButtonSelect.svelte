@@ -24,8 +24,9 @@
     layerCss?: string;
     max?: number;
     getSearchText?: (e: E) => string;
-    /** Fill + text colour of the button. Without it the button is white. */
-    color?: "blue";
+    /** Fill + text colour of the button. Without it the button is white. "on-solid" is a
+     *  translucent white over a solid-colored bar (the app header). */
+    color?: "blue" | "on-solid";
   }
 
   const {
@@ -128,6 +129,7 @@
   <div class="_trigger flex items-center gap-8 pl-14 pr-12 cursor-pointer"
     class:_open={open}
     class:_blue={color === "blue"}
+    class:_on_solid={color === "on-solid"}
     data-id="Select:{componentID}"
     data-value={selectedOption ? `[${selectedOption[keyId]}] ${selectedOption[keyName]}` : ""}
     data-label={label || placeholder}
@@ -201,14 +203,33 @@
   ._trigger._blue:hover {
     background-color: color-mix(in srgb, var(--accent-solid) 10%, var(--accent-bg-strong));
   }
+  /* Shorter than a field and borderless, lifted by a dark shadow: it sits on a bar, not in a form. */
+  ._trigger._on_solid {
+    height: 36px;
+    border-radius: 18px;
+    color: var(--on-solid);
+    background-color: rgb(255 255 255 / 0.1);
+    outline: none;
+    box-shadow: rgb(25 25 32 / 45%) 0 1px 3px -1px;
+  }
+  ._trigger._on_solid:hover {
+    background-color: rgb(255 255 255 / 0.2);
+  }
+  ._trigger._on_solid._open {
+    box-shadow: 0 0 0 3px rgb(255 255 255 / 0.3);
+  }
   ._placeholder {
     color: var(--input-placeholder-color, var(--fg-subtle));
+  }
+  ._on_solid ._placeholder {
+    color: var(--on-solid);
+    opacity: 0.7;
   }
   ._chevron {
     color: var(--input-suffix-color, var(--label));
     transition: transform 0.18s ease;
   }
-  ._blue ._chevron {
+  ._blue ._chevron, ._on_solid ._chevron {
     color: inherit;
   }
   ._chevron_up {

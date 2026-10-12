@@ -229,10 +229,10 @@
 								<div class="option-content flex w-full">
 									<!-- Keep one stable icon node during menu expansion to avoid mask repaint flicker. -->
 									<i class="{option.icon || "icon-[fa--cube]"} desktop-option-icon mr-3 w-[1em] shrink-0 leading-none"></i>
-									<div class="option-minimized font-mono">
+									<div class="option-minimized ff-semibold">
 										{option.minName || optionName.substring(0, 2)}
 									</div>
-									<div class="option-expanded font-mono">
+									<div class="option-expanded ff-semibold">
 										{#each optionName.split(' ') as word}
 											<span class="mr-4">{word}</span>
 										{/each}

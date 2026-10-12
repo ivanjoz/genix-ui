@@ -86,8 +86,9 @@
 {:else}
   <div bind:this={scrollContainer} class={ifcss(css, 'overflow-x-auto border border-line rounded-[6px] bg-surface')}>
     <div class="relative" style:width="{labelWidth + timelineWidth}px">
-      <!-- Header: months on top, days (week zoom) or ISO weeks (month zoom) below. -->
-      <div class="flex border-b border-line bg-surface-soft">
+      <!-- Header: months on top, days (week zoom) or ISO weeks (month zoom) below. Sticky, so it stays
+        in view when the caller caps the height and the rows scroll. -->
+      <div class="sticky top-0 z-30 flex border-b border-line bg-surface-soft">
         <div class="sticky left-0 z-20 shrink-0 bg-surface-soft border-r border-line" style:width="{labelWidth}px"></div>
         <div class="relative shrink-0 h-52" style:width="{timelineWidth}px">
           {#each months as month (month.startDay)}

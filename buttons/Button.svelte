@@ -57,7 +57,10 @@
   });
 </script>
 
+<!-- type="button": inside a <form> the default type is submit, which would run the form's onsubmit
+     after onClick, doing the action twice. A form submitted with Enter keeps its own hidden submit. -->
 <button
+  type="button"
   data-id="Button:{componentID}"
   aria-label={ui.translate(label)}
   data-value={role}

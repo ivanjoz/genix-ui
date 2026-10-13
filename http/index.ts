@@ -141,7 +141,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     return headers;
   };
 
-  const parsePreResponse = async (response: Response, status: IHttpStatus): Promise<any> => {
+  const parsePreResponse = async (response: Response, status: IHttpStatus, route: string): Promise<any> => {
     const contentType = response.headers.get('content-type');
     status.code = response.status;
     status.message = response.statusText;
@@ -150,7 +150,9 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     if (response.status === 200) {
       return response.json();
     }
-    if (response.status === 401) {
+    // A public route carries no session, so its 401 (a wrong password at login) is not an expired
+    // session: its body holds the message to show.
+    if (response.status === 401 && !isPublicApiRoute(route)) {
       console.warn('[http] Unauthorized response:', response.url);
       runtime.onUnauthorized?.();
       return undefined;
@@ -205,7 +207,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
         headers: buildHeaders('json', props.route),
         body: JSON.stringify(props.data),
       });
-      const result = transformResponse(await parsePreResponse(response, status));
+      const result = transformResponse(await parsePreResponse(response, status, props.route));
 
       if (!hasSuccessfulResponse(result, props, status)) {
         return Promise.reject(result);
@@ -287,7 +289,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     try {
       console.log('[http] GET:', props.route);
       const response = await fetch(routeParsed, { headers: buildHeaders(undefined, props.route) });
-      const result = transformResponse(await parsePreResponse(response, status));
+      const result = transformResponse(await parsePreResponse(response, status, props.route));
 
       if (!hasSuccessfulResponse(result, props, status)) {
         return Promise.reject(result);

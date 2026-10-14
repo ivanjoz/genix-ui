@@ -511,86 +511,69 @@ input::-webkit-inner-spin-button {
 
 /* The border is the family's text color half-mixed into the surface: the buttons' original borders
    sat there (e.g. #849de6 for blue), far stronger than the family's pastel `-border` step. */
-.bx-blue {
-	color: var(--blue-fg);
-	border: 1px solid color-mix(in srgb, var(--blue-fg) 55%, var(--surface));
+/* Each color only binds its family to the --bx-* variables; the look, the modes and the heights
+   below are written once against them. */
+.bx-blue { --bx-fg: var(--blue-fg); --bx-solid: var(--blue-solid); --bx-bg: var(--blue-bg); --bx-bg-strong: var(--blue-bg-strong); }
+.bx-green { --bx-fg: var(--green-fg); --bx-solid: var(--green-solid); --bx-bg: var(--green-bg); --bx-bg-strong: var(--green-bg-strong); }
+.bx-purple { --bx-fg: var(--purple-fg); --bx-solid: var(--purple-solid); --bx-bg: var(--purple-bg); --bx-bg-strong: var(--purple-bg-strong); }
+.bx-red { --bx-fg: var(--red-fg); --bx-solid: var(--red-solid); --bx-bg: var(--red-bg); --bx-bg-strong: var(--red-bg-strong); }
+.bx-orange { --bx-fg: var(--orange-fg); --bx-solid: var(--orange-solid); --bx-bg: var(--orange-bg); --bx-bg-strong: var(--orange-bg-strong); }
+.bx-yellow { --bx-fg: var(--yellow-fg); --bx-solid: var(--yellow-solid); --bx-bg: var(--yellow-bg); --bx-bg-strong: var(--yellow-bg-strong); }
+
+:is(.bx-blue, .bx-green, .bx-purple, .bx-red, .bx-orange, .bx-yellow) {
+	color: var(--bx-fg);
+	border: 1px solid color-mix(in srgb, var(--bx-fg) 55%, var(--surface));
 	border-bottom-width: 2px;
-	background: linear-gradient(338deg, var(--blue-bg-strong) 0%, var(--blue-bg) 100%);
-	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--blue-solid) 50%, transparent);
+	background: linear-gradient(338deg, var(--bx-bg-strong) 0%, var(--bx-bg) 100%);
+	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--bx-solid) 50%, transparent);
 }
 
-.bx-blue:hover {
-	border-color: var(--blue-solid);
-	color: var(--blue-solid);
+:is(.bx-blue, .bx-green, .bx-purple, .bx-red, .bx-orange, .bx-yellow):hover {
+	border-color: var(--bx-solid);
+	color: var(--bx-solid);
 	background: var(--surface);
 }
 
-.bx-green {
-	color: var(--green-fg);
-	border: 1px solid color-mix(in srgb, var(--green-fg) 55%, var(--surface));
-	border-bottom-width: 2px;
-	background: linear-gradient(338deg, var(--green-bg-strong) 0%, var(--green-bg) 100%);
-	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--green-solid) 50%, transparent);
+/* Button `mode`. subtle: same fill, but a hairline inset ring and a thin bottom edge instead of the
+   border and the drop shadow, for buttons sitting inside a dense row (a group header).
+   minimal: just the light background of the color, no border or shadow; stronger on hover.
+   white: below. */
+.bx-subtle {
+	border: none;
+	border-bottom: 1px solid color-mix(in srgb, var(--bx-solid) 70%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-fg) 31%, transparent);
 }
 
-.bx-green:hover {
-	border-color: var(--green-solid);
-	color: var(--green-solid);
-	background: var(--surface);
+.bx-subtle:hover {
+	box-shadow: inset 0 0 0 1px var(--bx-solid);
 }
 
-.bx-purple {
-	color: var(--purple-fg);
-	border: 1px solid color-mix(in srgb, var(--purple-fg) 55%, var(--surface));
-	border-bottom-width: 2px;
-	background: linear-gradient(338deg, var(--purple-bg-strong) 0%, var(--purple-bg) 100%);
-	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--purple-solid) 50%, transparent);
+.bx-minimal {
+	border: none;
+	background: var(--bx-bg);
+	box-shadow: none;
 }
 
-.bx-purple:hover {
-	border-color: var(--purple-solid);
-	color: var(--purple-solid);
-	background: var(--surface);
+.bx-minimal:hover {
+	background: var(--bx-bg-strong);
 }
 
-.bx-red {
-	color: var(--red-fg);
-	border: 1px solid color-mix(in srgb, var(--red-fg) 55%, var(--surface));
-	border-bottom-width: 2px;
-	background: linear-gradient(338deg, var(--red-bg-strong) 0%, var(--red-bg) 100%);
-	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--red-solid) 50%, transparent);
+/* white: a raised white chip with the colored icon/text, for actions over a tinted row. */
+.bx-white {
+	border: none;
+	background: var(--surface-raised);
+	box-shadow: rgb(53 53 90 / 24%) 0px 1px 3px 0px;
 }
 
-.bx-red:hover {
-	border-color: var(--red-solid);
-	color: var(--red-solid);
-	background: var(--surface);
+.bx-white:hover {
+	background: var(--surface-raised);
+	box-shadow: inset 0 0 0 1px var(--bx-solid);
 }
 
-.bx-orange {
-	color: var(--orange-fg);
-	border: 1px solid color-mix(in srgb, var(--orange-fg) 55%, var(--surface));
-	border-bottom-width: 2px;
-	background: linear-gradient(338deg, var(--orange-bg-strong) 0%, var(--orange-bg) 100%);
-	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--orange-solid) 50%, transparent);
-}
-
-.bx-orange:hover {
-	border-color: var(--orange-solid);
-	color: var(--orange-solid);
-	background: var(--surface);
-}
-
-.bx-yellow {
-	color: var(--yellow-fg);
-	border: 1px solid color-mix(in srgb, var(--yellow-fg) 55%, var(--surface));
-	border-bottom-width: 2px;
-	background: linear-gradient(338deg, var(--yellow-bg-strong) 0%, var(--yellow-bg) 100%);
-	box-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--yellow-solid) 50%, transparent);
-}
-
-.bx-yellow:hover {
-	border-color: var(--yellow-solid);
-	color: var(--yellow-solid);
-	background: var(--surface);
-}
+/* Button `height`. "default" is the 39px of the base rule (38px round). */
+.bx-compact { height: 35px; }
+.bx-small { height: 32px; min-width: 38px; padding-left: 10px; padding-right: 10px; }
+.bx-tiny { height: 28px; min-width: 32px; padding-left: 8px; padding-right: 8px; font-size: 14px; }
+.round.bx-compact { width: 35px; min-width: 35px; height: 35px; }
+.round.bx-small { width: 32px; min-width: 32px; height: 32px; }
+.round.bx-tiny { width: 28px; min-width: 28px; height: 28px; }

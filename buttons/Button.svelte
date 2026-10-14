@@ -5,6 +5,8 @@
   import T from '../misc/T.svelte';
 
   type ButtonColor = 'blue' | 'green' | 'red' | 'orange' | 'yellow' | 'purple';
+  type ButtonMode = 'default' | 'subtle' | 'minimal' | 'white';
+  type ButtonHeight = 'default' | 'compact' | 'small' | 'tiny';
 
   interface Props {
     icon?: string;
@@ -14,6 +16,12 @@
     name?: string;
     label?: string;
     color?: ButtonColor;
+    /** Visual weight of a colored button: subtle drops the border and shadow for a hairline ring,
+     *  minimal is only the light color fill, white a white raised chip
+     *  with the colored icon/text. Needs `color`. */
+    mode?: ButtonMode;
+    /** default 39px, compact 35px, small 32px, tiny 28px (also sizes the `useCircle` circle). */
+    height?: ButtonHeight;
     useCircle?: boolean;
     /** Drops the colored drop shadow of the bx-* colors, also on hover. */
     noShadow?: boolean;
@@ -31,6 +39,8 @@
     name,
     label,
     color,
+    mode = 'default',
+    height = 'default',
     useCircle = false,
     noShadow = false,
     hideNameOnMobile = false,
@@ -64,7 +74,7 @@
   data-id="Button:{componentID}"
   aria-label={ui.translate(label)}
   data-value={role}
-  class={`${color ? `bx-${color}` : ''}${useCircle ? ' round' : ''}${noShadow ? ' shadow-none!' : ''} ${css}`.trim()}
+  class={`${color ? `bx-${color}` : ''}${color && mode !== 'default' ? ` bx-${mode}` : ''}${height !== 'default' ? ` bx-${height}` : ''}${useCircle ? ' round' : ''}${noShadow ? ' shadow-none!' : ''} ${css}`.trim()}
   {disabled}
   onclick={triggerClick}
 >

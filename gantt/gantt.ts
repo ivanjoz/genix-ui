@@ -8,7 +8,7 @@ export type GanttZoom = 'week' | 'month';
 export type GanttColor = CalendarColor;
 
 export interface GanttBar {
-  // Unix days, both included.
+  // Unix days, both included. A fraction draws part of a day: start 9.4 begins 40% into day 9.
   start: number;
   end: number;
   color?: GanttColor;
@@ -23,12 +23,21 @@ export interface GanttRow<B extends GanttBar = GanttBar> {
   // The row it nests under; rows with children can be collapsed.
   parentId?: string | number;
   bars: B[];
+  // Replaces the row's bottom border classes (default: a thin line), e.g. to mark a group's title.
+  css?: string;
 }
 
 export interface GanttMarker {
   day: number;
   label?: string;
   color?: GanttColor;
+}
+
+// A labeled span of the header's top row (a sprint, a phase), drawn instead of the months.
+export interface GanttHeaderBand {
+  start: number;
+  end: number;
+  label: string;
 }
 
 // Pixels per day: the week zoom shows each day, the month zoom each ISO week.

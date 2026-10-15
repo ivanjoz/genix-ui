@@ -21,6 +21,8 @@
         save: keyof T;
         label?: string;
         labelStyle?: "normal" | "bold";
+        /** Overrides the label's font size (px) set by labelStyle. */
+        labelFontSize?: number;
         css?: string;
         inputCss?: string;
         required?: boolean;
@@ -58,11 +60,12 @@
         // value by 1, and the value is centred between them. The + takes the right slot, so
         // the validity glyph moves to the label and `postValue` is not drawn.
         useIncrementButtons?: boolean;
-        // With useIncrementButtons: pressing − and dragging right lays a slider over the
-        // field — a track across its middle from the −'s edge, 8px per unit from `min`, and a
-        // ruler on its top line with the value in a bubble. Releasing inside the field sets
-        // that value; releasing outside it keeps the previous one. A press that does not drag
-        // is still a −1.
+        // With useIncrementButtons: pressing − and dragging right, or + and dragging left, lays a
+        // slider over the field that starts at the current value — a track across its middle
+        // from the pressed button's edge, 12px per unit, and a ruler on its top line with the
+        // value in a bubble. From − every unit dragged adds 1, from + it subtracts 1, kept
+        // within min..max. Releasing inside the field sets that value; releasing outside it
+        // keeps the previous one. A press that does not drag is still a −1 / +1.
         useNumericSwipe?: { min: number; max: number };
         // The field becomes a drop target for files. While files are dragged anywhere on the
         // page it shows a faint file icon over the box, so the user learns they can drop
@@ -87,6 +90,7 @@
         save,
         label,
         labelStyle,
+        labelFontSize,
         css,
         inputCss,
         required,
@@ -328,73 +332,87 @@
     };
 
     // ── numeric swipe ──────────────────────────────────────────────────────────────
-    const SWIPE_PX_PER_UNIT = 8;
+    const SWIPE_PX_PER_UNIT = 12;
     // One ruler mark on the top line every this many units.
     const SWIPE_TICK_UNITS = 5;
-    // A press on − that moves right less than this is still a tap (a −1).
+    // A press on a button that moves toward the field less than this is still a tap (a ±1).
     const SWIPE_START_PX = 6;
-    // Space between the −'s right edge and the start of the track.
+    // Space between the pressed button's inner edge and the start of the track.
     const SWIPE_TRACK_GAP_PX = 6;
 
     const numericSwipeRange = $derived(showIncrementButtons ? useNumericSwipe : undefined);
-    let swipePress: { pointerX: number; minusButton: HTMLElement } | null = null;
-    // Set while the slider is out. `trackStartX` is the track's left end in viewport coordinates
-    // (where `min` sits); the other positions are px relative to the field's root.
+    // `step` is the pressed button: +1 is the − dragged right (adds), −1 is the + dragged left
+    // (subtracts). Either way the drag goes toward the field and away from the button.
+    let swipePress: { pointerX: number; pressedButton: HTMLElement; step: 1 | -1 } | null = null;
+    // Set while the slider is out. `pressX` is where the finger first pressed, in viewport
+    // coordinates: the units are counted from there, so the first pixels of the drag already
+    // count. The other positions are px relative to the field's root, and `trackLeft` is always
+    // the track's left end.
     let swipeRuler = $state<{
-        trackStartX: number; trackLeft: number; trackWidth: number; lineTop: number; trackMiddleTop: number;
+        step: 1 | -1; startValue: number; pressX: number;
+        trackLeft: number; trackWidth: number; lineTop: number; trackMiddleTop: number;
         boxLeft: number; boxRight: number; boxTop: number; boxBottom: number; value: number;
     } | null>(null);
-    // The click that follows a swipe's pointerup must not also subtract 1.
-    let suppressNextMinusClick = false;
+    // The click that follows a swipe's pointerup must not also step the value.
+    let suppressNextIncrementClick = false;
 
-    const swipeValueAt = (clientX: number, trackStartX: number, range: { min: number; max: number }) => {
-        const unitsFromMin = Math.round((clientX - trackStartX) / SWIPE_PX_PER_UNIT);
-        return Math.min(range.max, Math.max(range.min, range.min + unitsFromMin));
+    // Units dragged away from the pressed button; dragging back past the press point never goes
+    // beyond the starting value.
+    const swipeValueAt = (clientX: number, ruler: { step: 1 | -1; startValue: number; pressX: number },
+        range: { min: number; max: number }) => {
+        const unitsDragged = Math.max(0, Math.round((clientX - ruler.pressX) * ruler.step / SWIPE_PX_PER_UNIT));
+        return Math.min(range.max, Math.max(range.min, ruler.startValue + unitsDragged * ruler.step));
     };
 
-    const onMinusPointerDown = (ev: PointerEvent) => {
-        suppressNextMinusClick = false;
+    const onSwipePointerDown = (ev: PointerEvent, step: 1 | -1) => {
+        suppressNextIncrementClick = false;
         if (!numericSwipeRange || disabled || ev.button !== 0) return;
-        const minusButton = ev.currentTarget as HTMLElement;
-        minusButton.setPointerCapture(ev.pointerId);
-        swipePress = { pointerX: ev.clientX, minusButton };
+        const pressedButton = ev.currentTarget as HTMLElement;
+        pressedButton.setPointerCapture(ev.pointerId);
+        swipePress = { pointerX: ev.clientX, pressedButton, step };
     };
 
-    const onMinusPointerMove = (ev: PointerEvent) => {
+    const onSwipePointerMove = (ev: PointerEvent) => {
         if (!swipePress || !numericSwipeRange) return;
         if (!swipeRuler) {
-            if (ev.clientX - swipePress.pointerX < SWIPE_START_PX) return;
-            // The track runs from SWIPE_TRACK_GAP_PX past the −'s right edge to the box's right
-            // edge, inset as much as the − is from the left one (it covers the hidden +).
-            const fieldElement = swipePress.minusButton.closest(`[data-id="Input:${componentID}"]`) as HTMLElement;
+            if ((ev.clientX - swipePress.pointerX) * swipePress.step < SWIPE_START_PX) return;
+            // The track runs from SWIPE_TRACK_GAP_PX past the pressed button's inner edge to the
+            // box's opposite edge, inset as much as the button is from its own side (it covers
+            // the hidden other button).
+            const fieldElement = swipePress.pressedButton.closest(`[data-id="Input:${componentID}"]`) as HTMLElement;
             const fieldRect = fieldElement.getBoundingClientRect();
             const boxRect = (fieldElement.firstElementChild as HTMLElement).getBoundingClientRect();
-            const minusRect = swipePress.minusButton.getBoundingClientRect();
-            const trackStartX = minusRect.right + SWIPE_TRACK_GAP_PX;
-            const trackEndX = boxRect.right - (minusRect.left - boxRect.left);
+            const buttonRect = swipePress.pressedButton.getBoundingClientRect();
+            const isFromMinus = swipePress.step === 1;
+            const trackStartX = isFromMinus ? buttonRect.right + SWIPE_TRACK_GAP_PX : buttonRect.left - SWIPE_TRACK_GAP_PX;
+            const trackEndX = isFromMinus ? boxRect.right - (buttonRect.left - boxRect.left) : boxRect.left + (boxRect.right - buttonRect.right);
+            const trackLeftX = Math.min(trackStartX, trackEndX);
             // Rounded: a fractional rect (browser zoom, a field at a fractional y) would put
             // the track, ticks and bubble edges on half pixels and blur them.
+            const startValue = Math.min(numericSwipeRange.max, Math.max(numericSwipeRange.min, Number(inputValue) || 0));
             swipeRuler = {
-                trackStartX,
-                trackLeft: Math.round(trackStartX - fieldRect.left),
-                trackWidth: Math.round(trackEndX - trackStartX),
+                step: swipePress.step,
+                startValue,
+                pressX: swipePress.pointerX,
+                trackLeft: Math.round(trackLeftX - fieldRect.left),
+                trackWidth: Math.round(Math.abs(trackEndX - trackStartX)),
                 lineTop: Math.round(boxRect.top - fieldRect.top),
-                trackMiddleTop: Math.round(minusRect.top + minusRect.height / 2 - fieldRect.top),
+                trackMiddleTop: Math.round(buttonRect.top + buttonRect.height / 2 - fieldRect.top),
                 boxLeft: boxRect.left, boxRight: boxRect.right, boxTop: boxRect.top, boxBottom: boxRect.bottom,
-                value: numericSwipeRange.min,
+                value: startValue,
             };
         }
-        swipeRuler.value = swipeValueAt(ev.clientX, swipeRuler.trackStartX, numericSwipeRange);
+        swipeRuler.value = swipeValueAt(ev.clientX, swipeRuler, numericSwipeRange);
     };
 
     // pointercancel (the browser took the gesture for a scroll) ends the swipe like a release
     // outside the field: the value stays as it was.
-    const onMinusPointerEnd = (ev: PointerEvent) => {
+    const onSwipePointerEnd = (ev: PointerEvent) => {
         const endedRuler = swipeRuler;
         swipePress = null;
         swipeRuler = null;
         if (!endedRuler) return;
-        suppressNextMinusClick = true;
+        suppressNextIncrementClick = true;
         const isReleasedInsideField = ev.type === "pointerup"
             && ev.clientX >= endedRuler.boxLeft && ev.clientX <= endedRuler.boxRight
             && ev.clientY >= endedRuler.boxTop && ev.clientY <= endedRuler.boxBottom;
@@ -402,8 +420,8 @@
     };
 
     const onIncrementClick = (step: number) => {
-        if (step < 0 && suppressNextMinusClick) {
-            suppressNextMinusClick = false;
+        if (suppressNextIncrementClick) {
+            suppressNextIncrementClick = false;
             return;
         }
         commitValue((Number(inputValue) || 0) + step);
@@ -548,36 +566,41 @@
                {label ? '-mt-1 max-[749px]:-mt-3' : 'mt-4'}
                rounded-[5px] bg-accent-bg text-label text-[18px] cursor-pointer
                hover:bg-accent-bg-strong disabled:cursor-not-allowed disabled:opacity-50
-               {step < 0 && numericSwipeRange ? 'touch-pan-y' : ''} {step > 0 && swipeRuler ? 'invisible' : ''}"
+               {numericSwipeRange ? 'touch-pan-y' : ''} {swipeRuler && swipeRuler.step !== -step ? 'invisible' : ''}"
         {disabled}
         aria-label={ui.translate(ariaLabel)}
         onclick={() => { onIncrementClick(step); }}
-        onpointerdown={step < 0 ? onMinusPointerDown : undefined}
-        onpointermove={step < 0 ? onMinusPointerMove : undefined}
-        onpointerup={step < 0 ? onMinusPointerEnd : undefined}
-        onpointercancel={step < 0 ? onMinusPointerEnd : undefined}
+        onpointerdown={numericSwipeRange ? (ev) => { onSwipePointerDown(ev, step < 0 ? 1 : -1); } : undefined}
+        onpointermove={numericSwipeRange ? onSwipePointerMove : undefined}
+        onpointerup={numericSwipeRange ? onSwipePointerEnd : undefined}
+        onpointercancel={numericSwipeRange ? onSwipePointerEnd : undefined}
     ><i class={iconClass}></i></button>
 {/snippet}
 
-<!-- The swipe slider, over the field while the − is dragged (the label and its notch are
-     hidden meanwhile, see .is-swiping; the value and the + are hidden under the track). The
-     track crosses the box's middle from the −'s edge; the top line becomes its ruler, a mark
-     every SWIPE_TICK_UNITS, with the value in a bubble on the line and a stem down to the
-     track. The wrapper starts where the track starts, so x = 0 is `min`. -->
+<!-- The swipe slider, over the field while a ± button is dragged (the label and its notch are
+     hidden meanwhile, see .is-swiping; the value and the other button are hidden under the
+     track). The track crosses the box's middle from the pressed button's edge; the top line
+     becomes its ruler, a mark every SWIPE_TICK_UNITS counted from that button, with the value
+     in a bubble on the line and a stem down through the track. The thumb starts at the pressed
+     button's end (the starting value) and the fill grows from there. -->
 {#snippet numericSwipeRuler()}
     {#if swipeRuler}
-        {@const thumbX = (swipeRuler.value - (numericSwipeRange?.min ?? 0)) * SWIPE_PX_PER_UNIT}
+        {@const isFromMinus = swipeRuler.step === 1}
+        {@const thumbOffset = Math.min(swipeRuler.trackWidth, Math.abs(swipeRuler.value - swipeRuler.startValue) * SWIPE_PX_PER_UNIT)}
+        {@const thumbX = isFromMinus ? thumbOffset : swipeRuler.trackWidth - thumbOffset}
         <div class="absolute z-10 top-0 h-full pointer-events-none"
             style="left: {swipeRuler.trackLeft}px; width: {swipeRuler.trackWidth}px">
-            <div class="absolute left-0 h-10 w-[calc(100%+2px)]"
+            <div class="absolute h-10 w-[calc(100%+2px)] {isFromMinus ? 'left-0' : '-left-2'}"
                 style="top: {swipeRuler.lineTop - 5}px;
-                       background: repeating-linear-gradient(to right, var(--accent-solid) 0 2px, transparent 2px {SWIPE_TICK_UNITS * SWIPE_PX_PER_UNIT}px)"></div>
+                       background: repeating-linear-gradient({isFromMinus ? 'to right' : 'to left'}, var(--accent-solid) 0 2px, transparent 2px {SWIPE_TICK_UNITS * SWIPE_PX_PER_UNIT}px)"></div>
             <div class="absolute left-0 right-0 h-8 rounded-full overflow-hidden bg-line-strong"
                 style="top: {swipeRuler.trackMiddleTop - 4}px">
-                <div class="h-full bg-accent-solid" style="width: {thumbX}px"></div>
+                <div class="absolute top-0 h-full bg-accent-solid"
+                    style="left: {isFromMinus ? 0 : thumbX}px; width: {thumbOffset}px"></div>
             </div>
+            <!-- The stem crosses the 8px track down to its bottom edge (trackMiddleTop + 4). -->
             <div class="absolute w-2 bg-accent-solid"
-                style="left: {thumbX - 1}px; top: {swipeRuler.lineTop}px; height: {swipeRuler.trackMiddleTop - swipeRuler.lineTop}px"></div>
+                style="left: {thumbX - 1}px; top: {swipeRuler.lineTop}px; height: {swipeRuler.trackMiddleTop + 4 - swipeRuler.lineTop}px"></div>
             <!-- A fixed 32px circle (room for 3 digits) placed by its top-left corner, a whole
                  16px off the thumb, instead of translate(-50%) on a content-sized box, which
                  lands on half pixels. leading-none drops the font's line box, which otherwise
@@ -687,7 +710,7 @@
 {/snippet}
 
 <FieldShell
-    {label} {labelStyle} {disabled}
+    {label} {labelStyle} {labelFontSize} {disabled}
     css="{css || ''}{hasLeftSelector ? ' has-interactive-prefix' : ''}{showIncrementButtons && label ? ' has-increment-buttons' : ''}{swipeRuler ? ' is-swiping' : ''}"
     invalid={showInvalid}
     autoHeight={useTextArea}

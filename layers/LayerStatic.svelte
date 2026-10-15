@@ -9,6 +9,11 @@
     show?: boolean
     mobileLayerTitle?: string
     useMobileLayerVertical?: number
+    // Docks the column to the left edge of the page at this width in px: fixed, flush with the side
+    // menu, the header and the window's bottom, whatever the page's padding. An in-flow slot of the
+    // same width keeps its place, so the content beside it sizes itself. Desktop only: on mobile it
+    // renders nothing and the page provides its own picker.
+    dockLeft?: number
     children?: import('svelte').Snippet
   }
 
@@ -17,6 +22,7 @@
     show = false,
     mobileLayerTitle = '',
     useMobileLayerVertical,
+    dockLeft,
     children,
   }: Props = $props()
 
@@ -42,7 +48,13 @@
   })
 </script>
 
-{#if useVerticalMobileLayer}
+{#if dockLeft}
+  <div class="layer-static-dock-slot" style:width="{dockLeft}px">
+    <div data-id="LayerStatic:{componentID}" class="layer-static-docked {css || ''}" style:width="{dockLeft}px">
+      {@render children?.()}
+    </div>
+  </div>
+{:else if useVerticalMobileLayer}
   <MobileLayerVertical
     title={mobileLayerTitle}
     show={mobileLayerIsOpen}
@@ -65,7 +77,22 @@
 {/if}
 
 <style>
+  .layer-static-dock-slot {
+    flex-shrink: 0;
+  }
+
+  .layer-static-docked {
+    position: fixed;
+    left: var(--menu-min-width);
+    top: var(--header-height);
+    bottom: 0;
+  }
+
   @media (max-width: 749px) {
+    .layer-static-dock-slot {
+      display: none;
+    }
+
     .layer-static {
       position: fixed;
       width: 100vw;

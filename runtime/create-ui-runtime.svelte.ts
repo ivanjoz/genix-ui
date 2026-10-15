@@ -86,7 +86,8 @@ export const createUiRuntime = <UserInfoType = unknown>(
     startRequest: options.startRequest,
     finishRequest: options.finishRequest,
     fetchCached: fetchCacheParsed,
-    refreshRoutes: (routes) => sendServiceMessage(24, { routes }),
+    openRoutesWrite: (routes, pendingWriteID) => sendServiceMessage(25, { routes, pendingWriteID }),
+    refreshRoutes: (routes, pendingWriteID) => sendServiceMessage(24, { routes, pendingWriteID }),
     verifyRouteMemoryState,
   });
 

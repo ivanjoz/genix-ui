@@ -38,6 +38,8 @@ export interface IImageUploaderProps {
   processName?: string
   // Last image-ID digit identifying the resolution set; 0 uses the backend default.
   imageCounterConfig?: number
+  // Where the picture comes from: the gallery (file picker), the camera, or both side by side.
+  pickFrom?: 'gallery' | 'camera' | 'both'
 }
 
 let {
@@ -59,8 +61,14 @@ let {
   size, folder, useConvertAvif, convertResolutions = [8, 6, 4, 2],
   imageSource,
   processName = undefined,
-  imageCounterConfig = 0
+  imageCounterConfig = 0,
+  pickFrom = 'gallery'
 }: IImageUploaderProps = $props();
+
+// One tap area per source. The camera's input asks the device to open the back camera directly.
+const GALLERY_PICK = { useCamera: false, icon: 'icon-[fa--upload]', label: 'Upload Image|Subir Imagen' }
+const CAMERA_PICK = { useCamera: true, icon: 'icon-[fa--camera]', label: 'Capture Image|Capturar Imagen' }
+const pickAreas = $derived(pickFrom === 'both' ? [GALLERY_PICK, CAMERA_PICK] : pickFrom === 'camera' ? [CAMERA_PICK] : [GALLERY_PICK])
 
 // State
 // svelte-ignore state_referenced_locally
@@ -290,7 +298,7 @@ $effect(() => {
 })
 
 const componentID = ui.nextComponentId()
-let fileInputElement = $state<HTMLInputElement | undefined>(undefined)
+let fileInputElements = $state<HTMLInputElement[]>([])
 
 const removeImage = () => {
   if (onDelete) { onDelete(src); return }
@@ -304,7 +312,7 @@ $effect(() => {
     id: componentID,
     type: "ImageUploader",
     label: description || "",
-    click: () => { fileInputElement?.click() },
+    click: () => { fileInputElements[0]?.click() },
     deleted: () => { removeImage() },
   })
 })
@@ -320,18 +328,31 @@ $effect(() => {
   style={cardStyle}
 >
   {#if (imageSrc?.src || '').length === 0}
-    <div class="relative flex flex-col items-center justify-center w-full h-full pointer-events-none">
-      <input
-        class="absolute inset-0 w-full h-full cursor-pointer opacity-0 pointer-events-auto"
-        bind:this={fileInputElement}
-        onchange={onFileChange}
-        type="file"
-        accept="image/png, image/jpeg, image/webp"
-      />
-      <div class="text-[2.4rem]">
-        <i class="icon-[fa--upload]"></i>
-      </div>
-      <div class="h5">{ui.translate("Upload Image|Subir Imagen")}</div>
+    <div class="relative flex flex-col w-full h-full pointer-events-none">
+    <div class="relative flex flex-1 min-h-0 w-full">
+      {#each pickAreas as pickArea, areaIndex (pickArea.label)}
+        {#if areaIndex > 0}<div class="w-1 my-12 bg-line-strong"></div>{/if}
+        <div class="relative flex flex-1 flex-col items-center justify-center {pickAreas.length > 1 ? 'has-[input:hover]:bg-surface-muted' : ''}">
+          <input
+            class="absolute inset-0 w-full h-full cursor-pointer opacity-0 pointer-events-auto"
+            bind:this={fileInputElements[areaIndex]}
+            onchange={onFileChange}
+            type="file"
+            accept="image/png, image/jpeg, image/webp"
+            capture={pickArea.useCamera ? 'environment' : undefined}
+            aria-label={ui.translate(pickArea.label)}
+          />
+          <div class={pickAreas.length > 1 ? 'text-[2rem]' : 'text-[2.4rem]'}>
+            <i class={pickArea.icon}></i>
+          </div>
+          <!-- Side by side, each half is too narrow for its text: one caption spans both below. -->
+          {#if pickAreas.length === 1}<div class="h5">{ui.translate(pickArea.label)}</div>{/if}
+        </div>
+      {/each}
+    </div>
+    {#if pickAreas.length > 1}
+      <div class="text-[14px] leading-[1.2] text-center px-4 pb-1">{ui.translate('Select or Capture Image|Seleccionar o capturar imagen')}</div>
+    {/if}
     </div>
   {/if}
 

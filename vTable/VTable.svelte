@@ -982,6 +982,9 @@
     font-size: 15px;
     color: var(--accent-fg);
     box-shadow: color-mix(in srgb, var(--accent-solid) 62%, transparent) 0px 1px 2px 0px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   ._11._e {
     color: var(--accent-fg);

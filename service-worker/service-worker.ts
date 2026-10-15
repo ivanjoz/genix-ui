@@ -5,6 +5,7 @@ import {
   fetchDeltaCache,
   getDeltaCacheStats,
   getDeltaCursors,
+  openDeltaRoutesWrite,
   readDeltaCacheSubObject,
   refreshDeltaRoutes,
   setDeltaRouteForceNetwork,
@@ -67,9 +68,15 @@ HandlersMap.set(23, async (args: { __enviroment__: string, __companyID__?: numbe
   return await clearDeltaModuleCache(args)
 })
 
-// Action 24 marks matching routes for refresh without deleting their rows.
+// Action 24 marks matching routes for refresh without deleting their rows, and closes the write's
+// pending write when it names one.
 HandlersMap.set(24, async (args: IRefreshDeltaRoutesArgs) => {
   return await refreshDeltaRoutes(args)
+})
+
+// Action 25 opens a pending write: until action 24 closes it, the routes' reads hit the server.
+HandlersMap.set(25, async (args: IRefreshDeltaRoutesArgs) => {
+  return await openDeltaRoutesWrite(args)
 })
 
 // Action 26 removes the full delta cache for one environment.

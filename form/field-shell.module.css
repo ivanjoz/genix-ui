@@ -67,7 +67,7 @@
   /* 13px label row + a 38px content row = the 51px footprint every field shares. The
      label row is shorter than the label itself (which is absolute, so it just overhangs):
      that lifts the content row, landing the value 3px under the box's own centre. */
-  padding-top: 13px;
+  padding-top: calc(13px + var(--label-extra, 0px));
   /* Gap starts 2px before the label's text and ends 2px after it (--notch-w = w + 4). */
   --notch-x: 12px;
 }
@@ -121,10 +121,15 @@
   margin-top: 0;
 }
 
-/* Fill + radius + shadow, unmasked. Top edge at 7px, where the border line sits. */
+/* Fill + radius + shadow, unmasked. Top edge at 7px, where the border line sits.
+
+   A label too long for one line wraps to as many lines as it needs. Every line but the last
+   stands above the box: FieldShell measures how far the last line sits below the first and sets
+   it as --label-extra, so the box, the field's top padding and every top offset below move down
+   by it, and the border crosses the LAST line exactly where it crosses a one-line label. */
 .box {
   position: absolute;
-  inset: 7px 0 0 0;
+  inset: calc(7px + var(--label-extra, 0px)) 0 0 0;
   border-radius: 7px;
   background: var(--input-bg, var(--field-fill));
   /* Downward-only. The -1px spread plus the +2px offset keep the shadow's top edge
@@ -233,15 +238,11 @@
   left: 14px;
   line-height: 16px;
   color: var(--input-label-color, var(--label));
-  white-space: nowrap;
   cursor: pointer;
   /* The label overhangs the 13px row, so without this a long one widens the whole field
-     instead of being clipped. Clipping also bounds the measured clientWidth, which is what
-     keeps the notch from running off the top edge. */
+     instead of wrapping. Nothing is clipped: a clip cuts the descenders of a 16px bold label. */
   max-width: calc(100% - 20px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  height: 100%;
+  overflow-wrap: anywhere;
 }
 
 .field:focus-within .lab {
@@ -285,7 +286,7 @@
    the size/adornment rules, which share this specificity and must still win. */
 @media (max-width: 749px) {
   .box {
-    top: 5px;
+    top: calc(5px + var(--label-extra, 0px));
   }
 
   /* labelStyle="bold" (16px, set from Tailwind in the markup): lifted 2px with the line, so
@@ -543,7 +544,7 @@ textarea.inp {
 }
 
 .field:global(.has-increment-buttons) .box {
-  top: 5px;
+  top: calc(5px + var(--label-extra, 0px));
 }
 
 .field:global(.has-increment-buttons) .lab {
@@ -556,7 +557,7 @@ textarea.inp {
 
 @media (max-width: 749px) {
   .field:global(.has-increment-buttons) .box {
-    top: 3px;
+    top: calc(3px + var(--label-extra, 0px));
   }
 
   .field:global(.has-increment-buttons) .labBold {

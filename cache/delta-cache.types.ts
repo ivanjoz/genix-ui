@@ -63,12 +63,23 @@ export type ICacheRecordRow = ICacheRecordRowMulti | ICacheRecordRowSingle
 
 // Action 24: mark cached routes so their next read bypasses the cache and hits the server.
 // `exact` off means prefix matching, which is what a POST needs to invalidate derived routes.
+// Action 25 opens a pending write over the routes and action 24 with its `pendingWriteID` closes it.
 export interface IRefreshDeltaRoutesArgs {
   __enviroment__: string
   __companyID__?: number
   module: string
   routes: string[]
   exact?: boolean
+  pendingWriteID?: string
+}
+
+// A write whose response the page has not handled yet: until then every read of its routes goes to
+// the server. `deadline` (unix seconds) is when it is given up for lost (delta-cache.idb.ts).
+export interface IPendingRouteWrite {
+  id: string
+  module: string
+  routes: string[]
+  deadline: number
 }
 
 export interface IRequestLogRow {

@@ -60,7 +60,10 @@ export interface HttpClientRuntime {
   startRequest?: (route: string) => number;
   finishRequest?: (requestId: number) => void;
   fetchCached?: (request: serviceHttpProps) => Promise<any>;
-  refreshRoutes?: (routes: string[]) => Promise<unknown> | void;
+  // A write opens a pending write over its refreshRoutes before its request leaves and closes it
+  // (marking the routes) once the response is handled: see cache/delta-cache.idb.ts.
+  openRoutesWrite?: (routes: string[], pendingWriteID: string) => Promise<unknown>;
+  refreshRoutes?: (routes: string[], pendingWriteID?: string) => Promise<unknown> | void;
   verifyRouteMemoryState?: () => boolean;
 }
 
@@ -183,11 +186,24 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     return true;
   };
 
-  const refreshChangedRoutes = (routes: string[] | undefined): void => {
+  // Awaited before the request leaves: if the page dies mid-request, the routes stay pending.
+  const openRoutesWrite = async (routes: string[] | undefined): Promise<string | undefined> => {
+    if (!routes?.length || !runtime.openRoutesWrite) { return undefined; }
+    const pendingWriteID = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try {
+      await runtime.openRoutesWrite(routes, pendingWriteID);
+      return pendingWriteID;
+    } catch (error) {
+      console.warn('[http] Failed to open the pending write:', error);
+      return undefined;
+    }
+  };
+
+  const refreshChangedRoutes = (routes: string[] | undefined, pendingWriteID?: string): void => {
     if (!routes?.length || !runtime.refreshRoutes) { return; }
 
     console.log('[http] Marking routes for refresh:', routes);
-    Promise.resolve(runtime.refreshRoutes(routes))
+    Promise.resolve(runtime.refreshRoutes(routes, pendingWriteID))
       .then(() => console.log('[http] Routes marked for refresh:', routes))
       .catch((error) => console.warn('[http] Failed to mark routes for refresh:', error));
   };
@@ -199,6 +215,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
 
     const status = props.status || { code: 200, message: '' };
     const requestId = runtime.startRequest?.(props.route) || 0;
+    const pendingWriteID = await openRoutesWrite(props.refreshRoutes);
 
     try {
       console.log(`[http] ${method}:`, props.route);
@@ -212,7 +229,6 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       if (!hasSuccessfulResponse(result, props, status)) {
         return Promise.reject(result);
       }
-      refreshChangedRoutes(props.refreshRoutes);
       return result;
     } catch (error) {
       console.error(`[http] ${method} failed:`, props.route, error);
@@ -221,6 +237,8 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       }
       throw error;
     } finally {
+      // A failed write may still have written part of its records: refresh on every outcome.
+      refreshChangedRoutes(props.refreshRoutes, pendingWriteID);
       if (requestId > 0) {
         runtime.finishRequest?.(requestId);
       }
@@ -233,7 +251,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     }
 
     props.status = { code: 200, message: '' };
-    refreshChangedRoutes(props.refreshRoutes);
+    const pendingWriteID = await openRoutesWrite(props.refreshRoutes);
 
     try {
       console.log('[http] Upload POST:', props.route);
@@ -255,6 +273,8 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       console.error('[http] Upload POST failed:', props.route, error);
       notifyFailure(String(message));
       throw error;
+    } finally {
+      refreshChangedRoutes(props.refreshRoutes, pendingWriteID);
     }
   };
 

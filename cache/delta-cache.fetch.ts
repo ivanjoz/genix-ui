@@ -5,6 +5,9 @@ import {
   bulkDeleteRouteRecordRowsSingle,
   bulkPutRouteRecordRows,
   clearEnvironmentCache,
+  closePendingRouteWrite,
+  hasPendingRouteWrite,
+  openPendingRouteWrite,
   clearModuleCache,
   ensureCacheRouteRow,
   extendRouteResponseKeys,
@@ -563,6 +566,10 @@ const shouldUseNetwork = async (
   const remaining = fetchNextTime - fetchTime
 
   let doFetch = args.cacheMode === "refresh"
+  if(await hasPendingRouteWrite(routeRow.dbName, routeRow.module, routeRow.route)){
+    console.log("Forzando fetch por escritura pendiente:", args.route)
+    return { doFetch: true, remaining }
+  }
   if(routeRow.forceNetwork){
     console.log("Forzando fetch por flag forceNetwork:", args.route)
     routeRow.forceNetwork = false
@@ -1035,12 +1042,15 @@ export const clearDeltaEnvironmentCache = async (args: { __enviroment__: string,
 
 export const refreshDeltaRoutes = async (args: IRefreshDeltaRoutesArgs) => {
   console.log("Setting ForceNetwork for routes:", args.routes)
-  const routesUpdated = await markRoutesForRefresh(
-    makeScopedDeltaDBName(args),
-    args.module || "a",
-    args.routes || [],
-    args.exact
-  )
+  const dbName = makeScopedDeltaDBName(args)
+  const routesUpdated = await markRoutesForRefresh(dbName, args.module || "a", args.routes || [], args.exact)
+  if(args.pendingWriteID){ await closePendingRouteWrite(dbName, args.pendingWriteID) }
   console.log(`ForceNetwork = true for routes: ${args.routes.join(", ")} | In ${routesUpdated} routes`)
   return { ok: 1, routesUpdated }
+}
+
+export const openDeltaRoutesWrite = async (args: IRefreshDeltaRoutesArgs) => {
+  if(!args.pendingWriteID){ return { ok: 0 } }
+  await openPendingRouteWrite(makeScopedDeltaDBName(args), { id: args.pendingWriteID, module: args.module || "a", routes: args.routes || [] })
+  return { ok: 1 }
 }

@@ -22,6 +22,8 @@ import type { Snippet } from 'svelte';
     keyName: keyof E;
     label?: string;
     labelStyle?: "normal" | "bold";
+    /** Overrides the label's font size (px) set by labelStyle. */
+    labelFontSize?: number;
     placeholder?: string;
     /** The placeholder stands in for a missing label: paint it in the label colour, not placeholder grey. */
     placeholderAsLabel?: boolean;
@@ -57,6 +59,7 @@ import type { Snippet } from 'svelte';
     options = [],
     label,
     labelStyle,
+    labelFontSize,
     placeholder,
     placeholderAsLabel = false,
     max = 200,
@@ -455,7 +458,7 @@ import type { Snippet } from 'svelte';
 {/snippet}
 
 <FieldShell
-  {label} {labelStyle} {css}
+  {label} {labelStyle} {labelFontSize} {css}
   variant={shellVariant}
   disabled={isDisabled}
   suffix={hasSuffix ? validityAndArrow : undefined}

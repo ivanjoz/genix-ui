@@ -1,7 +1,9 @@
 <script lang="ts" generics="TOption">
   // Horizontal strip of arrow-shaped options, each one's point fitting into the next one's notch.
   // Every option takes `optionWidth` of the strip (28% by default), so the 4th option is cut near its
-  // middle: the half-visible box tells the user the strip scrolls sideways to reveal the rest.
+  // middle: the half-visible box tells the user the strip scrolls sideways to reveal the rest. Up to
+  // 3 options never scroll: they share the strip's full width instead. With a mouse, the wheel and a
+  // drag scroll it too.
   // The options take the strip's height minus its 4px scrollbar gutter: size it through `css` (h-48
   // by default, 44px options).
   import T from '../misc/T.svelte';
@@ -24,6 +26,9 @@
     css?: string
   } = $props()
 
+  const MAX_FILLING_OPTIONS = 3
+  const fillsWidth = $derived(options.length <= MAX_FILLING_OPTIONS)
+
   const componentID = ui.nextComponentId()
   let stripElement: HTMLDivElement
 
@@ -44,6 +49,49 @@
     stripElement.scrollTo({ left: scrollLeft, behavior: 'smooth' })
   }
 
+  // A mouse scrolls the strip as a finger does: the vertical wheel moves it sideways, and dragging
+  // it pulls it. A drag past DRAG_THRESHOLD_PX is not a click, so it never selects the option under it.
+  const DRAG_THRESHOLD_PX = 4
+  let dragStart: { pointerX: number, scrollLeft: number } | undefined
+  let hasDragged = false
+
+  const onStripPointerDown = (event: PointerEvent) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0) { return }
+    dragStart = { pointerX: event.clientX, scrollLeft: stripElement.scrollLeft }
+    hasDragged = false
+  }
+
+  const onStripPointerMove = (event: PointerEvent) => {
+    if (!dragStart) { return }
+    const dragDistance = event.clientX - dragStart.pointerX
+    if (!hasDragged && Math.abs(dragDistance) < DRAG_THRESHOLD_PX) { return }
+    if (!hasDragged) { stripElement.setPointerCapture(event.pointerId) }
+    hasDragged = true
+    stripElement.scrollLeft = dragStart.scrollLeft - dragDistance
+  }
+
+  const onStripPointerUp = () => { dragStart = undefined }
+
+  // Capture phase: the click that ends a drag is stopped before it reaches the option's button.
+  const onStripClickCapture = (event: MouseEvent) => {
+    if (!hasDragged) { return }
+    hasDragged = false
+    event.stopPropagation()
+    event.preventDefault()
+  }
+
+  // Not passive (Svelte's onwheel could be): the page must not scroll while the strip takes the wheel.
+  $effect(() => {
+    const onStripWheel = (event: WheelEvent) => {
+      const canScrollSideways = stripElement.scrollWidth > stripElement.clientWidth
+      if (!canScrollSideways || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) { return }
+      event.preventDefault()
+      stripElement.scrollLeft += event.deltaY
+    }
+    stripElement.addEventListener('wheel', onStripWheel, { passive: false })
+    return () => stripElement.removeEventListener('wheel', onStripWheel)
+  })
+
   $effect(() => {
     return Agent.register({
       id: componentID,
@@ -59,7 +107,9 @@
   })
 </script>
 
-<div data-id="ChevronStrip:{componentID}" bind:this={stripElement}
+<div data-id="ChevronStrip:{componentID}" bind:this={stripElement} role="group"
+  onpointerdown={onStripPointerDown} onpointermove={onStripPointerMove} onpointerup={onStripPointerUp}
+  onpointercancel={onStripPointerUp} onclickcapture={onStripClickCapture}
   class={ifcss(css, "flex w-full h-48 overflow-x-auto overflow-y-hidden pb-4 chevron-strip")}>
   {#each options as option (option[keyId])}
     {@const isSelected = option[keyId] === selected}
@@ -69,7 +119,7 @@
       aria-current={isSelected ? "step" : undefined}
       class="chevron-option shrink-0 flex items-center justify-center px-14 text-center leading-[1.1] ff-bold text-[14px]"
       class:chevron-option-selected={isSelected}
-      style:flex-basis="calc({optionWidth} + 7px)"
+      style:flex-basis={fillsWidth ? '0' : `calc(${optionWidth} + 7px)`} style:flex-grow={fillsWidth ? 1 : undefined}
       onclick={() => selectOption(option)}>
       <span class="line-clamp-2"><T text={String(option[keyName])} /></span>
     </button>

@@ -21,6 +21,9 @@
     // bold = a 16px bold label, for forms filled on a phone where the 15px regular
     // label reads too faint next to the value.
     labelStyle?: "normal" | "bold";
+    // Overrides the label's font size (px) set by labelStyle: the consumer decides when, e.g.
+    // a smaller one for a long label.
+    labelFontSize?: number;
     // The consumer owns the *when*: Input only flags after the first blur, so a pristine
     // form does not greet the user with a wall of red.
     invalid?: boolean;
@@ -50,6 +53,7 @@
   const {
     label,
     labelStyle = "normal",
+    labelFontSize,
     invalid,
     disabled,
     css,
@@ -68,12 +72,54 @@
   // cannot forget to wire it, because the id only reaches it through the snippet.
   const controlId = `fld-${ui.nextComponentId()}`;
 
-  // The mask needs the label's real width to size the notch. bind:clientWidth is a
-  // ResizeObserver under the hood, so the gap also corrects itself when the webfont
-  // finishes loading or the language switches and the string changes length.
+  // A label wider than the field wraps: every line but the last stands above the box, and the
+  // last one is the label embedded in the border. Two measures do that: how far the last line
+  // sits below the first (the box moves down by it, --label-extra) and the last line's width
+  // (the notch). The bind:client* below are ResizeObservers under the hood, so both correct
+  // themselves when the webfont finishes loading, the field resizes or the language switches.
+  let labelElement = $state<HTMLLabelElement>();
+  let labelTextElement = $state<HTMLSpanElement>();
   let labelWidth = $state(0);
+  let labelHeight = $state(0);
+  // The validity glyph comes and goes after the first blur without resizing the label (its first
+  // line is the wider one): its own width is what re-measures the notch then.
+  let labelSuffixWidth = $state(0);
+  let lastLineWidth = $state(0);
+  let labelExtraHeight = $state(0);
   // +4 = 2px of breathing room each side of the text.
-  const notchWidth = $derived(labelWidth ? labelWidth + 4 : 0);
+  const notchWidth = $derived(lastLineWidth ? lastLineWidth + 4 : 0);
+
+  // label and labelSuffixWidth are read so a new text or glyph of the same box size is measured again.
+  $effect(() => {
+    void labelSuffixWidth;
+    if (!labelElement || !labelWidth || !labelHeight || !label) {
+      lastLineWidth = 0;
+      labelExtraHeight = 0;
+      return;
+    }
+    const labelLines = measureLabelLines(labelElement);
+    lastLineWidth = labelLines.lastLineWidth;
+    labelExtraHeight = labelLines.lastLineOffset;
+  });
+
+  // The line boxes of the label's TEXT give the lines' tops: the validity glyph after it is smaller
+  // and sits lower, so its top is not a line's. The last line's width does include the glyph.
+  const measureLabelLines = (element: HTMLElement): { lastLineOffset: number; lastLineWidth: number } => {
+    const textRange = document.createRange();
+    textRange.selectNodeContents(labelTextElement || element);
+    const textRects = [...textRange.getClientRects()].filter((rect) => rect.width > 0);
+    if (textRects.length === 0) { return { lastLineOffset: 0, lastLineWidth: element.clientWidth }; }
+    const firstLineTop = Math.min(...textRects.map((rect) => rect.top));
+    const lastLineTop = Math.max(...textRects.map((rect) => rect.top));
+    const labelRange = document.createRange();
+    labelRange.selectNodeContents(element);
+    const lastLineRects = [...labelRange.getClientRects()].filter((rect) => rect.width > 0 && rect.top >= lastLineTop - 2);
+    const lastLineRight = Math.max(...lastLineRects.map((rect) => rect.right));
+    return {
+      lastLineOffset: Math.round(lastLineTop - firstLineTop),
+      lastLineWidth: Math.min(Math.ceil(lastLineRight - element.getBoundingClientRect().left), element.clientWidth),
+    };
+  };
 
   // A label only draws in the default variant — bare has no chrome to notch, and pill is
   // the unlabelled search box.
@@ -97,7 +143,7 @@
   );
 </script>
 
-<div {...restAttributes} class={rootClass} style="--notch-w: {notchWidth}px">
+<div {...restAttributes} class={rootClass} style="--notch-w: {notchWidth}px; --label-extra: {labelExtraHeight}px">
   {#if variant !== "bare"}
     <!-- Decorative: fill + shadow here, masked border in ::before. -->
     <div class={s.box}></div>
@@ -105,8 +151,8 @@
 
   {#if showLabel}
     <!-- `for` is what makes clicking the label focus the control. -->
-    <label class="{s.lab} {labelStyle === 'bold' ? `${s.labBold} text-[16px] font-bold` : 'text-[15px]'}" for={controlId} bind:clientWidth={labelWidth}>
-      <T text={label ?? ""} />{@render labelSuffix?.()}
+    <label class="{s.lab} {labelStyle === 'bold' ? `${s.labBold} text-[16px] font-bold` : 'text-[15px]'}" for={controlId} style:font-size={labelFontSize ? `${labelFontSize}px` : undefined} bind:this={labelElement} bind:clientWidth={labelWidth} bind:clientHeight={labelHeight}>
+      <span bind:this={labelTextElement}><T text={label ?? ""} /></span>{#if labelSuffix}<span class="inline-block" bind:clientWidth={labelSuffixWidth}>{@render labelSuffix()}</span>{/if}
     </label>
   {/if}
 

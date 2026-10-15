@@ -9,6 +9,7 @@ import type {
   ICacheRouteRow,
   IDeltaCacheRouteRef,
   ILastSync,
+  IPendingRouteWrite,
   IRequestLogRow,
 } from './delta-cache.types'
 
@@ -407,13 +408,13 @@ export const markRoutesForRefresh = async (
   console.log("[REFRESH-DBG] markRoutesForRefresh:", { dbName, module, requested: routes, matchExactRoute, storedRoutes: routeRows.map((r) => r.route) })
 
   let updatedRoutesCount = 0
-  for (const routeRow of routeRows) {
-    const isRequested = matchExactRoute
-      ? routes.includes(routeRow.route)
-      : routes.some((routePrefix) => routeRow.route.startsWith(routePrefix))
-    if (!isRequested) {
+  for (const persistedRouteRow of routeRows) {
+    if (!isRequestedRoute(persistedRouteRow.route, routes, matchExactRoute)) {
       continue
     }
+    // A fetch in flight holds the remembered row and saves it when it ends: flag that same object,
+    // or its save would put forceNetwork back to false and the write would never be read.
+    const routeRow = routeMemoryByLookupKey.get(getRouteMemoryKey(persistedRouteRow)) || persistedRouteRow
     routeRow.forceNetwork = true
     await database.cacheRoutes.put(routeRow)
     rememberRouteRow(routeRow)
@@ -422,6 +423,74 @@ export const markRoutesForRefresh = async (
   }
 
   return updatedRoutesCount
+}
+
+const isRequestedRoute = (route: string, routes: string[], matchExactRoute = false): boolean => {
+  return matchExactRoute
+    ? routes.includes(route)
+    : routes.some((routePrefix) => route.startsWith(routePrefix))
+}
+
+// A write marks its routes twice. Before its request leaves, it opens a pending write: every read of
+// those routes goes to the server until the page handles the response and closes it (marking the
+// routes once more, for the reads that ran before the server committed). The page may never handle
+// it: a navigation or a closed tab drops the response while the server still commits. So a pending
+// write expires at a deadline past the longest a request can run (900 s, AWS Lambda's maximum), and
+// an expired one marks its routes like a closed one: the read after it always sees the write.
+const PENDING_WRITE_MAX_SECONDS = 900
+const PENDING_ROUTE_WRITES_KEY = 'pendingRouteWrites'
+const pendingRouteWritesByDatabaseName = new Map<string, IPendingRouteWrite[]>()
+
+const readPendingRouteWrites = async (dbName: string): Promise<IPendingRouteWrite[]> => {
+  const rememberedPendingWrites = pendingRouteWritesByDatabaseName.get(dbName)
+  if (rememberedPendingWrites) { return rememberedPendingWrites }
+  const persistedPendingWrites = (await getRouteData<IPendingRouteWrite[]>(dbName, PENDING_ROUTE_WRITES_KEY)) || []
+  // Another handler may have filled the memory while this one awaited IndexedDB: memory wins.
+  return pendingRouteWritesByDatabaseName.get(dbName) || persistedPendingWrites
+}
+
+// The memory is set before awaiting IndexedDB, so the handlers interleaving in the worker always
+// edit the latest list.
+const savePendingRouteWrites = async (dbName: string, pendingWrites: IPendingRouteWrite[]): Promise<void> => {
+  pendingRouteWritesByDatabaseName.set(dbName, pendingWrites)
+  await putRouteData(dbName, PENDING_ROUTE_WRITES_KEY, pendingWrites)
+}
+
+export const openPendingRouteWrite = async (
+  dbName: string, pendingWrite: Omit<IPendingRouteWrite, 'deadline'>
+): Promise<void> => {
+  const pendingWrites = await readPendingRouteWrites(dbName)
+  const deadline = Math.floor(Date.now() / 1000) + PENDING_WRITE_MAX_SECONDS
+  await savePendingRouteWrites(dbName, [...pendingWrites, { ...pendingWrite, deadline }])
+}
+
+// The caller marks the routes first: between the two steps a read must find the write pending or
+// its route marked.
+export const closePendingRouteWrite = async (dbName: string, pendingWriteID: string): Promise<void> => {
+  const pendingWrites = await readPendingRouteWrites(dbName)
+  if (!pendingWrites.some((pendingWrite) => pendingWrite.id === pendingWriteID)) { return }
+  await savePendingRouteWrites(dbName, pendingWrites.filter((pendingWrite) => pendingWrite.id !== pendingWriteID))
+}
+
+// hasPendingRouteWrite tells whether a read of the route must go to the server because a write to it
+// is still pending. Expired writes are dropped here, after marking their routes.
+export const hasPendingRouteWrite = async (dbName: string, module: string, route: string): Promise<boolean> => {
+  const pendingWrites = await readPendingRouteWrites(dbName)
+  if (pendingWrites.length === 0) { return false }
+
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const expiredWrites = pendingWrites.filter((pendingWrite) => pendingWrite.deadline <= nowSeconds)
+  for (const expiredWrite of expiredWrites) {
+    await markRoutesForRefresh(dbName, expiredWrite.module, expiredWrite.routes)
+  }
+  if (expiredWrites.length > 0) {
+    const expiredWriteIDs = new Set(expiredWrites.map((expiredWrite) => expiredWrite.id))
+    const latestPendingWrites = await readPendingRouteWrites(dbName)
+    await savePendingRouteWrites(dbName, latestPendingWrites.filter((pendingWrite) => !expiredWriteIDs.has(pendingWrite.id)))
+  }
+
+  return pendingWrites.some((pendingWrite) => pendingWrite.deadline > nowSeconds
+    && pendingWrite.module === module && isRequestedRoute(route, pendingWrite.routes))
 }
 
 export const clearEnvironmentCache = async (dbName: string): Promise<number> => {
@@ -447,6 +516,7 @@ export const clearEnvironmentCache = async (dbName: string): Promise<number> => 
     forgetRouteRow(routeRow)
   }
   forgetRoutesByDatabaseName(dbName)
+  pendingRouteWritesByDatabaseName.delete(dbName)
 
   return routeRows.length
 }

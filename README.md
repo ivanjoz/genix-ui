@@ -333,7 +333,11 @@ const rows = await GET({ route: 'products?category-id=3' });
 await POST({ data: record, route: 'products', refreshRoutes: ['products'] });
 ```
 
-`refreshRoutes` invalidates the matching cached services after a write.
+`refreshRoutes` invalidates the matching cached services (route prefixes) after a write. From
+before the request leaves until its response is handled, every read of those routes goes to the
+server; if the page dies mid-request (a navigation, a closed tab), the write stays pending until a
+deadline past the longest request (900 s) and the next read after it still refreshes. A write the
+browser did not make (another user, a scheduled job) shows up after the service's `useCache.min`.
 
 ### Cached services (`GetHandler`)
 
@@ -404,8 +408,8 @@ component writes straight into it (bindable, no event plumbing).
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Input` **(ui)** | Text/number/password/textarea field with validation | `saveOn`, `save`, `label`, `type`, `required`, `validator`, `baseDecimals`, `transform`, `useTextArea`, `rows`, `useFileDragUpload` + `onFileDrop`, `postValue`, `dependencyValue`, `disabled`, `onChange` |
-| `SearchSelect` **(ui)** | Searchable single-select over a record list; mobile opens `TopLayerSelector` | `options`, `keyId`, `keyName`, `saveOn`, `save`, `selected`, `onChange`, `max`, `avoidIDs`, `optionRenderer`, `getSearchText`, `clearOnSelect`, `noStyle`, `icon`, `useCache` |
+| `Input` **(ui)** | Text/number/password/textarea field with validation | `saveOn`, `save`, `label`, `labelStyle`, `labelFontSize`, `type`, `required`, `validator`, `baseDecimals`, `transform`, `useTextArea`, `rows`, `useFileDragUpload` + `onFileDrop`, `postValue`, `dependencyValue`, `disabled`, `onChange` |
+| `SearchSelect` **(ui)** | Searchable single-select over a record list; mobile opens `TopLayerSelector` | `options`, `keyId`, `keyName`, `label`, `labelStyle`, `labelFontSize`, `saveOn`, `save`, `selected`, `onChange`, `max`, `avoidIDs`, `optionRenderer`, `getSearchText`, `clearOnSelect`, `noStyle`, `icon`, `useCache` |
 | `ButtonSelect` **(ui)** | Single-select drawn as a pill button as tall as a field (no label, 15px name wrapped to 2 lines, small chevron); opens a `ButtonLayer` with a filter box over the options | `options`, `keyId`, `keyName`, `selected`, `onChange`, `color` (`'blue'`; white without it), `label` (accessible only), `placeholder`, `css`, `layerCss` (`w-360`), `max`, `getSearchText` |
 | `Checkbox` **(ui)** | Single boolean | `saveOn`, `save`, `label`, `useNumber` (store `0\|1`) |
 | `CheckboxOptions` **(ui)** | Single/multi option set, optionally rendered as buttons | `options`, `keyId`, `keyName`, `type: 'single'\|'multiple'`, `useButtons`, `useButtonsSlim`, `onChange` |
@@ -473,7 +477,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 | Component | Purpose | Key props |
 | --- | --- | --- |
 | `Layer` **(ui)** | Side / bottom / content panel with title, tabs, save-delete-close actions | `type: 'side'\|'bottom'\|'content'`, `id`, `title`, `options`, `selected`, `optionsSide` (snippet beside the tabs), `onSave`, `onDelete`, `onClose`, `actions`, `sideLayerSize`, `contentOverflow` |
-| `LayerStatic` **(ui)** | Always-present side panel (no open/close animation) | `show`, `css`, `mobileLayerTitle`, `useMobileLayerVertical` |
+| `LayerStatic` **(ui)** | Always-present side panel (no open/close animation) | `show`, `css`, `mobileLayerTitle`, `useMobileLayerVertical`, `dockLeft` (px: fixed left navigator, desktop only) |
 | `Modal` **(ui)** | Centered dialog, optionally with file import + error list | `id`, `title`, `size`, `isEdit`, `onSave`, `onDelete`, `onClose`, `useFileImportWithErrors`, `onFileChange`, `fileErrors` |
 | `MobileLayerVertical` **(ui)** | Collapsible bottom sheet | `title`, `show`, `closedHeightPx`, `onToggle` |
 | `TopLayerSelector` **(ui)** | Mount-once full-screen search picker for `SearchSelect` on mobile | none — driven by `ui.state.mobileSearchLayer` |
@@ -502,7 +506,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 | --- | --- | --- |
 | `OptionsStrip` **(ui)** | Tab/section strip; the standard sub-view switcher | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `useMobileGrid`, `activeClass`, `inactiveClass` |
 | `ArrowSteps` **(ui)** | Chevron step/stage picker | `options`, `selected`, `onSelect`, `optionRender`, `columnsTemplate` |
-| `ChevronStrip` **(ui)** | Horizontally scrolling strip of arrow-shaped steps fitted into each other; options take 28% of the width so the 4th is cut, hinting the scroll; `autocenter` scrolls the selected one to the 2nd place; the options fill the strip's height (set through `css`, `h-48` by default) minus its 4px scrollbar gutter | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `optionWidth`, `autocenter`, `css` |
+| `ChevronStrip` **(ui)** | Horizontally scrolling strip of arrow-shaped steps fitted into each other; options take 28% of the width so the 4th is cut, hinting the scroll (up to 3 options share the full width instead); a mouse scrolls it with the wheel or by dragging; `autocenter` scrolls the selected one to the 2nd place; the options fill the strip's height (set through `css`, `h-48` by default) minus its 4px scrollbar gutter | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `optionWidth`, `autocenter`, `css` |
 
 ### `menu/` — fully host-driven
 

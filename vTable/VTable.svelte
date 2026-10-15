@@ -10,6 +10,7 @@
   } from "./types";
   import CellInput from '../vTable/CellInput.svelte';
   import CellSelect from '../vTable/CellSelect.svelte';
+  import CellMultiSelect from '../vTable/CellMultiSelect.svelte';
   import { highlString, wordInclude } from '../utilities/ui.js';
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
   import MobileCardsVirtualList from '../vTable/MobileCardsVirtualList.svelte';
@@ -436,7 +437,7 @@
   });
 
   const hasInteractiveCell = $derived(
-    columns.some((column) => column.onCellEdit || column.onCellSelect || column.onCellClick),
+    columns.some((column) => column.onCellEdit || column.onCellSelect || column.onCellMultiSelect || column.onCellClick),
   );
   // When the table flips to mobile view, MobileCardsVirtualList registers its
   // own CardList agent handle, so VTable steps back to avoid a ghost Table
@@ -625,7 +626,7 @@
                 {@const css = cellCss ? cellCss + " " + (cellData.css||"") : cellData.css || ""}
                 {@const cssFinal = [css, !/px-|pr-|pl-/.test(css) && "px-6", column.align === 'right' && 'text-right'].filter(Boolean).join(" ")}
                 {@const cellInteractionsDisabled = column.disableCellInteractions?.(resolvedRecord, rowIndex)}
-                {@const isAgentClickCell = !!column.onCellClick && !cellInteractionsDisabled && !column.onCellEdit && !column.onCellSelect}
+                {@const isAgentClickCell = !!column.onCellClick && !cellInteractionsDisabled && !column.onCellEdit && !column.onCellSelect && !column.onCellMultiSelect}
                 {@const isRowHoverCell = !!onRowHover && j === processedColumns.flatColumns.length - 1}
 
                 <td class="{cssFinal}"
@@ -668,11 +669,12 @@
                         ? () => column.render?.(resolvedRecord, rowIndex)
                         : undefined) as (value: number | string) => ElementAST[]
                       }
+                      onBeforeCellChange={column.onBeforeCellChange ? (value) => column.onBeforeCellChange!(resolvedRecord, value) : undefined}
                       onChange={(value: string | number) => {
                         column.onCellEdit?.(resolvedRecord, value, () => rerenderRow(rowIndex))
                       }}
                     />
-                  {:else if column.onCellSelect}
+                  {:else if column.onCellSelect && !cellInteractionsDisabled}
                     <CellSelect
                       id={`${String(column.id || column.field || j)}_${rowIndex}`}
                       saveOn={resolvedRecord}
@@ -684,6 +686,20 @@
                       contentClass={column.css}
                       onChange={(value: string | number) => {
                         column.onCellSelect?.(resolvedRecord, value, () => rerenderRow(rowIndex))
+                      }}
+                    />
+                  {:else if column.onCellMultiSelect && !cellInteractionsDisabled}
+                    <CellMultiSelect
+                      id={`${String(column.id || column.field || j)}_${rowIndex}`}
+                      saveOn={resolvedRecord}
+                      save={column.field as keyof T}
+                      options={(column.cellOptions || []) as any[]}
+                      keyId={(column.cellOptionsKeyId || 'ID') as never}
+                      keyName={(column.cellOptionsKeyName || 'Name') as never}
+                      cellID={buildCellID(rowIndex, j)}
+                      contentClass={column.css}
+                      onChange={(selectedIDs) => {
+                        column.onCellMultiSelect?.(resolvedRecord, selectedIDs, () => rerenderRow(rowIndex))
                       }}
                     />
                   {:else if cellData.useSnippet && cellRenderer}
@@ -768,6 +784,16 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* The scroll box clips its content to the container's rounded corners (8px minus the 1px
+     border). The last row's corner cells take that radius and the in-cell editors inherit it,
+     so an editor's focus border follows the corner instead of being cut by it. */
+  .vtable-row:not(:has(~ .vtable-row)) > td:first-child {
+    border-bottom-left-radius: 7px;
+  }
+  .vtable-row:not(:has(~ .vtable-row)) > td:last-child {
+    border-bottom-right-radius: 7px;
   }
 
   /* Side inset so the 2px outline of a selected row is not clipped by the scroll container.

@@ -76,6 +76,8 @@
     <Label text="Draft|Borrador" color="yellow" />
     <Label text="Internal|Interno" color="purple" />
     <Label text="Archived|Archivado" color="gray" />
+    <Label text="Registered|Registrado" color="green" pill />
+    <Label text="Approved|Aprobado" color="purple" pill />
   </div>
 </ShowroomBlock>
 

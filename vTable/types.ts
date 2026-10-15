@@ -131,6 +131,8 @@ export interface ITableColumn<T> {
 	onCellEdit?: (e: T, value: string|number, rerender: () => void) => void
 	disableCellInteractions?: (e:T, idx?: number) => boolean
 	onCellSelect?: (e: T, value: string|number, rerender: () => void) => void
+	// Renders a CellMultiSelect: `field` holds the array of selected cellOptions ids.
+	onCellMultiSelect?: (e: T, selectedIDs: (string|number)[], rerender: () => void) => void
 	onCellClick?: (e: T, idx: number, rerender: () => void) => void
 	showEditIcon?: boolean
 	// Render a black outline around the cell when the user hovers it.

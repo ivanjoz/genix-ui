@@ -5,6 +5,8 @@
   import { SvelteMap } from 'svelte/reactivity';
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
   import CellInput from '../vTable/CellInput.svelte';
+  import CellSelect from '../vTable/CellSelect.svelte';
+  import CellMultiSelect from '../vTable/CellMultiSelect.svelte';
   import { createFixedTableVirtualizer } from './vtable-virtual-fixed.svelte';
   import { splitTwoStrings } from '../utilities/ui.js';
   import MobileCardsVirtualList from '../vTable/MobileCardsVirtualList.svelte';
@@ -379,7 +381,7 @@
 
   const componentID = ui.nextComponentId();
 
-  // Cells (CellInput / CellSelect) hand their methods here keyed by cellID.
+  // Cells (CellInput / CellSelect / CellMultiSelect) hand their methods here keyed by cellID.
   // The table is the only agent handle; methods route by id.
   const cellRegistry = new Map<number, CellAgentMethods>();
 
@@ -398,7 +400,7 @@
   // Read the flattened columns: under a two-level header the editable cells are the subcolumns,
   // and the group that carries them has no handlers of its own.
   const hasInteractiveCell = $derived(
-    visibleColumns.some((column) => column.onCellEdit || column.onCellSelect),
+    visibleColumns.some((column) => column.onCellEdit || column.onCellSelect || column.onCellMultiSelect),
   );
   // Mobile branch hands the agent over to MobileCardsVirtualList (CardList type),
   // so skip registering a Table here to avoid a ghost handle with no rows.
@@ -575,6 +577,30 @@
                       onBeforeCellChange={colDef.onBeforeCellChange ? (value) => colDef.onBeforeCellChange!(rowRecord, value) : undefined}
                       onChange={(value) => colDef.onCellEdit?.(rowRecord, value, () => rerenderRow(rowIndex))}
                     />
+                  {:else if colDef.onCellSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}
+                    <CellSelect
+                      id={`${componentID}_${String(colDef.id || colDef.field || columnIndex)}_${rowIndex}`}
+                      saveOn={rowRecord}
+                      save={colDef.field as keyof TRecord}
+                      options={(colDef.cellOptions || []) as any[]}
+                      keyId={(colDef.cellOptionsKeyId || 'ID') as never}
+                      keyName={(colDef.cellOptionsKeyName || 'Name') as never}
+                      cellID={buildCellID(rowIndex, columnIndex)}
+                      contentClass={`${contentPaddingCss} ${colDef.css || ""}`}
+                      onChange={(value) => colDef.onCellSelect?.(rowRecord, value, () => rerenderRow(rowIndex))}
+                    />
+                  {:else if colDef.onCellMultiSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}
+                    <CellMultiSelect
+                      id={`${componentID}_${String(colDef.id || colDef.field || columnIndex)}_${rowIndex}`}
+                      saveOn={rowRecord}
+                      save={colDef.field as keyof TRecord}
+                      options={(colDef.cellOptions || []) as any[]}
+                      keyId={(colDef.cellOptionsKeyId || 'ID') as never}
+                      keyName={(colDef.cellOptionsKeyName || 'Name') as never}
+                      cellID={buildCellID(rowIndex, columnIndex)}
+                      contentClass={colDef.css}
+                      onChange={(selectedIDs) => colDef.onCellMultiSelect?.(rowRecord, selectedIDs, () => rerenderRow(rowIndex))}
+                    />
                   {:else if cellRenderer && colDef.useCellRenderer}
                     {@render cellRenderer(rowRecord, colDef, rowIndex)}
                   {:else if colDef.buttonEditHandler || colDef.buttonDeleteHandler}
@@ -691,6 +717,30 @@
                         render={colDef.render ? () => colDef.render!(rowRecord, rowIndex) : undefined}
                         onBeforeCellChange={colDef.onBeforeCellChange ? (value) => colDef.onBeforeCellChange!(rowRecord, value) : undefined}
                         onChange={(value) => colDef.onCellEdit?.(rowRecord, value, () => rerenderRow(rowIndex))}
+                      />
+                    {:else if colDef.onCellSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}
+                      <CellSelect
+                        id={`${componentID}_${String(colDef.id || colDef.field || columnIndex)}_${rowIndex}`}
+                        saveOn={rowRecord}
+                        save={colDef.field as keyof TRecord}
+                        options={(colDef.cellOptions || []) as any[]}
+                        keyId={(colDef.cellOptionsKeyId || 'ID') as never}
+                        keyName={(colDef.cellOptionsKeyName || 'Name') as never}
+                        cellID={buildCellID(rowIndex, columnIndex)}
+                        contentClass={`${contentPaddingCss} ${colDef.css || ""}`}
+                        onChange={(value) => colDef.onCellSelect?.(rowRecord, value, () => rerenderRow(rowIndex))}
+                      />
+                    {:else if colDef.onCellMultiSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}
+                      <CellMultiSelect
+                        id={`${componentID}_${String(colDef.id || colDef.field || columnIndex)}_${rowIndex}`}
+                        saveOn={rowRecord}
+                        save={colDef.field as keyof TRecord}
+                        options={(colDef.cellOptions || []) as any[]}
+                        keyId={(colDef.cellOptionsKeyId || 'ID') as never}
+                        keyName={(colDef.cellOptionsKeyName || 'Name') as never}
+                        cellID={buildCellID(rowIndex, columnIndex)}
+                        contentClass={colDef.css}
+                        onChange={(selectedIDs) => colDef.onCellMultiSelect?.(rowRecord, selectedIDs, () => rerenderRow(rowIndex))}
                       />
                     {:else if cellRenderer && colDef.useCellRenderer}
                       {@render cellRenderer(rowRecord, colDef, rowIndex)}

@@ -10,6 +10,8 @@ export interface IShowroomUser {
   ID: number;
   Name: string;
   Language: string;
+  // Ids of languageOptions; the multiselect demo edits it.
+  LanguageIDs: number[];
   Code: string;
   Bio: string;
   Version: number;
@@ -27,6 +29,8 @@ export const statusOptions = [
 export const languageOptions = [...new Set(usersDemo.map((user) => user.language))]
   .map((language, idx) => ({ ID: idx + 1, Name: language }));
 
+const languageIDByName = new Map(languageOptions.map((language) => [language.Name, language.ID]));
+
 // The fixture holds 197 records; repeat it until `total` is reached so the virtualized
 // components get enough rows to actually scroll. The repeat index is appended to the
 // name to keep every row visually distinguishable while scrolling.
@@ -41,6 +45,7 @@ export const buildShowroomUsers = (total: number): IShowroomUser[] => {
       ID: idx + 1,
       Name: repeatIndex === 0 ? baseUser.name : `${baseUser.name} (${repeatIndex + 1})`,
       Language: baseUser.language,
+      LanguageIDs: [languageIDByName.get(baseUser.language)!],
       Code: baseUser.id,
       Bio: baseUser.bio,
       Version: baseUser.version,

@@ -178,6 +178,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 <style>
 	._root {
 		display: contents;
+		border-radius: inherit; /* follows the table's corner radius, see VTable */
 	}
 	._2 {
 		opacity: 0;
@@ -185,6 +186,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 	}
 	._1 {
     position: absolute;
+    border-radius: inherit; /* follows the table's corner radius, see VTable */
     top: 0;
     left: 0;
     display: flex;
@@ -201,6 +203,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 		align-items: center;
 	}
 	._1 > input:first-of-type {
+    border-radius: inherit; /* follows the table's corner radius, see VTable */
 		border: none;
 		outline: none;
 		position: absolute;

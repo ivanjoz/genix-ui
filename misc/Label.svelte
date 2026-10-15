@@ -8,10 +8,13 @@
   let {
     text,
     color = 'gray',
+    pill = false,
     css = '',
   }: {
     text: string;
     color?: LabelColor;
+    // Rounded and borderless: for a sequence of states, lighter than a row of boxed labels.
+    pill?: boolean;
     css?: string;
   } = $props();
 
@@ -26,6 +29,6 @@
   };
 </script>
 
-<span class={ifcss(css, `inline-flex shrink-0 items-center rounded-[4px] border px-6 h-22 text-[14px] leading-none whitespace-nowrap ${colorCssByName[color]}`)}>
+<span class={ifcss(css, `inline-flex shrink-0 items-center ${pill ? 'rounded-full' : 'rounded-[4px] border'} px-6 h-22 text-[14px] leading-none whitespace-nowrap ${colorCssByName[color]}`)}>
   {ui.translate(text)}
 </span>

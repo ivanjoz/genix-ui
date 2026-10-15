@@ -281,9 +281,11 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 <style>
   ._root {
     display: contents;
+    border-radius: inherit; /* follows the table's corner radius, see VTable */
   }
   ._1 {
 		position: absolute;
+		border-radius: inherit; /* follows the table's corner radius, see VTable */
 		top: 0;
 		left: 0;
 		display: flex;
@@ -302,6 +304,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 		background-color: var(--purple-bg);
 	}
   ._1 > input:first-of-type {
+    border-radius: inherit; /* follows the table's corner radius, see VTable */
 		border: none;
 		outline: none;
 		position: absolute;

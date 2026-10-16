@@ -24,10 +24,18 @@
     // Overrides the label's font size (px) set by labelStyle: the consumer decides when, e.g.
     // a smaller one for a long label.
     labelFontSize?: number;
+    // top = embedded in the border's notch (default) · side = beside the box, outside it, for
+    // filter rows that must stay one line tall · inline = inside the box before the value,
+    // split from it by a bar. side and inline draw an unnotched box, like an unlabelled field.
+    labelPosition?: "top" | "side" | "inline";
     // The consumer owns the *when*: Input only flags after the first blur, so a pristine
     // form does not greet the user with a wall of red.
     invalid?: boolean;
     disabled?: boolean;
+    // Draws the focus look while the consumer's picker layer is open (focus is elsewhere then).
+    active?: boolean;
+    // Strength of the focus ring: the % of --accent-solid mixed into it (default 38).
+    ringIntensity?: number;
     css?: string;
     // field = the standard notched box · bare = no chrome, fills the parent cell
     // (table cells that already draw their own borders) · pill = unlabelled rounded search box
@@ -54,8 +62,11 @@
     label,
     labelStyle = "normal",
     labelFontSize,
+    labelPosition = "top",
     invalid,
     disabled,
+    active,
+    ringIntensity = 38,
     css,
     variant = "field",
     size = "normal",
@@ -124,17 +135,25 @@
   // A label only draws in the default variant — bare has no chrome to notch, and pill is
   // the unlabelled search box.
   const showLabel = $derived(!!label && variant === "field");
+  // Only the top label is cut into the border; side and inline leave the box unnotched.
+  const showNotchLabel = $derived(showLabel && labelPosition === "top");
+  const showSideLabel = $derived(showLabel && labelPosition === "side");
+  const showInlineLabel = $derived(showLabel && labelPosition === "inline");
+  const labelTextClass = $derived(labelStyle === "bold" ? "text-[16px] font-bold" : "text-[15px]");
 
   const rootClass = $derived(
     [
       s.field,
+      // css stays on the field even with a side label: it sizes the box, and consumers pass
+      // state flags through it (has-interactive-prefix…) that the module CSS reads off this root.
       css || "",
-      showLabel ? "" : "no-label",
+      showNotchLabel ? "" : "no-label",
       variant === "bare" ? "is-bare" : "",
       variant === "pill" ? "is-pill" : "",
       size === "small" ? "is-small" : "",
       invalid ? "is-invalid" : "",
       disabled ? "is-disabled" : "",
+      active ? "is-active" : "",
       prefix ? "has-prefix" : "",
       suffix ? "has-suffix" : "",
     ]
@@ -143,20 +162,30 @@
   );
 </script>
 
-<div {...restAttributes} class={rootClass} style="--notch-w: {notchWidth}px; --label-extra: {labelExtraHeight}px">
+{#snippet plainLabel(labelClass: string)}
+  <label class="{labelClass} {labelTextClass}" for={controlId} style:font-size={labelFontSize ? `${labelFontSize}px` : undefined}>
+    <T text={label ?? ""} />{#if labelSuffix}{@render labelSuffix()}{/if}
+  </label>
+{/snippet}
+
+{#snippet field()}
+<div {...restAttributes} class={rootClass} style="--notch-w: {notchWidth}px; --label-extra: {labelExtraHeight}px; --ring-intensity: {ringIntensity}%">
   {#if variant !== "bare"}
     <!-- Decorative: fill + shadow here, masked border in ::before. -->
     <div class={s.box}></div>
   {/if}
 
-  {#if showLabel}
+  {#if showNotchLabel}
     <!-- `for` is what makes clicking the label focus the control. -->
-    <label class="{s.lab} {labelStyle === 'bold' ? `${s.labBold} text-[16px] font-bold` : 'text-[15px]'}" for={controlId} style:font-size={labelFontSize ? `${labelFontSize}px` : undefined} bind:this={labelElement} bind:clientWidth={labelWidth} bind:clientHeight={labelHeight}>
+    <label class="{s.lab} {labelStyle === 'bold' ? s.labBold : ''} {labelTextClass}" for={controlId} style:font-size={labelFontSize ? `${labelFontSize}px` : undefined} bind:this={labelElement} bind:clientWidth={labelWidth} bind:clientHeight={labelHeight}>
       <span bind:this={labelTextElement}><T text={label ?? ""} /></span>{#if labelSuffix}<span class="inline-block" bind:clientWidth={labelSuffixWidth}>{@render labelSuffix()}</span>{/if}
     </label>
   {/if}
 
   <div class="{s.row}{autoHeight ? ' is-textarea' : ''}">
+    {#if showInlineLabel}
+      {@render plainLabel(s.labInline)}
+    {/if}
     {#if prefix}
       <div class={s.prefix}>{@render prefix()}</div>
     {/if}
@@ -170,3 +199,13 @@
 
   {@render overlay?.()}
 </div>
+{/snippet}
+
+{#if showSideLabel}
+  <div class={s.sideLabelRow}>
+    {@render plainLabel(s.labSide)}
+    {@render field()}
+  </div>
+{:else}
+  {@render field()}
+{/if}

@@ -4,6 +4,8 @@
     save?: keyof T
     label?: string
     labelStyle?: "normal" | "bold"
+    /** Where the label sits: top (in the border, default), side (beside the field) or inline (inside it, before the value). */
+    labelPosition?: "top" | "side" | "inline"
     css?: string
     inputCss?: string
     placeholder?: string
@@ -42,6 +44,7 @@
     save,
     label = "",
     labelStyle,
+    labelPosition,
     css = "",
     inputCss = "",
     placeholder = "DD-MM-YYYY",
@@ -353,7 +356,7 @@
      near-identical 45-line branches; the only real difference was the chrome, which
      FieldShell now owns. -->
 <FieldShell
-  {label} {labelStyle} {disabled} {css}
+  {label} {labelStyle} {labelPosition} {disabled} {css}
   variant={shellVariant}
   overlay={calendarBlock}
   data-id="DateInput:{componentID}"

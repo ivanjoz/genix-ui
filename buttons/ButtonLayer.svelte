@@ -134,7 +134,7 @@ import { Agent } from '../agent/registry';
       : scrollParent.getBoundingClientRect();
 
     const isMobile = window.innerWidth <= 748;
-    const offset = 8; // Distance from button
+    const offset = 2; // Distance from button
 
     // Determine vertical placement: prefer bottom if it fits, else use side with more space
     const spaceBelow = parentRect.bottom - buttonRect.bottom;
@@ -331,8 +331,8 @@ import { Agent } from '../agent/registry';
     z-index: 360;
     background-color: var(--layer-bg);
     border-radius: 8px;
-    outline: 2px solid var(--layer-outline);
-    box-shadow: var(--layer-shadow), 0 0 0 1px var(--layer-edge);
+    outline: 1px solid var(--button-layer-outline);
+    box-shadow: var(--layer-shadow), var(--button-layer-halo);
     animation: slideDown 0.2s ease-out;
     overflow: visible;
   }

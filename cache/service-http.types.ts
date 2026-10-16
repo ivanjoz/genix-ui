@@ -45,10 +45,6 @@ export interface ServiceHttpProps {
 		min: number
 		ver: number
 	}
-	useCacheStatic?: {
-		min: number
-		ver: number
-	}
 }
 
 // Preserve the established public type name while exposing an expressive canonical name.

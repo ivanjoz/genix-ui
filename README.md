@@ -421,6 +421,7 @@ component writes straight into it (bindable, no event plumbing).
 | `FilterInput` **(ui)** | Throttled search box | `value` (bindable), `throttle`, `icon`, `placeholder` |
 | `ColorPicker` **(ui)** | Color value picker | `saveOn`, `save`, `label`, `onChange` |
 | `ColorSelect` **(ui)** | One color of a fixed palette: the trigger is the current color as a rounded swatch (as tall as a field); it opens a `ButtonLayer` with every color as a swatch, 4 per row | `options`, `keyId`, `keyColorCss` (background class, e.g. `bg-blue-solid`), `keyName` (tooltip / aria), `saveOn`, `save`, `onChange`, `label` (accessible only), `css` |
+| `SelectBox` **(ui)** | SearchSelect without search or typing: a labelled field that opens a `ButtonLayer` with one button per option, in 1 or 2 columns; agent-registered as a `Select` | `options`, `keyId`, `keyName`, `saveOn`, `save`, `selected`, `onChange`, `label`, `labelStyle`, `placeholder`, `clearable` (a × beside the arrow clears to null), `columns`, `optionRenderer` (option, isSelected), `css`, `layerCss`, `icon`, `disabled` |
 | `LabelText` | Read-only label + value pair | `label`, `text`, `css`, `contentCss` |
 | `LoginForm` | Skeleton user/password layout (no submit logic — wire your own) | `css`, `isMobile` |
 

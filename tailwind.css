@@ -101,6 +101,9 @@ body {
 	--layer-bg: var(--surface);
 	--layer-outline: transparent;
 	--layer-shadow: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -1px rgb(0 0 0 / 6%);
+	/* ButtonLayer only: a 1px tinted outline and a soft halo all around, over --layer-shadow. */
+	--button-layer-outline: #373d6e30;
+	--button-layer-halo: 0 0 6px 0 rgb(47 52 78 / 52%);
 	/* The surface of a side or modal panel (Layer, Modal, MobileLayerVertical). Each panel assigns
 	   it to its own --surface, so the tables and cards inside follow it. Dark mode steps it below the
 	   card surface to keep a moderate contrast with the recessed fields. */
@@ -108,6 +111,8 @@ body {
 
 	--accent-bg: #f5f4ff;
 	--accent-bg-strong: #e7e4ff;
+	/* The chip behind a field's inline label (FieldShell labelPosition="inline"). */
+	--input-inline-label-bg: #f0f2ff;
 	--accent-border: #b9b5f0;
 	--accent-solid: #5f5fe3;
 	--accent-fg: #5243c2;
@@ -210,6 +215,8 @@ body.dark {
 	--layer-bg: #191d2d;
 	--layer-outline: rgb(255 255 255 / 13%);
 	--layer-shadow: 0 4px 6px -1px rgb(250 250 250 / 10%), 0 2px 4px -1px rgb(255 255 255 / 6%);
+	--button-layer-outline: var(--layer-outline);
+	--button-layer-halo: 0 0 0 1px var(--layer-edge);
 	--panel-surface: #141b2a;
 
 	--accent-solid: #7f7ff0;
@@ -235,6 +242,7 @@ body.dark {
 
 	--accent-bg: color-mix(in oklab, var(--accent-solid) 14%, var(--surface));
 	--accent-bg-strong: color-mix(in oklab, var(--accent-solid) 26%, var(--surface));
+	--input-inline-label-bg: var(--accent-bg);
 	--accent-border: color-mix(in oklab, var(--accent-solid) 50%, var(--surface));
 	--red-bg: color-mix(in oklab, var(--red-solid) 14%, var(--surface));
 	--red-bg-strong: color-mix(in oklab, var(--red-solid) 26%, var(--surface));

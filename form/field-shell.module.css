@@ -42,7 +42,7 @@
                                      --input-border-color-invalid    --red-border
                                      --input-border-color-invalid-focus  --red-solid
                                      --input-border-color-disabled   --line
-     ring (the 3px focus halo)       --input-ring-color              --accent-solid at 40%
+     ring (the 3px focus halo)       --input-ring-color              --accent-solid at ringIntensity (38%)
                                      --input-ring-color-invalid      --red-solid at 35%
      drop shadow                     --input-shadow-color            rgb(74 70 86 / 15%)
      fill                            --input-bg                      --field-fill
@@ -55,6 +55,7 @@
                                      --input-placeholder-color       --fg-subtle
                                      --input-prefix-color            --fg-muted
                                      --input-suffix-color            --label
+     inline label chip               --input-inline-label-bg         --accent-bg
      pill variant                    --input-pill-radius             16px
 
    The drop shadow exposes its COLOUR only, not the whole box-shadow: its geometry
@@ -224,9 +225,11 @@
   --_line: var(--input-border-color-hover, var(--accent-border));
 }
 
-.field:focus-within .box::before {
+/* is-active: a field whose picker layer is open looks focused even though focus left it. */
+.field:focus-within .box::before,
+.field:global(.is-active) .box::before {
   --_line: var(--input-border-color-focus, var(--accent-solid));
-  --_ring: var(--input-ring-color, color-mix(in srgb, var(--accent-solid) 40%, transparent));
+  --_ring: var(--input-ring-color, color-mix(in srgb, var(--accent-solid) var(--ring-intensity), transparent));
 }
 
 .lab {
@@ -245,8 +248,49 @@
   overflow-wrap: anywhere;
 }
 
-.field:focus-within .lab {
+.field:focus-within .lab,
+.field:global(.is-active) .lab {
   color: var(--input-label-color-focus, var(--accent-fg));
+}
+
+/* ── labelPosition: side / inline ───────────────────────────────────────────────────
+   Neither is cut into the border, so the field takes the no-label geometry (one row, box
+   inset 0) and these labels only need colour and spacing. side: a flex row of label + field,
+   the label outside the box. inline: the label is the first item of .row, before the value,
+   drawn as a tinted chip that sets it apart from the value. A floating (absolute) prefix
+   would sit on top of an inline label, so the two are not meant to be combined. */
+.sideLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.labSide,
+.labInline {
+  flex-shrink: 0;
+  white-space: nowrap;
+  line-height: 16px;
+  color: var(--input-label-color, var(--label));
+  cursor: pointer;
+}
+
+.labInline {
+  margin-left: 5px;
+  padding: 6px 4px;
+  border-radius: 4px;
+  background: var(--input-inline-label-bg, var(--accent-bg));
+}
+
+.sideLabelRow:focus-within .labSide,
+.sideLabelRow:has(:global(.is-active)) .labSide,
+.field:focus-within .labInline,
+.field:global(.is-active) .labInline {
+  color: var(--input-label-color-focus, var(--accent-fg));
+}
+
+.sideLabelRow:has(:global(.is-disabled)) .labSide,
+.field:global(.is-disabled) .labInline {
+  color: var(--input-label-color-disabled, var(--fg-subtle));
 }
 
 /* Invalid tints the line and adds one trailing glyph in the suffix, so the notch never

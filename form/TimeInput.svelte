@@ -4,6 +4,8 @@
     save?: keyof T
     label?: string
     labelStyle?: "normal" | "bold"
+    /** Where the label sits: top (in the border, default), side (beside the field) or inline (inside it, before the value). */
+    labelPosition?: "top" | "side" | "inline"
     css?: string
     placeholder?: string
     disabled?: boolean
@@ -32,6 +34,7 @@
     save,
     label = "",
     labelStyle,
+    labelPosition,
     css = "",
     placeholder = "HH:MM",
     disabled = false,
@@ -130,7 +133,7 @@
 {/snippet}
 
 <FieldShell
-  {label} {labelStyle} {disabled} {css}
+  {label} {labelStyle} {labelPosition} {disabled} {css}
   suffix={clockOrClear}
   data-id="TimeInput:{componentID}"
   data-value={savedMinutes === undefined ? "" : formatMinutesOfDay(savedMinutes)}

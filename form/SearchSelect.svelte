@@ -22,6 +22,8 @@ import type { Snippet } from 'svelte';
     keyName: keyof E;
     label?: string;
     labelStyle?: "normal" | "bold";
+    /** Where the label sits: top (in the border, default), side (beside the field) or inline (inside it, before the value). */
+    labelPosition?: "top" | "side" | "inline";
     /** Overrides the label's font size (px) set by labelStyle. */
     labelFontSize?: number;
     placeholder?: string;
@@ -59,6 +61,7 @@ import type { Snippet } from 'svelte';
     options = [],
     label,
     labelStyle,
+    labelPosition,
     labelFontSize,
     placeholder,
     placeholderAsLabel = false,
@@ -458,7 +461,7 @@ import type { Snippet } from 'svelte';
 {/snippet}
 
 <FieldShell
-  {label} {labelStyle} {labelFontSize} {css}
+  {label} {labelStyle} {labelPosition} {labelFontSize} {css}
   variant={shellVariant}
   disabled={isDisabled}
   suffix={hasSuffix ? validityAndArrow : undefined}

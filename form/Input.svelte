@@ -21,6 +21,8 @@
         save: keyof T;
         label?: string;
         labelStyle?: "normal" | "bold";
+        /** Where the label sits: top (in the border, default), side (beside the field) or inline (inside it, before the value). */
+        labelPosition?: "top" | "side" | "inline";
         /** Overrides the label's font size (px) set by labelStyle. */
         labelFontSize?: number;
         css?: string;
@@ -90,6 +92,7 @@
         save,
         label,
         labelStyle,
+        labelPosition,
         labelFontSize,
         css,
         inputCss,
@@ -137,6 +140,8 @@
     let isInputValid = $state(checkIfInputIsValid());
 
     const hasLeftSelector = $derived(!!leftOptions?.length);
+    // Only a label in the border's notch moves the box down; side and inline ones leave it unlabelled-shaped.
+    const hasNotchLabel = $derived(!!label && (labelPosition ?? "top") === "top");
     let isLeftOpen = $state(false);
     // Once true, deriveLeftOption is never consulted again: the user has said what this
     // document is, and no amount of retyping the number may contradict them.
@@ -563,7 +568,7 @@
     <button
         type="button"
         class="shrink-0 self-stretch flex items-center justify-center w-34 mx-4 mb-4
-               {label ? '-mt-1 max-[749px]:-mt-3' : 'mt-4'}
+               {hasNotchLabel ? '-mt-1 max-[749px]:-mt-3' : 'mt-4'}
                rounded-[5px] bg-accent-bg text-label text-[18px] cursor-pointer
                hover:bg-accent-bg-strong disabled:cursor-not-allowed disabled:opacity-50
                {numericSwipeRange ? 'touch-pan-y' : ''} {swipeRuler && swipeRuler.step !== -step ? 'invisible' : ''}"
@@ -620,7 +625,7 @@
 {#snippet fileDropOverlay()}
     {#if pageFileDragDepth > 0 || fieldFileDragDepth > 0}
         {@const isOverField = fieldFileDragDepth > 0}
-        <div class="absolute inset-x-0 bottom-0 {label ? 'top-7' : 'top-0'} z-10 pointer-events-none
+        <div class="absolute inset-x-0 bottom-0 {hasNotchLabel ? 'top-7' : 'top-0'} z-10 pointer-events-none
                     flex flex-col items-center justify-center gap-4 rounded-[7px] border-2 border-dashed
                     transition-colors duration-150
                     {isOverField ? 'border-accent-solid bg-accent-bg-strong/85 text-accent-fg' : 'border-accent-border bg-accent-bg/60 text-accent-fg/60'}">
@@ -710,8 +715,8 @@
 {/snippet}
 
 <FieldShell
-    {label} {labelStyle} {labelFontSize} {disabled}
-    css="{css || ''}{hasLeftSelector ? ' has-interactive-prefix' : ''}{showIncrementButtons && label ? ' has-increment-buttons' : ''}{swipeRuler ? ' is-swiping' : ''}"
+    {label} {labelStyle} {labelPosition} {labelFontSize} {disabled}
+    css="{css || ''}{hasLeftSelector ? ' has-interactive-prefix' : ''}{showIncrementButtons && hasNotchLabel ? ' has-increment-buttons' : ''}{swipeRuler ? ' is-swiping' : ''}"
     invalid={showInvalid}
     autoHeight={useTextArea}
     prefix={hasLeftSelector ? leftSelector : undefined}

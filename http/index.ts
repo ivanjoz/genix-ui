@@ -7,9 +7,13 @@ import {
 import { unmarshal } from '@ivanjoz/minijson';
 import { notifyFailure, notifySuccess } from '../notify/notify.svelte.js';
 import { registerPageCachedService } from './page-services-registry.js';
+import { readLocalCache, writeLocalCache } from './local-cache.js';
+import { readStaticCache, writeStaticCache } from './static-cache.js';
 
 export * from './get-handler.svelte.js';
 export * from './page-services-registry.js';
+export { readLocalCache } from './local-cache.js';
+export { readStaticCache } from './static-cache.js';
 export type { AxiosProgressEvent };
 
 export interface IHttpStatus {
@@ -45,7 +49,15 @@ export interface httpProps {
     min: number;
     ver: number;
   };
+  // useCacheLocal in IndexedDB (see static-cache.ts), for answers too big for localStorage: read
+  // asynchronously with readStaticCache(route, ver).
   useCacheStatic?: {
+    min: number;
+    ver: number;
+  };
+  // Keeps the answer in localStorage (see local-cache.ts): answered from there while younger than
+  // `min` minutes, and readable synchronously with readLocalCache(route, ver). `ver` invalidates it.
+  useCacheLocal?: {
     min: number;
     ver: number;
   };
@@ -305,6 +317,19 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       return runtime.fetchCached(cacheRequest);
     }
 
+    if (props.useCacheLocal) {
+      const localEntry = readLocalCache(props.route, props.useCacheLocal.ver);
+      if (localEntry && Date.now() - localEntry.savedAt < props.useCacheLocal.min * 60_000) {
+        return localEntry.data;
+      }
+    }
+    if (props.useCacheStatic) {
+      const staticEntry = await readStaticCache(props.route, props.useCacheStatic.ver);
+      if (staticEntry && Date.now() - staticEntry.savedAt < props.useCacheStatic.min * 60_000) {
+        return staticEntry.data;
+      }
+    }
+
     const requestId = runtime.startRequest?.(props.route) || 0;
     try {
       console.log('[http] GET:', props.route);
@@ -314,6 +339,8 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       if (!hasSuccessfulResponse(result, props, status)) {
         return Promise.reject(result);
       }
+      if (props.useCacheLocal) { writeLocalCache(props.route, props.useCacheLocal.ver, result); }
+      if (props.useCacheStatic) { await writeStaticCache(props.route, props.useCacheStatic.ver, result); }
       return result;
     } catch (error) {
       console.warn('[http] GET failed:', props.route, error);

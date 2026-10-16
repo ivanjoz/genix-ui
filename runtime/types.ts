@@ -132,6 +132,10 @@ export interface UiRuntime {
     recordId: number,
   ) => UiRecordReference<RecordType>;
   openSideLayer: (id: number) => void;
+  /** The host's history hook (CreateUiRuntimeOptions.openBackStep); undefined without one. */
+  openBackStep?: (onBack: () => void) => () => void;
+  /** Goes back through the host's history, closing the deepest open back step. */
+  goBackStep?: () => void;
   openModal: (id: number) => void;
   closeModal: (id: number) => void;
   closeAllModals: () => void;
@@ -168,4 +172,10 @@ export interface CreateUiRuntimeOptions {
   makeCdnRoute?: UiRuntime['makeCdnRoute'];
   addProcess?: UiUploadAdapter['addProcess'];
   updateProcess?: UiUploadAdapter['updateProcess'];
+  // The browser's back button closes what a component opens over the page (a side Layer) instead of
+  // leaving the route. The host owns the history (its router): openBackStep pushes an entry whose
+  // back press runs onBack, and returns the cleanup the component calls when it closes by other
+  // means; goBackStep goes back through that history. Without them, the back button leaves the route.
+  openBackStep?: (onBack: () => void) => () => void;
+  goBackStep?: () => void;
 }

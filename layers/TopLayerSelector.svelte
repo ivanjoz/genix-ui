@@ -99,7 +99,7 @@ $effect(() => {
   }}
 >
   {#if isOpen}
-  <div class="flex items-center p-6">
+  <div class="flex shrink-0 items-center p-6">
     <i class="icon-[fa--search] _3"></i>
     <textarea rows={1} class="h-38 _4" bind:this={htmlTextarea}
       onkeyup={ev => {
@@ -176,8 +176,10 @@ $effect(() => {
     width: 100vw;
     max-height: calc(70vh - 8px);
     background-color: #000000b3;
-    overflow-y: auto;
-    overflow-x: hidden;
+    /* Only the options viewport scrolls: the header + list fill the layer exactly. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     z-index: 300;
     position: fixed;
     top: 0;
@@ -189,8 +191,7 @@ $effect(() => {
   }
   
   ._6 {
-    height: calc(70vh - 68px);
-    max-height: calc(70vh - 68px);
+    flex: 1 1 0;
     border-radius: 0 0 24px 24px;
     padding: 0;
     overflow: hidden;
@@ -198,6 +199,7 @@ $effect(() => {
   }
   
   ._1._2 {
+    height: calc(70vh - 8px);
     opacity: 1;
     z-index: 299;
     pointer-events: all;

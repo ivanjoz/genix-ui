@@ -154,6 +154,8 @@ export const createUiRuntime = <UserInfoType = unknown>(
     openSideLayer: (id) => {
       state.sideLayerId = id;
     },
+    openBackStep: options.openBackStep,
+    goBackStep: options.goBackStep,
     openModal: (id) => {
       if (!state.openModalIds.includes(id)) { state.openModalIds.push(id); }
     },

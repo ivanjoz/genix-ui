@@ -116,6 +116,32 @@ import { ifcss } from '../utilities/css.js';
     ui.openSideLayer(0)
   }
 
+  // The layer closed by the user: its own Close button or the browser's back button.
+  const closeByUser = () => {
+    if (ui.state.sideLayerId !== id) { return }
+    closeLayer()
+    if (onClose) {
+      if (ui.state.deviceType === 3) {
+        setTimeout(() => { onClose() }, 300)
+      } else {
+        onClose()
+      }
+    }
+  }
+
+  // While a side layer is open it is a step of the host's history: the browser's back button closes
+  // it instead of leaving the route. Closed any other way, the cleanup tells the host.
+  let hasBackStep = $state(false)
+  $effect(() => {
+    if (type !== 'side' || ui.state.sideLayerId !== id || !ui.openBackStep) { return }
+    const closeBackStep = untrack(() => ui.openBackStep!(closeByUser))
+    hasBackStep = true
+    return () => {
+      hasBackStep = false
+      closeBackStep()
+    }
+  })
+
   // React to showSideLayer changes and handle transitions on mobile
   // ONLY handle opening transitions - closing is instant
   $effect(() => {
@@ -244,15 +270,10 @@ import { ifcss } from '../utilities/css.js';
             name={ui.translate(saveButtonName || 'Guardar')} css="mr-10 leading-none"
             label={ui.translate("Save|Guardar")} onClick={onSave} />
         {/if}
+        <!-- With a back step, Close goes back through the history like the browser's button, so no
+             entry is left behind to swallow a later back press. -->
         <Button color="yellow" icon="icon-[mdi--close-thick] text-[22px]" label={ui.translate("Close|Cerrar")} onClick={() => {
-          closeLayer()
-          if (onClose) {
-            if (ui.state.deviceType === 3) {
-              setTimeout(() => { onClose() }, 300)
-            } else {
-              onClose()
-            }
-          }
+          if (hasBackStep && ui.goBackStep) { ui.goBackStep() } else { closeByUser() }
         }} />
       </div>
     </div>

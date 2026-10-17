@@ -16,22 +16,10 @@ export const concatenateInts = (values: number[], sorted?: boolean): string => {
 		}
 	}
 
-	const toBase64 = (arr: Uint8Array | Uint16Array | Uint32Array) => {
-		if (arr.length === 0) return "";
-		const bytes = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
-		let binary = "";
-		for (let i = 0; i < bytes.byteLength; i++) {
-			binary += String.fromCharCode(bytes[i]);
-		}
-		return btoa(binary);
-	};
+	const toBase64 = (arr: Uint8Array | Uint16Array | Uint32Array) =>
+		bytesToBase64(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength));
 
-	const b64u8 = toBase64(new Uint8Array(u8));
-	const b64u16 = toBase64(new Uint16Array(u16));
-	const b64u32 = toBase64(new Uint32Array(u32));
-
-	return [b64u8, b64u16, b64u32]
-		.map((s) => s.replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_")).join(".");
+	return [toBase64(new Uint8Array(u8)), toBase64(new Uint16Array(u16)), toBase64(new Uint32Array(u32))].join(".");
 };
 
 // appendUvarint writes value as an unsigned LEB128 varint (Go's binary.AppendUvarint): 7 bits per
@@ -46,13 +34,22 @@ export const appendUvarint = (bytes: number[], value: number): void => {
 	bytes.push(remaining)
 }
 
-// bytesToBase64Url is unpadded base64url (Go's base64.RawURLEncoding), safe in a query parameter.
-export const bytesToBase64Url = (bytes: ArrayLike<number>): string => {
-	let binary = ""
-	for (let index = 0; index < bytes.length; index++) {
-		binary += String.fromCharCode(bytes[index])
+// BASE64_ALPHABET is genix-orm's utils.Base64Alphabet: URL-safe, in ASCII order, so encodings of
+// the same length sort like their bytes.
+export const BASE64_ALPHABET = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz"
+
+// bytesToBase64 is unpadded base64 in BASE64_ALPHABET (Go's utils.Base64), safe in a query parameter.
+export const bytesToBase64 = (bytes: ArrayLike<number>): string => {
+	let encoded = ""
+	for (let index = 0; index < bytes.length; index += 3) {
+		const group = (bytes[index] << 16) | ((bytes[index + 1] ?? 0) << 8) | (bytes[index + 2] ?? 0)
+		// 1, 2 or 3 bytes take 2, 3 or 4 characters.
+		const characterCount = Math.min(bytes.length - index, 3) + 1
+		for (let characterIndex = 0; characterIndex < characterCount; characterIndex++) {
+			encoded += BASE64_ALPHABET[(group >>> (18 - 6 * characterIndex)) & 63]
+		}
 	}
-	return btoa(binary).replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_")
+	return encoded
 }
 
 export const checksum = (content: string): string => {
@@ -101,47 +98,40 @@ export const checksumBase64_6 = (content: string): string => {
 		hashAccumulator = Math.imul(hashAccumulator, 16777619) >>> 0
 	}
 
-	// Encode the 32-bit hash as URL-safe base64 and keep a fixed 6-char key for localStorage payloads.
-	const hashBytes = new Uint8Array([
+	// The 32-bit hash in bytesToBase64: always 6 characters, the key of localStorage payloads.
+	return bytesToBase64([
 		(hashAccumulator >>> 24) & 255,
 		(hashAccumulator >>> 16) & 255,
 		(hashAccumulator >>> 8) & 255,
 		hashAccumulator & 255
 	])
-
-	let hashBinary = ""
-	for (const hashByte of hashBytes) {
-		hashBinary += String.fromCharCode(hashByte)
-	}
-
-	return btoa(hashBinary)
-		.replaceAll("=", "")
-		.replaceAll("+", "-")
-		.replaceAll("/", "_")
-		.padEnd(6, "0")
-		.slice(0, 6)
 }
 
-export const base64ToBytes = (packedValuesBase64: string): Uint8Array => {
-	if (!packedValuesBase64) {
+// base64ToBytes reverses bytesToBase64 (Go's utils.Base64); an invalid payload decodes to no bytes.
+export const base64ToBytes = (encoded: string): Uint8Array => {
+	const characterCount = encoded.length
+	// A lone last character carries only 6 bits: no byte ends there.
+	if (characterCount % 4 === 1) {
+		console.warn("[parsers] invalid base64 payload")
 		return new Uint8Array()
 	}
-
-	// Match the backend custom URL-safe base64 variant: "-" => "+", "_" => "/", "~" => "=".
-	const normalizedBase64 = packedValuesBase64
-		.trim()
-		.replaceAll("-", "+")
-		.replaceAll("_", "/")
-		.replaceAll("~", "=")
-	const paddedBase64 = normalizedBase64 + "=".repeat((4 - (normalizedBase64.length % 4)) % 4)
-
-	let packedValuesBinary = ""
-	try {
-		packedValuesBinary = atob(paddedBase64)
-	} catch (decodeError) {
-		console.warn("[parsers] invalid base64 payload", decodeError)
-		return new Uint8Array()
+	const bytes = new Uint8Array(Math.floor(characterCount * 3 / 4))
+	let byteIndex = 0
+	for (let index = 0; index < characterCount; index += 4) {
+		let group = 0
+		const groupLength = Math.min(characterCount - index, 4)
+		for (let characterIndex = 0; characterIndex < 4; characterIndex++) {
+			const digit = characterIndex < groupLength ? BASE64_ALPHABET.indexOf(encoded[index + characterIndex]) : 0
+			if (digit < 0) {
+				console.warn("[parsers] invalid base64 payload")
+				return new Uint8Array()
+			}
+			group = (group << 6) | digit
+		}
+		// 2, 3 or 4 characters hold 1, 2 or 3 bytes.
+		for (let shift = 16; shift > 16 - 8 * (groupLength - 1); shift -= 8) {
+			bytes[byteIndex++] = (group >>> shift) & 255
+		}
 	}
-
-	return Uint8Array.from(packedValuesBinary, (character) => character.charCodeAt(0))
+	return bytes
 }

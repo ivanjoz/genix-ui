@@ -66,7 +66,7 @@ When a partition has a missing or stale record, the frontend sends that partitio
 it requests from it, in one `cc` parameter for all partitions (`encodeCachedIDsRequest`):
 
 ```
-GET <apiRoute>?cc=<base64url>
+GET <apiRoute>?cc=<base64 (utilities/parsers.ts BASE64_ALPHABET)>
 
 [cycle year − 2000: u8]
 [partition count: uvarint]

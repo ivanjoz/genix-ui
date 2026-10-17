@@ -3,7 +3,7 @@ export {
   checksum,
   checksumBase64_6,
   appendUvarint,
-  bytesToBase64Url,
+  bytesToBase64,
   concatenateInts,
 } from './parsers.js';
 export {

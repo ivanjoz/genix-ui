@@ -13,16 +13,13 @@ import {
 	validateAccesosBlobs,
 	wrapAccesosComputed,
 } from './accesos'
+import { bytesToBase64 } from '../utilities/parsers.js'
 
 // This is the third hand-written parser of the grant format; the other two are
 // backend/core/accesos-blob.go and fareward/src/limiter/access.rs. The bytes below are written by
 // hand rather than produced by a local encoder, for the same reason the Go test is: endianness and
 // bit positions cannot fail loudly — read the wrong way round these bytes still decode, into a
 // different access or a different sub-access.
-const bytesToBase64 = (blobBytes: number[]): string => {
-	return btoa(String.fromCharCode(...blobBytes))
-}
-
 const storeBlob = (blobBytes: number[]): string => wrapAccesosComputed(bytesToBase64(blobBytes))
 
 const decodeBlob = (blobBytes: number[]): Uint8Array => decodeStoredAccesosComputed(storeBlob(blobBytes))

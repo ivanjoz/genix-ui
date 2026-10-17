@@ -7,7 +7,7 @@
  * `toYearTick` turns it back. The Go side is genix-orm/dynamo/cache_by_ids.go (DecodeCachedIDsRequest,
  * yearTickToUpdated), and both are pinned by genix-orm/dynamo/testdata/year_tick_vectors.json.
  */
-import { appendUvarint, bytesToBase64Url } from '../utilities/index.js'
+import { appendUvarint, bytesToBase64 } from '../utilities/index.js'
 
 // yearCycleOf is the year cycle holding a moment: the calendar year, until its 07:00 UTC January 1.
 export const yearCycleOf = (unixMillis: number): number => {
@@ -33,7 +33,7 @@ export interface CachedIDsPartitionRequest {
 }
 
 /**
- * encodeCachedIDsRequest builds the `cc` parameter, base64url of:
+ * encodeCachedIDsRequest builds the `cc` parameter, bytesToBase64 of:
  *
  *   [cycle year − 2000: u8]
  *   [partition count: uvarint]
@@ -78,5 +78,5 @@ export const encodeCachedIDsRequest = (cycleYear: number, partitions: CachedIDsP
 			previousID = id
 		}
 	}
-	return bytesToBase64Url(bytes)
+	return bytesToBase64(bytes)
 }

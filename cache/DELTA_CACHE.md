@@ -38,7 +38,7 @@ Every record carries `ver`, an int16 the backend raises on each write (1 on inse
 index, genix-orm appends one entry per write to a change-log file of that index's partition and
 10-minute bucket (`bucket = floor(SUnixTime / 300)`): `(log ID, ver mod 8191, deleted)`. The format
 lives in `delta-log.wire.ts`; `genix-orm/dynamo/delta_log_codec.go` is its Go side, and both are
-pinned by `genix-orm/dynamo/testdata/delta_log_vectors.json`.
+pinned by `genix-orm/db/cache/testdata/delta_log_vectors.json`.
 
 A delta response holds the changed records plus one **Metadata record** per log file it read:
 `ID = −bucket`, `mdt` = Safe85 of `[flags][bucket uvarint][log ID column count][widths…][file]`.

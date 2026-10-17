@@ -5,7 +5,7 @@
  * 2-second counter from the year cycle's start, January 1 at 07:00 UTC: one Updated (SUnixTime) unit. A
  * by-IDs record's `upd` is its slot's tick as an Updated value (the end of the tick's window);
  * `toYearTick` turns it back. The Go side is genix-orm/dynamo/cache_by_ids.go (DecodeCachedIDsRequest,
- * yearTickToUpdated), and both are pinned by genix-orm/dynamo/testdata/year_tick_vectors.json.
+ * yearTickToUpdated), and both are pinned by genix-orm/db/cache/testdata/year_tick_vectors.json.
  */
 import { appendUvarint, bytesToBase64 } from '../utilities/index.js'
 

@@ -82,7 +82,7 @@ per partition, ascending:
 - One tick per slot: the **lowest** among the slot's requested IDs. A held tick is never above the
   slot's, so "lowest == slot" proves every record of the slot current. A lower one makes the
   backend return them all, after which they agree. A slot with tick 0 isn't listed.
-- The format is pinned by `backend/genix-orm/dynamo/testdata/year_tick_vectors.json`, which the Go
+- The format is pinned by `backend/genix-orm/db/cache/testdata/year_tick_vectors.json`, which the Go
   decoder and berryapps' `frontend/core/cache-by-ids-wire.test.ts` both check.
 
 If the backend does not return a requested ID, the frontend treats that row as unchanged and only

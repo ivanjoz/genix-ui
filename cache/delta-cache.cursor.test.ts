@@ -10,7 +10,7 @@ const metadataRecord = (bucket: number, flags: number, fileHex: string) => ({
 	mdt: encodeSafe85(Uint8Array.from([flags, bucket, 0, ...fromHex(fileHex)])),
 })
 
-// Entries from genix-orm/dynamo/testdata/delta_log_vectors.json.
+// Entries from genix-orm/db/cache/testdata/delta_log_vectors.json.
 const record1234AtVersion7 = '009a4007'
 const record70000Deleted = '60222e1fff'
 const recordIDOfLogID = (logID: number) => logID

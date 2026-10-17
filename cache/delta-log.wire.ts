@@ -14,7 +14,7 @@
  *   header 3     [3:2][deleted:1][version:13][count:8] + count uvarint log ID deltas, ascending
  *
  * The Go side is genix-orm/dynamo/delta_log_codec.go; both are pinned by
- * genix-orm/dynamo/testdata/delta_log_vectors.json.
+ * genix-orm/db/cache/testdata/delta_log_vectors.json.
  */
 import { decodeSafe85 } from './safe85'
 

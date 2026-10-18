@@ -62,6 +62,10 @@
     useOwnAxis?: boolean
     yAxisMin?: number
     yAxisMax?: number
+    // Draws the line's own scale on the right, labeled with this formatter (implies useOwnAxis). Its
+    // ticks sit on the left axis' guides: the scale is 0 to the shared maximum times a whole factor,
+    // so every label is a round multiple of the left one.
+    rightAxisFormatter?: (value: number) => string
   }
 
   export interface ChartCanvasProps {
@@ -143,6 +147,7 @@
   // Throttle expensive canvas redraws while allowing the host layout to resize freely.
   const renderThrottleMs = 250
   const yAxisLabelWidthPx = 28
+  const rightAxisLabelWidthPx = 40
   // Enough gap that the tooltip clears the cursor without detaching from it.
   const hoverTooltipOffsetPx = 14
   const yAxisGuideSpacingPx = 16
@@ -167,6 +172,8 @@
     measuredWidth = Math.max(0, Math.floor(plotFrameElement.clientWidth))
   }
 
+  const hasOwnAxis = (chartSeries: ChartCanvasSeries) => !!chartSeries.useOwnAxis || !!chartSeries.rightAxisFormatter
+
   const getChartMetrics = (): IChartCanvasMetrics => {
     const pointsCount = data.reduce((maxCount, chartSeries) => {
       return Math.max(maxCount, chartSeries.values.length)
@@ -176,7 +183,7 @@
     // A series on its own axis is by definition not on this one, so it must not set its scale.
     // Including it let a memory line in MB rescale the CPU axis it shares a chart with, and the
     // y-axis labels — which are always built from this value — then described neither series.
-    const lineSeries = data.filter((chartSeries) => chartSeries.type === 'line' && !chartSeries.useOwnAxis)
+    const lineSeries = data.filter((chartSeries) => chartSeries.type === 'line' && !hasOwnAxis(chartSeries))
     const observedMaximum = Array.from({ length: pointsCount }, (_, pointIndex) => {
       const lineMaximum = lineSeries.reduce((maxValue, chartSeries) => {
         return Math.max(maxValue, chartSeries.values[pointIndex] || 0, 0)
@@ -252,7 +259,7 @@
 
   const getLineRange = (chartSeries: ChartCanvasSeries, metrics: IChartCanvasMetrics): IChartCanvasLineRange => {
     // Default line series to the shared chart axis so bars and lines stay comparable.
-    if (!chartSeries.useOwnAxis) {
+    if (!hasOwnAxis(chartSeries)) {
       return {
         minValue: 0,
         maxValue: metrics.maxChartValue > 0 ? metrics.maxChartValue : 1,
@@ -264,6 +271,10 @@
     })
 
     const fallbackMaxValue = metrics.maxChartValue > 0 ? metrics.maxChartValue : 1
+    if (chartSeries.rightAxisFormatter && chartSeries.yAxisMax === undefined) {
+      const observedMaxValue = numericValues.length ? Math.max(...numericValues) : 0
+      return { minValue: 0, maxValue: Math.max(1, Math.ceil(observedMaxValue / fallbackMaxValue)) * fallbackMaxValue }
+    }
     const rawMinValue = chartSeries.yAxisMin ?? (numericValues.length ? Math.min(...numericValues) : 0)
     const rawMaxValue = chartSeries.yAxisMax ?? (numericValues.length ? Math.max(...numericValues) : fallbackMaxValue)
 
@@ -344,6 +355,17 @@
   const chartMetrics = $derived.by(() => {
     // Share one metrics object across HTML guides and the canvas width calculation.
     return getChartMetrics()
+  })
+
+  // The right scale's label at each guide of the left one: the same height read on the line's range.
+  const rightAxisLabels = $derived.by((): string[] => {
+    const rightAxisSeries = data.find((chartSeries) => chartSeries.type === 'line' && chartSeries.rightAxisFormatter)
+    if (!rightAxisSeries) { return [] }
+    const lineRange = getLineRange(rightAxisSeries, chartMetrics)
+    return yAxisGuides.map((yAxisGuide) => {
+      const ratioFromBottom = 1 - ((yAxisGuide.top - yAxisPaddingTopPx) / (height - yAxisPaddingTopPx))
+      return rightAxisSeries.rightAxisFormatter!(lineRange.minValue + ((lineRange.maxValue - lineRange.minValue) * ratioFromBottom))
+    })
   })
 
   const xAxisLabels = $derived.by((): IChartCanvasXAxisLabel[] => {
@@ -462,7 +484,8 @@
         lineWidth: chartSeries.lineWidth || 0,
         pointSize: chartSeries.pointSize || 0,
         renderPointOnlyOnChange: chartSeries.renderPointOnlyOnChange || false,
-        useOwnAxis: chartSeries.useOwnAxis || false,
+        useOwnAxis: hasOwnAxis(chartSeries),
+        hasRightAxis: !!chartSeries.rightAxisFormatter,
         yAxisMin: chartSeries.yAxisMin ?? null,
         yAxisMax: chartSeries.yAxisMax ?? null,
         values: chartSeries.values,
@@ -661,6 +684,18 @@
         ></div>
       {/if}
     </div>
+
+    {#if rightAxisLabels.length}
+      <div class="relative shrink-0 text-left text-[12px] leading-none text-fg-muted" style={`width:${rightAxisLabelWidthPx}px`}>
+        {#each yAxisGuides as yAxisGuide, guideIndex (yAxisGuide.top)}
+          {#if !yAxisGuide.hideLabel}
+            <div class="pointer-events-none absolute left-0 pl-4 whitespace-nowrap" style={`top:${yAxisGuide.top + yAxisGuide.labelOffsetPx}px;transform:${yAxisGuide.transform}`}>
+              {rightAxisLabels[guideIndex]}
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {/if}
     </div>
 
     {#if showTooltip && hoverPointIndex !== null && hoverSeries.length}
@@ -697,6 +732,7 @@
             {/each}
           </div>
         </div>
+        {#if rightAxisLabels.length}<div class="shrink-0" style={`width:${rightAxisLabelWidthPx}px`}></div>{/if}
       </div>
     {/if}
   </div>

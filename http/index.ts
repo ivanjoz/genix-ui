@@ -4,6 +4,10 @@ import {
   createGroupCacheGetter,
   type GroupCacheGetter,
 } from '../cache/group-cache.fetch.js';
+import {
+  createFrameFilesGetter,
+  type FrameFilesGetter,
+} from '../cache/frame-cache.fetch.js';
 import { unmarshal } from '@ivanjoz/minijson';
 import { notifyFailure, notifySuccess } from '../notify/notify.svelte.js';
 import { registerPageCachedService } from './page-services-registry.js';
@@ -45,6 +49,8 @@ export interface httpProps {
   columnarIDField?: string;
   combineColumnarValuesOnFields?: string[];
   cacheMode?: CacheMode;
+  // 'bytes' answers a 200 as the raw body (Uint8Array), for binary routes such as frame files.
+  responseType?: 'bytes';
   useCache?: {
     min: number;
     ver: number;
@@ -90,6 +96,7 @@ export interface HttpClient {
   buildHeaders: (contentType?: string, route?: string) => Record<string, string>;
   GET: (props: httpProps) => Promise<any>;
   GETWithGroupCache: GroupCacheGetter;
+  GETFrameFiles: FrameFilesGetter;
   POST: (props: httpProps) => Promise<any>;
   PUT: (props: httpProps) => Promise<any>;
   POST_XMLHR: (props: httpProps) => Promise<any>;
@@ -334,6 +341,10 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     try {
       console.log('[http] GET:', props.route);
       const response = await fetch(routeParsed, { headers: buildHeaders(undefined, props.route) });
+      if (props.responseType === 'bytes' && response.status === 200) {
+        status.code = response.status;
+        return new Uint8Array(await response.arrayBuffer());
+      }
       const result = transformResponse(await parsePreResponse(response, status, props.route));
 
       if (!hasSuccessfulResponse(result, props, status)) {
@@ -360,6 +371,9 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     GET,
     GETWithGroupCache: createGroupCacheGetter({
       get: (route) => GET({ route }),
+    }),
+    GETFrameFiles: createFrameFilesGetter({
+      getBytes: (route) => GET({ route, responseType: 'bytes' }),
     }),
     POST: (props) => write(props, 'POST'),
     PUT: (props) => write(props, 'PUT'),

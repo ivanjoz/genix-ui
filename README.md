@@ -254,7 +254,7 @@ What the returned runtime exposes:
 
 | Member | Use |
 | --- | --- |
-| `ui.http` | `GET`, `GETWithGroupCache`, `POST`, `PUT`, `POST_XMLHR`, `buildHeaders` |
+| `ui.http` | `GET`, `GETWithGroupCache`, `GETFrameFiles`, `POST`, `PUT`, `POST_XMLHR`, `buildHeaders` |
 | `ui.getHandlerRuntime` | Pass to `GetHandler`'s constructor |
 | `ui.security` | Session + access control (`SecurityRuntime`) |
 | `ui.state` | Reactive UI state: `deviceType`, `mobileMenuOpen`, `pageTitle`, `pageOptions`, `sideLayerId`, `popoverId`, `openModalIds`, mobile layer slots |
@@ -369,10 +369,11 @@ Behaviour worth knowing:
   when callers must receive the rejection.
 - The class uses runes, so it only works in a Svelte-aware build.
 
-Three cache engines live in `@genix/ui/cache`: the delta cache (watermark sync), the group
-cache (`GETWithGroupCache`, response-level), and cache-by-IDs (resolve specific ids through
-memory → IndexedDB → server). Each has its own document: `cache/DELTA_CACHE.md`,
-`cache/GET_CACHED_PLAN.md`, `cache/CACHE_BY_IDS.md`.
+Four cache engines live in `@genix/ui/cache`: the delta cache (watermark sync), the group
+cache (`GETWithGroupCache`, response-level), cache-by-IDs (resolve specific ids through
+memory → IndexedDB → server), and the frame cache (`GETFrameFiles`, raw DataFrame files refetched
+only when changed). Each has its own document: `cache/DELTA_CACHE.md`,
+`cache/GET_CACHED_PLAN.md`, `cache/CACHE_BY_IDS.md`, `cache/FRAME_CACHE.md`.
 
 ### Service worker
 
@@ -738,4 +739,5 @@ introduce a dedicated staging/source directory instead.
 | `cache/DELTA_CACHE.md` | Watermark-based delta sync |
 | `cache/GET_CACHED_PLAN.md` | Group cache / `GETWithGroupCache` |
 | `cache/CACHE_BY_IDS.md` | By-ID resolution across memory → IndexedDB → server |
+| `cache/FRAME_CACHE.md` | Raw DataFrame files, refetched only when changed (`GETFrameFiles`) |
 | `excel/EXCEL_BUILDER.md` | Excel column config, mapping, parsing, error contract |

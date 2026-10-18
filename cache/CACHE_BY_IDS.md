@@ -50,7 +50,7 @@ Each cached record stores:
 - `upd`: the slot's year tick as an Updated value, as returned by the backend (`0` = unknown,
   always forces a fetch)
 - `_fch`: fetch timestamp in seconds
-- `ss`: status, where `0` means deleted/tombstone
+- `ss`: status, where `0` means deleted
 
 A record is considered stale when:
 
@@ -59,6 +59,20 @@ nowSeconds() - _fch > CACHE_TIME
 ```
 
 Fresh local records return immediately without network.
+
+**Deleted records are returned.** A by-IDs call names its records, so a deleted one (`ss` 0) comes
+back like any other and the caller decides how to show it (a deleted user still signs the movements
+they recorded). A delta list is the opposite: it never hands a deleted record to the client.
+
+By default a deleted record is a **tombstone**: final, answered from the cache and never sent for
+revalidation. A route whose records can be reactivated opts out once, at module load:
+
+```ts
+configureCacheByIDsRoute('voluntariado-empleados-ids', { disableTombstone: true })
+```
+
+Its deleted records then go stale and revalidate like any other, so a reactivation reaches every
+browser.
 
 ### 4. The request sent to the backend
 
@@ -170,7 +184,8 @@ export interface IMinimalRecord {
 
 - `ID`: required, the cache key inside its partition.
 - `upd`: required for backend validation, and read by `getRecordByIDUpdated`.
-- `ss`: required. `0` is treated as deleted.
+- `ss`: required. `0` is deleted: still returned, cached as a tombstone unless the route sets
+  `disableTombstone`.
 - `_fch`: internal frontend timestamp used for stale detection.
 
 ### Backend schema requirements

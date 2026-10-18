@@ -86,6 +86,25 @@ export const configureCacheByIDs = (fetcher: CacheByIDsFetchFromServer) => {
 	fetchFromServer = fetcher
 }
 
+// A record asked for by ID is returned even when it is deleted (ss 0): the caller named that record,
+// so it decides how to show it (a deleted user still signs the movements they recorded). Unlike a
+// delta list, which never hands a deleted record to the client.
+// By default a deleted record is a tombstone: final, answered from the cache and never revalidated.
+// A route whose records can be reactivated sets disableTombstone, and its deleted records are
+// revalidated like any other.
+export interface CacheByIDsRouteOptions {
+	disableTombstone?: boolean
+}
+
+const routeOptionsByApiRoute = new Map<string, CacheByIDsRouteOptions>()
+
+export const configureCacheByIDsRoute = (apiRoute: string, options: CacheByIDsRouteOptions) => {
+	routeOptionsByApiRoute.set(apiRoute, options)
+}
+
+const isTombstone = (apiRoute: string, record: IMinimalRecord): boolean =>
+	record.ss === 0 && !routeOptionsByApiRoute.get(apiRoute)?.disableTombstone
+
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
 const getOrCreateTableCache = (cacheNamespace: string): Map<number, IMinimalRecord> => {
@@ -177,8 +196,8 @@ const lookUpPartition = async <T extends IMinimalRecord>(
 	}
 
 	const holdRecord = (id: number, record: T) => {
-		// Tombstone: never fetch again, and never return as "active" record.
-		if (record.ss === 0) return
+		// Tombstone: answered from the cache, never sent for revalidation.
+		if (isTombstone(apiRoute, record)) return
 		lookup.heldIDs.push(id)
 		lookup.idTicks.push([id, toYearTick(record.upd, cycleStart)])
 		if (currentTimeSeconds - (record._fch || 0) > CACHE_TIME) lookup.needsServer = true
@@ -276,11 +295,11 @@ export const doGetRecordsByIDs = async <T extends IMinimalRecord>(
 				await mergeFetchedRecordsIntoCache<T>(lookup.cacheNamespace, fetchedRecords, currentTimeSeconds)
 			}
 		}
-		// Final read is stable by requested ID order; tombstones remain hidden.
+		// Final read is stable by requested ID order; deleted records included.
 		const resolvedRecordsByID = new Map<number, T>()
 		for (const id of lookup.requestedIDs) {
 			const record = tableCache.get(id) as T | undefined
-			if (record && record.ss !== 0) resolvedRecordsByID.set(id, record)
+			if (record) resolvedRecordsByID.set(id, record)
 		}
 		recordsByPartition.set(lookup.partition, resolvedRecordsByID)
 	}
@@ -307,9 +326,8 @@ const resolveRecordsByPartition = async <T extends IMinimalRecord>(
 		const idsToFetch: number[] = []
 		for (const id of normalizePositiveIDs(ids)) {
 			const cachedRecord = tableCache?.get(id) as T | undefined
-			if (cachedRecord?.ss === 0) continue
-			// Fresh memory rows are authoritative for this call and must not re-enter batching.
-			if (cachedRecord && currentTimeSeconds - (cachedRecord._fch || 0) <= CACHE_TIME) {
+			// Fresh memory rows and tombstones are authoritative for this call and must not re-enter batching.
+			if (cachedRecord && (isTombstone(apiRoute, cachedRecord) || currentTimeSeconds - (cachedRecord._fch || 0) <= CACHE_TIME)) {
 				resolvedRecordsByID.set(id, cachedRecord)
 				continue
 			}
@@ -353,7 +371,7 @@ const resolveRecordsByPartition = async <T extends IMinimalRecord>(
 		const resolvedRecordsByID = recordsByPartition.get(partition)!
 		for (const [id, pendingBatchPromise] of pendingByID) {
 			const record = (await pendingBatchPromise).get(id)
-			if (record && record.ss !== 0) resolvedRecordsByID.set(id, record)
+			if (record) resolvedRecordsByID.set(id, record)
 		}
 	}
 	return recordsByPartition
@@ -564,8 +582,7 @@ const flushBufferedUpdatedRequests = async () => {
 				if (!pending) continue
 				bufferedUpdatedResolversByTableAndID.delete(key)
 				bufferedUpdatedPromiseByTableAndID.delete(key)
-				const fetchedRecord = fetchedRecordsByID.get(id)
-				pending.resolve(fetchedRecord && fetchedRecord.ss !== 0 ? fetchedRecord : undefined)
+				pending.resolve(fetchedRecordsByID.get(id))
 			}
 		} catch (error) {
 			console.warn(`${LOG_PREFIX} ${apiRoute} buffered updated fetch failed; rejecting pending promises`, error)
@@ -594,12 +611,8 @@ export const getRecordByID = async <T extends IMinimalRecord>(
 	// Still goes through buffered pipeline to prevent parallel per-ID requests.
 	if (options && options.cachedRecord !== undefined) {
 		const knownCachedRecord = options.cachedRecord
-		if (!!knownCachedRecord) {
-			if (knownCachedRecord.ss === 0) return undefined
-			const cachedRecordIsStale = isRecordStale(knownCachedRecord, currentTimeSeconds)
-			if (!cachedRecordIsStale) {
-				return knownCachedRecord
-			}
+		if (knownCachedRecord && (isTombstone(apiRoute, knownCachedRecord) || !isRecordStale(knownCachedRecord, currentTimeSeconds))) {
+			return knownCachedRecord
 		}
 	}
 
@@ -608,13 +621,8 @@ export const getRecordByID = async <T extends IMinimalRecord>(
 	const cacheTable = cacheRecordIdTable.get(apiRoute)
 	if (cacheTable) {
 		const cachedRecord = cacheTable.get(numericID) as T | undefined
-		if (cachedRecord) {
-			if (cachedRecord.ss === 0) return undefined
-			const cachedRecordAgeSeconds = currentTimeSeconds - (cachedRecord._fch || 0)
-			const cachedRecordIsStale = cachedRecordAgeSeconds > CACHE_TIME
-			if (!cachedRecordIsStale) {
-				return cachedRecord
-			}
+		if (cachedRecord && (isTombstone(apiRoute, cachedRecord) || !isRecordStale(cachedRecord, currentTimeSeconds))) {
+			return cachedRecord
 		}
 	}
 
@@ -698,9 +706,7 @@ export const getRecordByIDUpdated = async <T extends IMinimalRecord>(
 	}
 
 	// Once we fetched from server, that row is authoritative even when its `upd` advanced.
-	const fetchedRecord = returnedRecord
-	if (!fetchedRecord || fetchedRecord.ss === 0) return undefined
-	return fetchedRecord
+	return returnedRecord
 }
 
 const getOrCreateStaticTableCache = <T extends { ID: number }>(apiRoute: string): Map<number, T> => {
@@ -868,8 +874,7 @@ const getLocalRecordByID = async <T extends IMinimalRecord>(
 	const cacheTable = getOrCreateTableCache(apiRoute)
 	const memoryRecord = cacheTable.get(numericID) as T | undefined
 	if (memoryRecord) {
-		if (memoryRecord.ss === 0) return { record: null, stale: false }
-		return { record: memoryRecord, stale: isRecordStale(memoryRecord, currentTimeSeconds) }
+		return { record: memoryRecord, stale: !isTombstone(apiRoute, memoryRecord) && isRecordStale(memoryRecord, currentTimeSeconds) }
 	}
 
 	const idbRecordsByID = await readRecordsFromIDBByIDs<T>(apiRoute, [numericID])
@@ -880,8 +885,7 @@ const getLocalRecordByID = async <T extends IMinimalRecord>(
 
 	// Promote IDB hit into memory cache for subsequent synchronous reads.
 	cacheTable.set(numericID, idbRecord)
-	if (idbRecord.ss === 0) return { record: null, stale: false }
-	return { record: idbRecord, stale: isRecordStale(idbRecord, currentTimeSeconds) }
+	return { record: idbRecord, stale: !isTombstone(apiRoute, idbRecord) && isRecordStale(idbRecord, currentTimeSeconds) }
 }
 
 export interface IRecordRef<T extends IMinimalRecord> {

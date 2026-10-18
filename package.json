@@ -137,6 +137,7 @@
     "@tiptap/pm": "^3.31.4",
     "@tiptap/starter-kit": "^3.31.4",
     "axios": "^1.13.2",
+    "chartist": "^2.0.0",
     "date-fns": "^4.1.0",
     "dexie": "^4.2.0",
     "dompurify": "^3.4.2",

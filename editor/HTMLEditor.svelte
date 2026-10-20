@@ -1,11 +1,12 @@
 <script lang="ts" generics="T">
   import { BROWSER } from 'esm-env';
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { Editor, type ChainedCommands } from "@tiptap/core";
   import StarterKit from "@tiptap/starter-kit";
   import TextAlign from "@tiptap/extension-text-align";
   import { TextStyleKit } from "@tiptap/extension-text-style";
   import { TableKit } from "@tiptap/extension-table";
+  import { Markdown } from "@tiptap/markdown";
   import EditorTablePicker from "./EditorTablePicker.svelte";
   import EditorTableHandles from "./EditorTableHandles.svelte";
   // Aliased: the generic record parameter of this component is already named T.
@@ -31,15 +32,23 @@
     editorIconUndo,
   } from "./icons"
 
-  const { saveOn, save, css, placeholder = "Start writing rich content…|Empieza a escribir contenido enriquecido…" }: {
+  const { saveOn, save, css, placeholder = "Start writing rich content…|Empieza a escribir contenido enriquecido…", format = "html" }: {
     saveOn: T
     save: keyof T
     css?: string
     /** Bilingual "English|Spanish" text shown while the editor is empty. */
     placeholder?: string
+    /**
+     * What saveOn[save] holds: "html" (default) or "markdown". Markdown has no colors, text sizes,
+     * alignment or underline, so those buttons are hidden and the text size button picks headings.
+     */
+    format?: "html" | "markdown"
   } = $props()
 
-  const readBoundHtml = () =>
+  // Read once: switching the format would need a different set of extensions.
+  const isMarkdown = untrack(() => format === "markdown")
+
+  const readBoundValue = () =>
     (saveOn && save && ((saveOn[save] as string) ?? "")) || ""
 
   let editorRoot = $state<HTMLDivElement | null>(null)
@@ -49,11 +58,11 @@
   let editor = $state.raw<Editor | null>(null)
   // Bumped on every transaction so the toolbar's active states re-derive from the editor.
   let transactionTick = $state(0)
-  // Last HTML exchanged with saveOn[save], to tell our own writes from external changes.
-  let lastSyncedHtml = readBoundHtml()
+  // Last value exchanged with saveOn[save], to tell our own writes from external changes.
+  let lastSyncedValue = readBoundValue()
 
   // Popovers opened from a toolbar button: centered under it, with an arrow pointing at it
-  type ToolbarPopover = "textSize" | "table" | "textColor" | "backgroundColor" | "align"
+  type ToolbarPopover = "textSize" | "heading" | "table" | "textColor" | "backgroundColor" | "align"
   let openPopover = $state<ToolbarPopover | null>(null)
   let popoverAnchor = $state.raw<HTMLElement | null>(null)
   let popoverElement = $state<HTMLDivElement>()
@@ -69,8 +78,16 @@
     { value: "justify", label: "Justify", icon: editorIconAlignJustify },
   ]
 
+  const headingOptions = [
+    { level: 0, label: "Normal text", name: "P" },
+    { level: 1, label: "Heading 1", name: "H1" },
+    { level: 2, label: "Heading 2", name: "H2" },
+    { level: 3, label: "Heading 3", name: "H3" },
+  ] as const
+
   // An empty document serializes as "<p></p>": store it as "" so an untouched field stays empty.
-  const getEditorHtml = (instance: Editor) => instance.isEmpty ? "" : instance.getHTML()
+  const getEditorValue = (instance: Editor) =>
+    instance.isEmpty ? "" : isMarkdown ? instance.getMarkdown() : instance.getHTML()
 
   const isActive = (nameOrAttributes: string | Record<string, unknown>, attributes?: Record<string, unknown>) => {
     transactionTick
@@ -93,6 +110,10 @@
   const currentFontSize = $derived.by(() => {
     transactionTick
     return editor?.getAttributes("textStyle").fontSize || ""
+  })
+  const currentHeadingLevel = $derived.by(() => {
+    transactionTick
+    return headingOptions.find(option => option.level && editor?.isActive("heading", { level: option.level }))?.level ?? 0
   })
 
   // Every toolbar action starts a chain that gives the focus (and the selection) back to the editor.
@@ -124,7 +145,8 @@
   }
 
   const insertTable = (rows: number, cols: number) => {
-    runCommand(chain => chain.insertTable({ rows, cols, withHeaderRow: false }))
+    // A Markdown table always starts with its header row.
+    runCommand(chain => chain.insertTable({ rows, cols, withHeaderRow: isMarkdown }))
     openPopover = null
   }
 
@@ -135,6 +157,11 @@
 
   const applyFontSize = (fontSize: string) => {
     runCommand(chain => chain.setFontSize(fontSize))
+    openPopover = null
+  }
+
+  const applyHeading = (level: typeof headingOptions[number]["level"]) => {
+    runCommand(chain => level ? chain.setHeading({ level }) : chain.setParagraph())
     openPopover = null
   }
 
@@ -149,14 +176,22 @@
 
     const instance = new Editor({
       element: editorRoot,
-      extensions: [
-        StarterKit.configure({ link: { openOnClick: false } }),
-        TextStyleKit,
-        TextAlign.configure({ types: ["heading", "paragraph"] }),
-        // Dragging a column border resizes it; the widths are stored as colwidth on the cells.
-        TableKit.configure({ table: { resizable: true } }),
-      ],
-      content: lastSyncedHtml,
+      extensions: isMarkdown
+        ? [
+          // Only what Markdown can write back: no underline, text styles or alignment.
+          StarterKit.configure({ link: { openOnClick: false }, underline: false }),
+          TableKit.configure({ table: { resizable: false } }),
+          Markdown,
+        ]
+        : [
+          StarterKit.configure({ link: { openOnClick: false } }),
+          TextStyleKit,
+          TextAlign.configure({ types: ["heading", "paragraph"] }),
+          // Dragging a column border resizes it; the widths are stored as colwidth on the cells.
+          TableKit.configure({ table: { resizable: true } }),
+        ],
+      content: lastSyncedValue,
+      contentType: format,
       editorProps: {
         attributes: {
           class: "min-h-[14rem] p-16 text-base leading-relaxed text-fg outline-none",
@@ -167,10 +202,10 @@
       },
       onTransaction: () => { transactionTick++ },
       onUpdate: ({ editor: updatedEditor }) => {
-        const nextHtml = getEditorHtml(updatedEditor)
-        if (nextHtml === lastSyncedHtml) return
-        lastSyncedHtml = nextHtml
-        if (saveOn && save) saveOn[save] = nextHtml as NonNullable<T>[keyof T]
+        const nextValue = getEditorValue(updatedEditor)
+        if (nextValue === lastSyncedValue) return
+        lastSyncedValue = nextValue
+        if (saveOn && save) saveOn[save] = nextValue as NonNullable<T>[keyof T]
       },
     })
     editor = instance
@@ -183,10 +218,10 @@
 
   // External changes to saveOn[save] (another record loaded) replace the document without echoing back.
   $effect(() => {
-    const incomingHtml = readBoundHtml()
-    if (!editor || incomingHtml === lastSyncedHtml) return
-    lastSyncedHtml = incomingHtml
-    editor.commands.setContent(incomingHtml, { emitUpdate: false })
+    const incomingValue = readBoundValue()
+    if (!editor || incomingValue === lastSyncedValue) return
+    lastSyncedValue = incomingValue
+    editor.commands.setContent(incomingValue, { emitUpdate: false, contentType: format })
   })
 
   // Paragraphs without an explicit alignment read as left aligned.
@@ -202,10 +237,16 @@
     active?: boolean
     swatchColor?: string
   }
-  const toolbarItems = $derived<ToolbarItem[]>([
+  const markdownToolbarLabels = new Set([
+    'Bold', 'Italic', 'Heading', 'Insert table', 'Bulleted list', 'Numbered list', 'Insert horizontal rule',
+    'Clear format', 'Undo', 'Redo',
+  ])
+  const allToolbarItems = $derived<ToolbarItem[]>([
     { label: 'Bold', icon: editorIconBold, action: () => runCommand(chain => chain.toggleBold()), active: isActive("bold") },
     { label: 'Italic', icon: editorIconItalic, action: () => runCommand(chain => chain.toggleItalic()), active: isActive("italic") },
-    { label: 'Text Size', icon: editorIconTextSize, action: (ev) => togglePopover("textSize", ev), active: openPopover === "textSize" },
+    isMarkdown
+      ? { label: 'Heading', icon: editorIconTextSize, action: (ev) => togglePopover("heading", ev), active: openPopover === "heading" || currentHeadingLevel > 0 }
+      : { label: 'Text Size', icon: editorIconTextSize, action: (ev) => togglePopover("textSize", ev), active: openPopover === "textSize" },
     { label: 'Insert table', icon: editorIconTable, action: (ev) => togglePopover("table", ev), active: openPopover === "table" },
     {
       label: 'Text color', icon: editorIconTextColor, swatchColor: textColorValue,
@@ -221,10 +262,14 @@
     { label: 'Bulleted list', icon: editorIconBulletList, action: () => runCommand(chain => chain.toggleBulletList()), active: isActive("bulletList") },
     { label: 'Numbered list', icon: editorIconNumberedList, action: () => runCommand(chain => chain.toggleOrderedList()), active: isActive("orderedList") },
     { label: 'Insert horizontal rule', icon: editorIconHorizontalRule, action: () => runCommand(chain => chain.setHorizontalRule()) },
-    { label: 'Clear format', icon: editorIconClearFormat, action: () => runCommand(chain => chain.unsetAllMarks().clearNodes().unsetTextAlign()) },
+    {
+      label: 'Clear format', icon: editorIconClearFormat,
+      action: () => runCommand(chain => isMarkdown ? chain.unsetAllMarks().clearNodes() : chain.unsetAllMarks().clearNodes().unsetTextAlign()),
+    },
     { label: 'Undo', icon: editorIconUndo, action: () => runCommand(chain => chain.undo()) },
     { label: 'Redo', icon: editorIconRedo, action: () => runCommand(chain => chain.redo()) },
   ])
+  const toolbarItems = $derived(isMarkdown ? allToolbarItems.filter(item => markdownToolbarLabels.has(item.label)) : allToolbarItems)
 </script>
 
 <svelte:window onpointerdown={closePopoverOnOutsidePointer} />
@@ -271,6 +316,19 @@
                   onclick={() => applyFontSize(`${textSize.id}px`)}
                 >
                   {textSize.name}
+                </button>
+              {/each}
+            </div>
+          {:else if openPopover === "heading"}
+            <div class="flex gap-4 p-6">
+              {#each headingOptions as option}
+                <button type="button"
+                  class="_4 {currentHeadingLevel === option.level ? 'bg-blue-bg-strong border-blue-solid text-blue-fg' : ''}"
+                  aria-label={option.label}
+                  title={option.label}
+                  onclick={() => applyHeading(option.level)}
+                >
+                  {option.name}
                 </button>
               {/each}
             </div>
@@ -355,6 +413,33 @@
   /* Styles for the ProseMirror document tiptap renders inside the editor root */
   .tiptap-editor :global(.tiptap p) {
     margin: 0 0 6px;
+  }
+
+  /* Tailwind's preflight leaves headings at body size */
+  .tiptap-editor :global(.tiptap h1),
+  .tiptap-editor :global(.tiptap h2),
+  .tiptap-editor :global(.tiptap h3) {
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 12px 0 6px;
+  }
+
+  .tiptap-editor :global(.tiptap h1) {
+    font-size: 1.5em;
+  }
+
+  .tiptap-editor :global(.tiptap h2) {
+    font-size: 1.25em;
+  }
+
+  .tiptap-editor :global(.tiptap h3) {
+    font-size: 1.1em;
+  }
+
+  .tiptap-editor :global(.tiptap th) {
+    background-color: var(--surface-soft);
+    font-weight: 600;
+    text-align: left;
   }
 
   .tiptap-editor :global(.tiptap ul) {

@@ -523,7 +523,7 @@ Neither menu imports routing, security, or services; all policy arrives as props
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `SideMenu` | Grouped sidebar with access filtering and branding | `model: MenuGroup[]`, `activePath`, `open` (bindable), `canAccess`, `translate`, `onNavigate`, `useTopMinimalMenu`, `desktopLogoSrc`, `mobileLogoSrc`, `desktopBrandName`, `mobileBrandName`, `header` (snippet receiving `isMobile`; replaces logo + brand, and hides its `.side-menu-expanded-only` descendants while the desktop menu is collapsed), `footer` (snippet pinned to the bottom of the mobile drawer; mobile only) |
+| `SideMenu` | Grouped sidebar with access filtering and branding | `model: MenuGroup[]`, `activePath`, `open` (bindable), `canAccess`, `translate`, `onNavigate`, `useTopMinimalMenu`, `useFlat` (no group headers: every option at one level), `disableAnimations` (instant: no transitions, drawer slide or fades), `desktopLogoSrc`, `mobileLogoSrc`, `desktopBrandName`, `mobileBrandName`, `header` (snippet receiving `isMobile`; replaces logo + brand, and hides its `.side-menu-expanded-only` descendants while the desktop menu is collapsed), `beforeOptions` (snippet receiving `isMobile`, between the header and the options on desktop and mobile; same `.side-menu-expanded-only` hook), `footer` (snippet pinned to the bottom of the mobile drawer; mobile only) |
 | `MobileMenu` | Full-screen mobile item list | `items: MobileMenuItem[]`, `open` (bindable), `onSelect`, `closeLabel` |
 
 ### `files/` — images and uploads
@@ -602,7 +602,7 @@ $effect(() => { const routeId = page.route.id || ''; untrack(() => showRouteGuid
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `HTMLEditor` | Tiptap rich-text editor bound with `saveOn`/`save`: tables with row/column handles and resizable columns | `saveOn`, `save`, `css` |
+| `HTMLEditor` | Tiptap rich-text editor bound with `saveOn`/`save`: tables with row/column handles and resizable columns. `format="markdown"` stores Markdown instead of HTML (no colors, text sizes, alignment or underline; the text size button picks headings) | `saveOn`, `save`, `css`, `format` |
 
 ### `runtime/`
 

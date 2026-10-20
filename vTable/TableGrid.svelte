@@ -823,7 +823,7 @@
     /*
     scrollbar-gutter: stable;
     scrollbar-width: auto;
-    scrollbar-color: #94a3b8 #f1f5f9;
+    scrollbar-color: var(--fg-subtle) var(--surface-muted);
     */
   }
 

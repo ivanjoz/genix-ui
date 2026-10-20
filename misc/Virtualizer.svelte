@@ -16,6 +16,9 @@
     emptyMessage?: string
     /** Enable console debug logs. Logs are prefixed `[Virtualizer:<id>]`. */
     debug?: boolean
+    /** Stable key per item. With it, measured heights survive a new `items` array (e.g. a page
+     *  appended for infinite scroll) instead of resetting to the estimate and making the list jump. */
+    getKey?: (item: TItem) => string | number
     children?: Snippet<[TItem, number]>
   }
 
@@ -28,6 +31,7 @@
     viewportCss = '',
     emptyMessage = '',
     debug = false,
+    getKey,
     children,
   }: VirtualizerProps<TItem> = $props()
 
@@ -84,6 +88,8 @@
 
   // Per-item measured heights (0 = unmeasured, falls back to estimate).
   let itemHeights: number[] = []
+  // Measured heights by `getKey`, carried over when the items array changes.
+  let heightByKey = new Map<string | number, number>()
   // Cumulative offset of item i from the top.
   let itemOffsets: number[] = []
   let totalHeight = $state(0)
@@ -116,12 +122,23 @@
   }
 
   // Reset measurements when the items array reference changes — the item at a given index may be
-  // different content, so prior heights are not reliable. Runs before DOM updates so the first
-  // render uses fresh estimates.
+  // different content, so prior heights are not reliable (unless `getKey` says it is the same item).
+  // Runs before DOM updates so the first render uses fresh estimates.
   $effect.pre(() => {
     void items
     untrack(() => {
-      itemHeights = new Array(items.length).fill(0)
+      if (getKey) {
+        const kept = new Map<string | number, number>()
+        itemHeights = items.map((item) => {
+          const key = getKey(item)
+          const height = heightByKey.get(key) ?? 0
+          if (height > 0) { kept.set(key, height) }
+          return height
+        })
+        heightByKey = kept
+      } else {
+        itemHeights = new Array(items.length).fill(0)
+      }
       rebuildOffsetsFrom(0)
     })
   })
@@ -217,6 +234,7 @@
 
     const delta = measured - oldHeight
     itemHeights[index] = measured
+    if (getKey) { heightByKey.set(getKey(items[index]), measured) }
     dlog('measure:update', { index, oldHeight, measured, delta, hadMeasurement })
     rebuildOffsetsFrom(index)
 

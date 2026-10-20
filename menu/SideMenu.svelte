@@ -7,6 +7,8 @@
 		activePath,
 		open = $bindable(false),
 		useTopMinimalMenu = false,
+		useFlat = false,
+		disableAnimations = false,
 		canAccess = () => true,
 		translate = (value) => value,
 		onNavigate = (route) => {
@@ -17,12 +19,17 @@
 		desktopBrandName = '',
 		mobileBrandName = '',
 		header,
+		beforeOptions,
 		footer,
 	}: {
 		model: MenuGroup[];
 		activePath: string;
 		open?: boolean;
 		useTopMinimalMenu?: boolean;
+		/** No group headers: the options of every group are listed at one level, in model order. */
+		useFlat?: boolean;
+		/** Everything is instant: no width/height/color transitions, no drawer slide, no fades. */
+		disableAnimations?: boolean;
 		canAccess?: (item: MenuItem) => boolean;
 		translate?: (value: string) => string;
 		onNavigate?: (route: string) => void | Promise<void>;
@@ -33,6 +40,9 @@
 		/** Replaces the logo + brand block, desktop and mobile. Receives `isMobile`. On desktop, give
 		 *  `side-menu-expanded-only` to whatever must hide while the menu is collapsed. */
 		header?: Snippet<[boolean]>;
+		/** Between the header and the options, desktop and mobile. Receives `isMobile`. On desktop it
+		 *  is laid out at the expanded width (the collapsed menu clips it), like `header`. */
+		beforeOptions?: Snippet<[boolean]>;
 		/** Pinned to the bottom of the mobile drawer, under the menu groups. Mobile only. */
 		footer?: Snippet;
 	} = $props();
@@ -50,6 +60,7 @@
 			})
 			.filter((menuRecord) => (menuRecord.options?.length || 0) > 0);
 	});
+	const flatOptions = $derived(filteredMenus.flatMap((menuRecord) => menuRecord.options));
 	let menuOpen = $state<[number, string]>([0, '']);
 	let mobileMenuPanel: HTMLElement;
 	let mobileMenuBackdrop: HTMLElement;
@@ -110,7 +121,7 @@
 	$effect(() => {
 		const nextOpen = open;
 		if (untrack(() => drawerShownOpen) === nextOpen) { return }
-		if (!document.startViewTransition || !mobileMenuPanel) {
+		if (disableAnimations || !document.startViewTransition || !mobileMenuPanel) {
 			drawerShownOpen = nextOpen;
 			return
 		}
@@ -136,12 +147,65 @@
 	});
 </script>
 
+{#snippet desktopOption(option: MenuItem, menuId: number)}
+	{@const isActive = option.route === activePath}
+	{@const optionName = translate(option.name)}
+	<a class="submenu-option w-full flex items-center px-0 py-10 relative
+		hover:bg-indigo-600/20 transition-colors duration-150
+		border-l-2 border-transparent
+		{isActive ? 'is-selected bg-indigo-600/30 border-indigo-400 text-white' : 'text-gray-300'}"
+		href={option.route || '/'}
+		onclick={(clickEvent) => navigateTo(clickEvent, option.route || '/', menuId)}
+	>
+		<div class="option-content flex w-full">
+			<!-- Keep one stable icon node during menu expansion to avoid mask repaint flicker. -->
+			<i class="{option.icon || "icon-[fa--cube]"} desktop-option-icon mr-3 w-[1em] shrink-0 leading-none"></i>
+			<div class="option-minimized ff-semibold">
+				{option.minName || optionName.substring(0, 2)}
+			</div>
+			<div class="option-expanded ff-semibold">
+				{#each optionName.split(' ') as word}
+					<span class="mr-4">{word}</span>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Active indicator -->
+		{#if isActive}
+			<div
+				class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3/4 bg-indigo-400 rounded-r"
+			></div>
+		{/if}
+	</a>
+{/snippet}
+
+{#snippet mobileOption(option: MenuItem, menuId: number)}
+	{@const isActive = option.route === activePath}
+	{@const optionName = translate(option.name)}
+	<a
+		class="mobile-menu-option {isActive ? 'is-active' : ''}"
+		href={option.route || '/'}
+		onclick={(e) => navigateTo(e, option.route || '/', menuId, e.currentTarget)}
+		onmousedown={(e) => e.currentTarget.classList.add('is-pressed')}
+		onmouseup={(e) => e.currentTarget.classList.remove('is-pressed')}
+		onmouseleave={(e) => e.currentTarget.classList.remove('is-pressed')}
+		ontouchstart={(e) => e.currentTarget.classList.add('is-pressed')}
+		ontouchend={(e) => e.currentTarget.classList.remove('is-pressed')}
+	>
+		{#if option.icon}
+			<i class="{option.icon} option-icon"></i>
+		{/if}
+		<span class="option-text">{optionName}</span>
+	</a>
+{/snippet}
+
 <!-- Desktop Menu -->
 <!-- Only `width` transitions: content keeps its layout and the growing edge reveals it. -->
 <div class="d-menu fixed left-0 top-0 bg-linear-to-b from-gray-900 via-gray-900 to-gray-950
 		text-white shadow-xl z-300 hidden md:block select-none
 		{useTopMinimalMenu ? '' : 'h-screen transition-[width] ease-in-out duration-200'}"
 	class:useTopMinimalMenu
+	class:no-animations={disableAnimations}
 	role="navigation"
 	aria-label="Main navigation"
 >
@@ -172,8 +236,17 @@
 		{/if}
 	</div>
 
+	{#if beforeOptions}
+		<div class="w-(--menu-max-width) shrink-0">{@render beforeOptions(false)}</div>
+	{/if}
+
 	<!-- Menu Items -->
 	<div class="flex-1 w-full">
+		{#if useFlat}
+			{#each flatOptions as option}
+				{@render desktopOption(option, 0)}
+			{/each}
+		{:else}
 		{#each filteredMenus as menu}
 			{@const isOpen = menuOpen[0] === menu.id}
 			{@const optionsCount = menu.options?.length || 0}
@@ -217,45 +290,19 @@
 				{#if menu.options && isOpen}
 					<div>
 						{#each menu.options as option}
-							{@const isActive = option.route === activePath}
-							{@const optionName = translate(option.name)}
-							<a class="submenu-option w-full flex items-center px-0 py-10 relative
-								hover:bg-indigo-600/20 transition-colors duration-150
-								border-l-2 border-transparent
-								{isActive ? 'is-selected bg-indigo-600/30 border-indigo-400 text-white' : 'text-gray-300'}"
-								href={option.route || '/'}
-								onclick={(clickEvent) => navigateTo(clickEvent, option.route || '/', menu.id || 0)}
-							>
-								<div class="option-content flex w-full">
-									<!-- Keep one stable icon node during menu expansion to avoid mask repaint flicker. -->
-									<i class="{option.icon || "icon-[fa--cube]"} desktop-option-icon mr-3 w-[1em] shrink-0 leading-none"></i>
-									<div class="option-minimized ff-semibold">
-										{option.minName || optionName.substring(0, 2)}
-									</div>
-									<div class="option-expanded ff-semibold">
-										{#each optionName.split(' ') as word}
-											<span class="mr-4">{word}</span>
-										{/each}
-									</div>
-								</div>
-
-								<!-- Active indicator -->
-								{#if isActive}
-									<div
-										class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-3/4 bg-indigo-400 rounded-r"
-									></div>
-								{/if}
-							</a>
+							{@render desktopOption(option, menu.id || 0)}
 						{/each}
 					</div>
 				{/if}
 			</div>
 		{/each}
+		{/if}
 	</div>
 </div>
 
 <!-- Mobile Menu -->
-<div class="mobile-menu-wrapper md:hidden select-none {drawerShownOpen ? 'is-open' : ''}" role="dialog" aria-modal="true">
+<div class="mobile-menu-wrapper md:hidden select-none {drawerShownOpen ? 'is-open' : ''}"
+	class:no-animations={disableAnimations} role="dialog" aria-modal="true">
 	<!-- Backdrop -->
 	<button type="button" class="mobile-menu-backdrop" aria-label="Close menu"
 		onclick={() => { open = false }} bind:this={mobileMenuBackdrop}></button>
@@ -283,8 +330,19 @@
 			{/if}
 		</div>
 
+		{#if beforeOptions}
+			<div class="mobile-before-options">{@render beforeOptions(true)}</div>
+		{/if}
+
 		<!-- Mobile Menu Items -->
 		<div class="mobile-menu-content">
+			{#if useFlat}
+				<div class="mobile-menu-options-grid">
+					{#each flatOptions as option}
+						{@render mobileOption(option, 0)}
+					{/each}
+				</div>
+			{:else}
 			{#each filteredMenus as menu}
 				{@const isOpen = menuOpen[0] === menu.id}
 				{@const menuName = translate(menu.name)}
@@ -305,28 +363,13 @@
 					{#if menu.options && isOpen}
 						<div class="mobile-menu-options-grid">
 							{#each menu.options as option}
-								{@const isActive = option.route === activePath}
-								{@const optionName = translate(option.name)}
-								<a
-									class="mobile-menu-option {isActive ? 'is-active' : ''}"
-									href={option.route || '/'}
-									onclick={(e) => navigateTo(e, option.route || '/', menu.id || 0, e.currentTarget)}
-									onmousedown={(e) => e.currentTarget.classList.add('is-pressed')}
-									onmouseup={(e) => e.currentTarget.classList.remove('is-pressed')}
-									onmouseleave={(e) => e.currentTarget.classList.remove('is-pressed')}
-									ontouchstart={(e) => e.currentTarget.classList.add('is-pressed')}
-									ontouchend={(e) => e.currentTarget.classList.remove('is-pressed')}
-								>
-									{#if option.icon}
-										<i class="{option.icon} option-icon"></i>
-									{/if}
-									<span class="option-text">{optionName}</span>
-								</a>
+								{@render mobileOption(option, menu.id || 0)}
 							{/each}
 						</div>
 					{/if}
 				</div>
 			{/each}
+			{/if}
 		</div>
 
 		{#if footer}
@@ -371,6 +414,12 @@
 	@keyframes side-menu-reveal {
 		from { clip-path: inset(0 calc(100% - var(--menu-min-width) + 12px) 0 0 round 8px); }
 		to { clip-path: inset(0 0 0 0 round 8px); }
+	}
+	/* `disableAnimations`: everything snaps, including the caller's header/footer snippets. The
+	   drawer's view transition is skipped in the script; this covers transitions and keyframes. */
+	.no-animations, .no-animations::after, .no-animations :global(*) {
+		transition: none !important;
+		animation: none !important;
 	}
 	.hover-indicator {
 		transition: transform 0.3s;
@@ -580,6 +629,10 @@
 		height: var(--header-height);
 		border-bottom: 1px solid var(--line);
 		background: var(--surface);
+	}
+
+	.mobile-before-options {
+		border-bottom: 1px solid var(--line);
 	}
 
 	.mobile-footer {

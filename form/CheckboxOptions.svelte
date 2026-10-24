@@ -6,7 +6,7 @@
 
   const {
 		options, saveOn = $bindable(), save, keyId, keyName, css, type,
-		useButtons = false, useButtonsSlim = false, onChange
+		useButtons = false, useButtonsSlim = false, autospace = false, onChange
 	}: {
     saveOn?: T
 		save?: keyof T
@@ -17,8 +17,21 @@
     type?: "single" | "multiple"
     useButtons?: boolean
     useButtonsSlim?: boolean
+    /** Lays the options out in equal columns sized by their names (autospaceColumns). */
+    autospace?: boolean
     onChange?: (selected: (number|string)[]) => void
   } = $props();
+
+  // autospaceColumns: the columns for the names' 75th-percentile length (the longest of the third
+  // quarter, so a few long names don't decide for all): up to 4 characters 5 columns, up to 16 4,
+  // up to 24 3, else 2. Fewer options than columns: 0, they just wrap.
+  const autospaceColumns = (optionNames: string[]): number => {
+    const sortedLengths = optionNames.map((optionName) => optionName.length).sort((left, right) => left - right)
+    const percentile75Length = sortedLengths[Math.ceil(sortedLengths.length * 0.75) - 1] || 0
+    const columns = percentile75Length <= 4 ? 5 : percentile75Length <= 16 ? 4 : percentile75Length <= 24 ? 3 : 2
+    return optionNames.length < columns ? 0 : columns
+  }
+  const gridColumns = $derived(autospace && !useButtonsSlim ? autospaceColumns((options || []).map((option) => String(option[keyName] ?? ''))) : 0)
 
   let optionsSelected: (number|string)[] = $state([])
 
@@ -90,14 +103,20 @@
   })
 </script>
 
-<div data-id="CheckboxOptions:{componentID}" class="flex {css}" class:_buttonsSlim={useButtonsSlim}>
+<!-- Options wrap onto new lines on a narrow screen; the slim segmented control stays on one line.
+     With autospace, an equal-column grid: each option fills its cell. -->
+<div data-id="CheckboxOptions:{componentID}"
+  class="{gridColumns ? 'grid gap-8' : 'flex'} {useButtonsSlim || gridColumns ? '' : 'flex-wrap gap-y-8'} {css}"
+  class:_autospace={gridColumns > 0}
+  style:grid-template-columns={gridColumns ? `repeat(${gridColumns}, minmax(0, 1fr))` : undefined}
+  class:_buttonsSlim={useButtonsSlim}>
   {#each options as opt }
   {@const optId = opt[keyId] as (number|string)}
   {@const isSelected = optionsSelected.includes(optId)}
     {#if useButtons || useButtonsSlim}
       <button data-id="Option:{optId}"
         data-selected={isSelected ? "true" : undefined}
-        class="_button ff-semibold {useButtonsSlim ? 'text-[14px]' : 'mr-10 text-[15px]'}"
+        class="_button ff-semibold {useButtonsSlim ? 'text-[14px]' : 'mr-10 text-[15px] shrink-0 max-w-full'}"
         class:_buttonSelected={isSelected && !useButtonsSlim}
         class:_buttonSlim={useButtonsSlim}
         class:_buttonSlimSelected={isSelected && useButtonsSlim}
@@ -169,10 +188,18 @@
     opacity: 0.8;
     border-radius: 8px;
     min-height: 30px;
-    padding: 0 8px;
-    box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 3px;
+    /* An option longer than the whole row breaks into lines inside its button: keep air above and below. */
+    padding: 4px 8px;
+    /* A key-like bottom line, a short soft shadow and a barely visible outline: depth without a smudge on a phone. */
+    box-shadow: 0 1.5px 0 rgba(0, 0, 0, 0.11), 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.035);
     border: 1px solid transparent;
     line-height: 1;
+  }
+
+  /* The grid's gap spaces the options: no trailing margin, and each fills its column. */
+  ._autospace > :global(button) {
+    margin-right: 0;
+    width: 100%;
   }
 
   ._buttonSelected {

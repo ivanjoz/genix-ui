@@ -3,6 +3,7 @@
   const ui = useUI();
     import { untrack } from "svelte";
     import FieldShell from "./FieldShell.svelte";
+    import { notifyFailure } from "../notify/notify.svelte.js";
     import type { ElementAST } from '../misc/Renderer.svelte';
     import { Agent } from "../agent/registry";
     import angleSvg from '../assets/angle.svg?raw';
@@ -29,6 +30,10 @@
         inputCss?: string;
         required?: boolean;
         validator?: (v: string | number) => boolean;
+        // A regular expression the whole value must match (anchored: "9\d{8}" is "^(?:9\d{8})$").
+        // On blur a non-empty value that does not match is rejected: the field goes back to the
+        // value it had on focus and a toast says why. An empty value is left to `required`.
+        pattern?: string;
         type?: string;
         placeholder?: string;
         disabled?: boolean;
@@ -98,6 +103,7 @@
         inputCss,
         required,
         validator,
+        pattern,
         type,
         placeholder,
         disabled,
@@ -186,6 +192,14 @@
     let isChange = 0;
     let focusValue = null as string | number | null;
 
+    // An invalid pattern rejects nothing: a broken rule must not lock the field.
+    const patternRegex = $derived.by(() => {
+        if (!pattern) return null;
+        try { return new RegExp(`^(?:${pattern})$`); } catch { return null; }
+    });
+    const matchesPattern = (value: string | number): boolean =>
+        !patternRegex || value === "" || value === undefined || value === null || patternRegex.test(String(value));
+
     const onKeyUp = (ev: KeyboardEvent | FocusEvent, isBlur?: boolean) => {
         ev.stopPropagation();
         const target = ev.target as HTMLInputElement | HTMLTextAreaElement;
@@ -200,7 +214,11 @@
             }
         }
 
-        if (isBlur && validator && !validator(value)) {
+        const isPatternRejected = isBlur && !matchesPattern(value);
+        if (isPatternRejected) {
+            notifyFailure(ui.translate("The value does not have the expected format.|El valor no tiene el formato esperado."));
+        }
+        if (isPatternRejected || (isBlur && validator && !validator(value))) {
             inputValue = focusValue as string | number;
             if (saveOn && save) {
                 if (baseDecimalsValue && typeof inputValue === "number") {

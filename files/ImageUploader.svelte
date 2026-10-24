@@ -300,6 +300,15 @@ $effect(() => {
 const componentID = ui.nextComponentId()
 let fileInputElements = $state<HTMLInputElement[]>([])
 
+// A file dragged over the empty card shows where to drop it. The drop itself lands on the file input
+// underneath (the overlay lets the pointer through). A counter, not a flag: moving between the card's
+// children fires a dragleave for each one entered.
+let fileDragDepth = $state(0)
+const isDraggedFile = (event: DragEvent) => !!event.dataTransfer?.types.includes('Files')
+const onCardDragEnter = (event: DragEvent) => { if (isDraggedFile(event)) { fileDragDepth++ } }
+const onCardDragLeave = (event: DragEvent) => { if (isDraggedFile(event)) { fileDragDepth = Math.max(fileDragDepth - 1, 0) } }
+const isDropTarget = $derived(fileDragDepth > 0 && !imageSrc?.src && !imageSrc?.base64)
+
 const removeImage = () => {
   if (onDelete) { onDelete(src); return }
   imageSrc = { src: '', base64: '', types: [], description: '' }
@@ -320,13 +329,24 @@ $effect(() => {
 
 <div data-id="ImageUploader:{componentID}"
   data-value={imageSrc?.src || imageSrc?.base64 ? "uploaded" : "empty"}
-  class="group relative overflow-hidden rounded-[10px] border border-line-strong bg-surface cursor-pointer
-    {imageSrc?.src
-      ? ''
-      : 'hover:border-fg-muted hover:outline hover:outline-1 hover:outline-fg'}
+  class="group relative overflow-hidden rounded-[10px] bg-surface cursor-pointer
+    {isDropTarget
+      ? 'border-2 border-dashed border-purple-solid'
+      : `border border-line-strong ${imageSrc?.src ? '' : 'hover:border-fg-muted hover:outline hover:outline-1 hover:outline-fg'}`}
     {cardCss}"
   style={cardStyle}
+  role="group"
+  ondragenter={onCardDragEnter}
+  ondragleave={onCardDragLeave}
+  ondrop={() => { fileDragDepth = 0 }}
 >
+  <!-- While a file is dragged over it, the card's own border turns dashed: no second frame inside. -->
+  {#if isDropTarget}
+    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 pointer-events-none bg-purple-bg text-purple-fg">
+      <i class="icon-[fa--download] text-[1.8rem]"></i>
+      <div class="ff-bold">{ui.translate('Drop the image here|Suelta aquí la imagen')}</div>
+    </div>
+  {/if}
   {#if (imageSrc?.src || '').length === 0}
     <div class="relative flex flex-col w-full h-full pointer-events-none">
     <div class="relative flex flex-1 min-h-0 w-full">

@@ -196,6 +196,17 @@
     line-height: 1;
   }
 
+  /* Hover on an option not picked yet: full opacity and a faint purple outline, the selected
+     state's color, so the pointer shows what a click will mark. Only with a real pointer: on a
+     phone a tap would leave the hover stuck on the option. */
+  @media (hover: hover) {
+    ._button:not(._buttonSelected):not(._buttonSlim):hover {
+      opacity: 1;
+      outline: 1px solid color-mix(in srgb, var(--purple-border) 60%, transparent);
+      border-color: color-mix(in srgb, var(--purple-bg-strong) 60%, transparent);
+    }
+  }
+
   /* The grid's gap spaces the options: no trailing margin, and each fills its column. */
   ._autospace > :global(button) {
     margin-right: 0;

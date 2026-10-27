@@ -4,12 +4,14 @@ import { decodeFrameAnswer, decodeFrameFile, formatHeldFrameFiles } from './fram
 const fromHex = (hex: string) => Uint8Array.from(hex.match(/../g) || [], (pair) => parseInt(pair, 16))
 
 // Hexes from genix-orm/dataframe/testdata/frame_wire_vectors.json (TestFrameWireVectors).
-const ONE_ROWS_COLUMN_HEX = '0307a8b7f4bc0104e90701020640f0024f0a069022020005030a01'
-const NESTED_HEX = '03ff80bcf4bc018201030a01010006020103000100070100140100d00f0a06c06024cc2355d8e6852402020155ab56ad5ab56ad5aa55ab56ad5a1500e80702e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4010205010388c61ad158231a6b44638d68ac118d35a2b14634d688c61ad158231a6b44638d68ac118d35a2b14634d688c61ad15823020e00018401103254760821436587103254760821436587103254760821436587103254760821436587103204760821436587103254760821436587103254760821436587104da0be8195018201020180f985d404'
-const NO_ROWS_HEX = '0303c8bdf4bc0100'
+const ONE_ROWS_COLUMN_HEX = '0407a8b7f4bc0104e90701020640f0024f0a069022020005030a01'
+const NESTED_HEX = '04ff80bcf4bc018201030a010006020103000007001400d00f0a06c06024cc2355d8e6852402020155ab56ad5ab56ad5aa55ab56ad5a1500e80702e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4010205010388c61ad158231a6b44638d68ac118d35a2b14634d688c61ad158231a6b44638d68ac118d35a2b14634d688c61ad15823020e00018401103254760821436587103254760821436587103254760821436587103254760821436587103204760821436587103254760821436587103254760821436587104da0be8195018201020180f985d404'
+const NO_ROWS_HEX = '0403c8bdf4bc0100'
+const ZERO_SUMS_MASK_HEX = '8409b0c5f4bc01040465010102300200020501080d880e0a09a04600b0090201021200020280'
 const ONE_FILE_WIRE_HEX = '01075034462d3673560102c4b6f4bc010101a914a8b7f4bc01071b' + ONE_ROWS_COLUMN_HEX
-const NESTED_AND_EMPTY_WIRE_HEX = '01075034462d3673570303c4b6f4bc010202a9140480bcf4bc01ffe901' + NESTED_HEX + '02aa1404c8bdf4bc010000'
+const NESTED_AND_EMPTY_WIRE_HEX = '01075034462d3673570303c4b6f4bc010202a9140480bcf4bc01ffe501' + NESTED_HEX + '02aa1404c8bdf4bc010000'
 const NOTHING_CHANGED_WIRE_HEX = '01075034462d3673570303c4b6f4bc0100'
+const MASKED_FILE_WIRE_HEX = '01075034462d3673580206b0c5f4bc01010194a001b0c5f4bc010926' + ZERO_SUMS_MASK_HEX
 
 // The nested vector's values, by the same formula as makeFrameWireVectors.
 const nestedRows = (): { rows: number[][]; sums: number[][] } => {
@@ -44,11 +46,21 @@ describe('decodeFrameFile', () => {
 		expect(decodeFrameFile(fromHex(NO_ROWS_HEX), 2, 1)).toEqual({ snapshot: 396173000, slot: 3, rows: [[], []], sums: [[]] })
 	})
 
+	it('reads the zero sums mask: empty sums cost nothing, constant ones a byte', () => {
+		expect(decodeFrameFile(fromHex(ZERO_SUMS_MASK_HEX), 2, 6)).toEqual({
+			snapshot: 396174000,
+			slot: 9,
+			rows: [[101, 102, 103, 107], [1, 1, 1, 6]],
+			sums: [[2500, 1250, 900, 4000], [0, 0, 0, 0], [3, 1, 2, 1], [0, 0, 0, 4], [0, 0, 0, 0], [0, 0, 0, 0]],
+		})
+	})
+
 	it('refuses every truncated prefix', () => {
-		for (const hex of [ONE_ROWS_COLUMN_HEX, NESTED_HEX]) {
+		const shapes: [string, number, number][] = [[ONE_ROWS_COLUMN_HEX, 1, 2], [NESTED_HEX, 3, 3], [ZERO_SUMS_MASK_HEX, 2, 6]]
+		for (const [hex, rowColumnCount, sumsCount] of shapes) {
 			const content = fromHex(hex)
 			for (let length = 0; length < content.length; length++) {
-				expect(() => decodeFrameFile(content.subarray(0, length), hex === NESTED_HEX ? 3 : 1, hex === NESTED_HEX ? 3 : 2)).toThrow()
+				expect(() => decodeFrameFile(content.subarray(0, length), rowColumnCount, sumsCount)).toThrow()
 			}
 		}
 	})
@@ -76,6 +88,8 @@ describe('decodeFrameAnswer', () => {
 		expect(answer.files.map((file) => file.keys)).toEqual([[2601]])
 		expect(decodeFrameFile(answer.files[0]!.content, answer.rowColumnCount, answer.sumsCount).sums[0]).toEqual([120, 60, 300, -40])
 		expect(decodeFrameAnswer(fromHex(NOTHING_CHANGED_WIRE_HEX)).files).toEqual([])
+		const masked = decodeFrameAnswer(fromHex(MASKED_FILE_WIRE_HEX))
+		expect(decodeFrameFile(masked.files[0]!.content, masked.rowColumnCount, masked.sumsCount).sums[3]).toEqual([0, 0, 0, 4])
 	})
 
 	it('refuses every truncated prefix', () => {

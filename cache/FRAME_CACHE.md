@@ -7,7 +7,7 @@ report from the decoded rows.
 
 ```text
 cache/
-  frame.wire.ts           decode a file (format v3) and a route's answer; format the held files. Pure
+  frame.wire.ts           decode a file (format v4: zero sums mask, constant columns) and a route's answer; format the held files. Pure
   frame-cache.idb.ts      Dexie: one row per file, database <companyID>_frames_<env>
   frame-cache.fetch.ts    createFrameFilesGetter (ui.http.GETFrameFiles), mergeFrameAnswer
 ```

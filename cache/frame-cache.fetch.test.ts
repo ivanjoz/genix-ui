@@ -5,7 +5,7 @@ import type { IFrameFileRow } from './frame-cache.idb'
 const fromHex = (hex: string) => Uint8Array.from(hex.match(/../g) || [], (pair) => parseInt(pair, 16))
 
 // "one-rows-column" of genix-orm/dataframe/testdata/frame_wire_vectors.json: 4 rows, 2 sums.
-const fileContent = fromHex('0307a8b7f4bc0104e90701020640f0024f0a069022020005030a01')
+const fileContent = fromHex('0407a8b7f4bc0104e90701020640f0024f0a069022020005030a01')
 
 const heldRow = (keys: number[], generation: string): IFrameFileRow => ({
 	route: 'r', frame: 'f', fileKey: keys.join('_'), keys, generation, snapshot: 5, slot: 1, content: fileContent,

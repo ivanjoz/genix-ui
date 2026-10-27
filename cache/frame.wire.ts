@@ -13,12 +13,15 @@
  *   file*    uvarint key count, uvarint × keys, uvarint snapshot, u8 slot,
  *            uvarint content length (0 = no rows), the file's bytes
  *
- * and each file (format v3):
+ * and each file (format v4):
  *
- *   u8 version (3), u8 slot, uvarint snapshot, uvarint row count n (nothing follows when 0),
- *   the Rows columns nested like folders, then each summed column: varint minimum, residuals.
+ *   u8 version (4, bit 7 set with the zero sums mask), u8 slot, uvarint snapshot, uvarint row
+ *   count n (nothing follows when 0), the Rows columns nested like folders, [u8 zero sums mask: bit s
+ *   set when summed column s holds a non-zero value], then each summed column (with the mask, only
+ *   those whose bit is set; the others are all 0): varint minimum, residuals.
  *
- * Residuals: uvarint divisor, then blocks of 128, each a head byte (bits 0–6 width, bit 7 patched),
+ * Residuals: uvarint divisor (0: every residual is 0 and no blocks follow, a constant column), then
+ * blocks of 128, each a head byte (bits 0–6 width, bit 7 patched),
  * [u8 patch count], the low `width` bits of each residual packed LSB first, then per patch
  * u8 position + uvarint high bits. The Go side is genix-orm/dataframe/codec.go and changed.go; both
  * are pinned by genix-orm/dataframe/testdata/frame_wire_vectors.json.
@@ -26,7 +29,10 @@
  * Values are JS numbers: a value past 2^53 fails the decode instead of reading back rounded.
  */
 
-const FORMAT_VERSION = 3
+const FORMAT_VERSION = 4
+const ZERO_SUMS_MASK_FLAG = 0x80
+const MAX_MASKED_SUMS = 8
+const CONSTANT_COLUMN_DIVISOR = 0
 const WIRE_VERSION = 1
 const BLOCK_SIZE = 128
 const BLOCK_PATCHED_FLAG = 0x80
@@ -115,6 +121,7 @@ const readPackedBits = (bytes: Uint8Array, bitPosition: number, width: number): 
 
 const readResiduals = (reader: ByteReader, count: number): number[] => {
 	const divisor = readUvarint(reader)
+	if (divisor === CONSTANT_COLUMN_DIVISOR) return new Array<number>(count).fill(0)
 	const residuals = new Array<number>(count)
 	for (let start = 0; start < count; start += BLOCK_SIZE) {
 		const blockLength = Math.min(BLOCK_SIZE, count - start)
@@ -225,7 +232,10 @@ const readRowColumns = (reader: ByteReader, rowCount: number, rowColumnCount: nu
 /** decodeFrameFile reads a frame file; rowColumnCount and sumsCount come with the route's answer. */
 export const decodeFrameFile = (content: Uint8Array, rowColumnCount: number, sumsCount: number): FrameFile => {
 	const reader: ByteReader = { bytes: content, position: 0 }
-	if (readByte(reader) !== FORMAT_VERSION) throw corrupt('the file version')
+	const formatByte = readByte(reader)
+	const usesZeroSumsMask = (formatByte & ZERO_SUMS_MASK_FLAG) !== 0
+	if ((formatByte & ~ZERO_SUMS_MASK_FLAG) !== FORMAT_VERSION) throw corrupt('the file version')
+	if (usesZeroSumsMask && sumsCount > MAX_MASKED_SUMS) throw corrupt('the zero sums mask')
 	const slot = readByte(reader)
 	const snapshot = readUvarint(reader)
 	const rowCount = readUvarint(reader)
@@ -239,7 +249,12 @@ export const decodeFrameFile = (content: Uint8Array, rowColumnCount: number, sum
 	}
 	if (rowCount === 0) return file
 	file.rows = readRowColumns(reader, rowCount, rowColumnCount)
-	for (let s = 0; s < sumsCount; s++) file.sums[s] = readSumsColumn(reader, rowCount)
+	const zeroSumsMask = usesZeroSumsMask ? readByte(reader) : 0
+	if (zeroSumsMask >> sumsCount !== 0) throw corrupt('the zero sums mask')
+	for (let s = 0; s < sumsCount; s++) {
+		const isEmptyColumn = usesZeroSumsMask && (zeroSumsMask & (1 << s)) === 0
+		file.sums[s] = isEmptyColumn ? new Array<number>(rowCount).fill(0) : readSumsColumn(reader, rowCount)
+	}
 	if (reader.position !== content.length) throw corrupt('the file end')
 	return file
 }

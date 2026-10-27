@@ -8,7 +8,12 @@ import {
   createFrameFilesGetter,
   type FrameFilesGetter,
 } from '../cache/frame-cache.fetch.js';
-import { unmarshal } from '@ivanjoz/minijson';
+import {
+  COLBIN_ACCEPT,
+  decodeColbinBody,
+  isColbinContentType,
+  isColbinDisabled,
+} from './serialization.js';
 import { notifyFailure, notifySuccess } from '../notify/notify.svelte.js';
 import { registerPageCachedService } from './page-services-registry.js';
 import { readLocalCache, writeLocalCache } from './local-cache.js';
@@ -93,7 +98,7 @@ export const isPublicApiRoute = (route?: string): boolean => {
 };
 
 export interface HttpClient {
-  buildHeaders: (contentType?: string, route?: string) => Record<string, string>;
+  buildHeaders: (contentType?: string, route?: string, announceColbin?: boolean) => Record<string, string>;
   GET: (props: httpProps) => Promise<any>;
   GETWithGroupCache: GroupCacheGetter;
   GETFrameFiles: FrameFilesGetter;
@@ -146,10 +151,12 @@ const setResponseMetadata = (headers: Headers, status: IHttpStatus): void => {
 };
 
 export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
-  // Genix compact responses are decoded by default; lower-level clients may override this.
-  const transformResponse = runtime.transformResponse ?? unmarshal;
+  // Responses arrive already decoded (colbin in parsePreResponse, otherwise plain JSON);
+  // lower-level clients may still post-process them.
+  const transformResponse = runtime.transformResponse ?? ((response: any) => response);
 
-  const buildHeaders = (contentType?: string, route?: string): Record<string, string> => {
+  // announceColbin is false for axios uploads: axios would parse the binary body as text.
+  const buildHeaders = (contentType?: string, route?: string, announceColbin = true): Record<string, string> => {
     const contentTypes: Record<string, string> = { json: 'application/json' };
     const headers: Record<string, string> = {};
 
@@ -159,6 +166,9 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
 
     if (contentType && contentTypes[contentType]) {
       headers['Content-Type'] = contentTypes[contentType];
+    }
+    if (announceColbin && !isColbinDisabled()) {
+      headers.Accept = COLBIN_ACCEPT;
     }
     return headers;
   };
@@ -170,7 +180,9 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     setResponseMetadata(response.headers, status);
 
     if (response.status === 200) {
-      return response.json();
+      return isColbinContentType(contentType)
+        ? decodeColbinBody(new Uint8Array(await response.arrayBuffer()))
+        : response.json();
     }
     // A public route carries no session, so its 401 (a wrong password at login) is not an expired
     // session: its body holds the message to show.
@@ -276,7 +288,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       console.log('[http] Upload POST:', props.route);
       const response = await axios.post(runtime.makeRoute(props.route), props.data, {
         onUploadProgress: props.onUploadProgress,
-        headers: buildHeaders(undefined, props.route),
+        headers: buildHeaders(undefined, props.route, false),
       });
       const result = transformResponse(response.data);
 
@@ -380,3 +392,5 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     POST_XMLHR,
   };
 };
+
+export { isColbinDisabled, setColbinDisabled } from './serialization.js';

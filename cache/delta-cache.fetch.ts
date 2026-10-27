@@ -1,4 +1,4 @@
-import { unmarshal } from '../utilities/index.js';
+import { decodeColbinBody, isColbinContentType } from '../http/serialization.js';
 import {
   addRequestLogRow,
   bulkDeleteRouteRecordRowsMulti,
@@ -247,6 +247,13 @@ const parseResponseAsStream = async (
         }
       },
     })
+
+    // The body is colbin when the page announced it (the headers were built page-side).
+    if (isColbinContentType(contentType)) {
+      const responseBytes = new Uint8Array(await new Response(stream).arrayBuffer())
+      args.contentLength = responseBytes.length
+      return await decodeColbinBody(responseBytes)
+    }
 
     const responseText = await new Response(stream).text()
     args.contentLength = textEncoder.encode(responseText).length
@@ -616,8 +623,6 @@ const fetchNetworkResponse = async (args: serviceHttpProps, route: string) => {
 
 const parseNetworkResponse = async (args: serviceHttpProps, preResponse: Response) => {
   let response = ((await parseResponseAsStream(preResponse, args)) || {}) as CacheContent
-  response = unmarshal(response)
-  // console.log("response11", response)
   
   if(Array.isArray((response as any).response) && typeof (response as any).message === 'string'){
     response = (response as any).response as CacheContent

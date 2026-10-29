@@ -241,7 +241,7 @@ import { ifcss } from '../utilities/css.js';
         <div class="overflow-hidden text-nowrap {titleCss}">{ui.translate(title)}</div>
         {#if onDelete && buttonDeleteOnTitle}
           <!-- The base .round is 38px; important sizes shrink it to sit within the title line. -->
-          <Button color="red" useCircle noShadow icon="icon-[mdi--delete] text-[14px]" label={ui.translate("Delete|Eliminar")}
+          <Button color="red" useCircle shadow="none" icon="icon-[mdi--delete] text-[14px]" label={ui.translate("Delete|Eliminar")}
             css="shrink-0 w-28! h-28! min-w-28! -mt-8" role="delete" onClick={onDelete} />
         {/if}
         {#if titleSide}

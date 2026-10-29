@@ -4,7 +4,6 @@
   import { Agent, type AgentOption } from '../agent/registry';
   import { useUI } from '../runtime/index.js';
   import ButtonLayer from '../buttons/ButtonLayer.svelte';
-  import FilterInput from './FilterInput.svelte';
   const ui = useUI()
 
   // A select drawn as a plain button: the selected name (15px, up to 2 lines) and a chevron.
@@ -52,7 +51,7 @@
   const selectedOption = $derived(
     options.find((option) => String(option[keyId]) === String(selected ?? ""))
   );
-  const searchWords = $derived(filterText.split(" ").filter((word) => word.length > 1));
+  const searchWords = $derived(filterText.toLowerCase().split(" ").filter((word) => word.length > 1));
   const filteredOptions = $derived.by(() => {
     const matched: E[] = [];
     for (const option of options) {
@@ -79,7 +78,7 @@
     if (String(option[keyId]) !== String(selected ?? "")) { onChange?.(option); }
   }
 
-  // FilterInput stops keyup but lets keydown bubble here, so the arrows drive the list from the box.
+  // The filter box's keydown bubbles here, so the arrows drive the list from the box.
   function onLayerKeyDown(ev: KeyboardEvent) {
     if (ev.key === "Escape") {
       isOpen = false;
@@ -149,8 +148,15 @@
   layerClass={layerCss} contentCss="p-6" label={label || placeholder}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div bind:this={layerContentRef} onkeydown={onLayerKeyDown}>
-    <FilterInput bind:value={filterText} throttle={80} size="small" icon="icon-[fa--search]"
-      css="w-full mb-6" label="Filter options|Filtrar opciones" />
+    <div class="relative flex items-center mb-6">
+      <i class="icon-[fa--search] _filter-icon absolute left-8 text-[13px] pointer-events-none"></i>
+      <input class="_filter w-full h-32 pl-30 pr-8" type="text" autocomplete="off"
+        aria-label={ui.translate("Filter options|Filtrar opciones")}
+        placeholder={ui.translate("Search...|Buscar...")}
+        bind:value={filterText}
+        oninput={() => { arrowSelected = -1; }}
+      />
+    </div>
     <div class="max-h-300 overflow-y-auto" role="listbox">
       {#each filteredOptions as option, optionIndex}
         {@const optionName = String(option[keyName] ?? "")}
@@ -234,6 +240,19 @@
   }
   ._chevron_up {
     transform: rotate(180deg);
+  }
+  /* Underline-only search field, same as CellMultiSelect: no box, a tinted fill and a bottom border. */
+  ._filter {
+    border: none;
+    border-bottom: 1px solid var(--line-soft);
+    background-color: var(--surface-muted);
+    outline: none;
+  }
+  ._filter:focus {
+    border-bottom-color: var(--purple-solid);
+  }
+  ._filter-icon {
+    color: color-mix(in srgb, var(--fg) 45%, transparent);
   }
   ._option:hover {
     background-color: var(--surface-muted);

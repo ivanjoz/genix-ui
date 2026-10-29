@@ -585,3 +585,8 @@ input::-webkit-inner-spin-button {
 .round.bx-compact { width: 35px; min-width: 35px; height: 35px; }
 .round.bx-small { width: 32px; min-width: 32px; height: 32px; }
 .round.bx-tiny { width: 28px; min-width: 28px; height: 28px; }
+
+/* Button `shadow`: overrides whatever shadow the color and mode give, also on hover (the modes'
+   :hover rules out-rank a single class, hence !important). */
+.bx-shadow-none { box-shadow: none !important; }
+.bx-shadow-minimal { box-shadow: rgb(0 0 0 / 12%) 0px 1px 2.5px !important; }

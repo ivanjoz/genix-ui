@@ -7,6 +7,7 @@
   type ButtonColor = 'blue' | 'green' | 'red' | 'orange' | 'yellow' | 'purple';
   type ButtonMode = 'default' | 'subtle' | 'minimal' | 'white';
   type ButtonHeight = 'default' | 'compact' | 'small' | 'tiny';
+  type ButtonShadow = 'default' | 'none' | 'minimal';
 
   interface Props {
     icon?: string;
@@ -23,8 +24,8 @@
     /** default 39px, compact 35px, small 32px, tiny 28px (also sizes the `useCircle` circle). */
     height?: ButtonHeight;
     useCircle?: boolean;
-    /** Drops the colored drop shadow of the bx-* colors, also on hover. */
-    noShadow?: boolean;
+    /** Overrides the color/mode shadow, also on hover: none drops it, minimal is a faint gray one. */
+    shadow?: ButtonShadow;
     hideNameOnMobile?: boolean;
     css?: string;
     disabled?: boolean;
@@ -42,7 +43,7 @@
     mode = 'default',
     height = 'default',
     useCircle = false,
-    noShadow = false,
+    shadow = 'default',
     hideNameOnMobile = false,
     css = '',
     disabled = false,
@@ -74,7 +75,7 @@
   data-id="Button:{componentID}"
   aria-label={ui.translate(label)}
   data-value={role}
-  class={`${color ? `bx-${color}` : ''}${color && mode !== 'default' ? ` bx-${mode}` : ''}${height !== 'default' ? ` bx-${height}` : ''}${useCircle ? ' round' : ''}${noShadow ? ' shadow-none!' : ''} ${css}`.trim()}
+  class={`${color ? `bx-${color}` : ''}${color && mode !== 'default' ? ` bx-${mode}` : ''}${height !== 'default' ? ` bx-${height}` : ''}${useCircle ? ' round' : ''}${shadow !== 'default' ? ` bx-shadow-${shadow}` : ''} ${css}`.trim()}
   {disabled}
   onclick={triggerClick}
 >

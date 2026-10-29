@@ -48,7 +48,7 @@
 <div class="flex flex-wrap items-center gap-16">
   <div class="relative shrink-0" style:width={`${size}px`} style:height={`${size}px`}>
     <svg viewBox="0 0 42 42" class="h-full w-full" role="img" aria-label={ui.translate(totalLabel)}>
-      <circle cx="21" cy="21" r={RADIUS} fill="none" stroke="var(--color-line-soft)" stroke-width={STROKE_WIDTH} />
+      <circle cx="21" cy="21" r={RADIUS} fill="none" stroke="var(--line-soft)" stroke-width={STROKE_WIDTH} />
       {#each arcs as arc (arc.slice.name)}
         <circle class="transition-opacity hover:opacity-70" cx="21" cy="21" r={RADIUS} fill="none" stroke={arc.slice.color}
           stroke-width={STROKE_WIDTH} stroke-dasharray={`${Math.max(0, arc.percent - gap)} ${100 - arc.percent + gap}`}

@@ -854,7 +854,34 @@ const firstSyncFromSnapshotFile = async (
   }
 }
 
+// The network syncs under way, by route and request shape. A sync reads the route's cursor before
+// its request and saves the next one after it, so a second sync of the route starting in between
+// (two pages, or two services, of one route) would send the same cursor and download the same delta
+// again. It joins the first one and receives its answer instead.
+const inFlightSyncs = new Map<string, ReturnType<typeof syncDeltaCache>>()
+
 export const fetchDeltaCache = async (args: serviceHttpProps) => {
+  // An offline read only reads IndexedDB: nothing to share.
+  if(args.cacheMode === 'offline'){ return await syncDeltaCache(args) }
+
+  // The answer depends on the cache mode (updateOnly answers null when nothing changed) and on the
+  // request the sync builds, so only an identical request is joined.
+  const routeReference = makeRouteReference(args)
+  const syncKey = [
+    routeReference.dbName, routeReference.routeLookupKey, routeReference.version,
+    args.routeParsed || args.route, args.cacheMode || 'normal', (args.fields || []).join(','),
+  ].join('|')
+  const inFlightSync = inFlightSyncs.get(syncKey)
+  if(inFlightSync){
+    console.log("[DeltaCache] joining the sync under way:", syncKey)
+    return await inFlightSync
+  }
+  const sync = syncDeltaCache(args).finally(() => inFlightSyncs.delete(syncKey))
+  inFlightSyncs.set(syncKey, sync)
+  return await sync
+}
+
+const syncDeltaCache = async (args: serviceHttpProps) => {
   console.log("Obteniendo fetch service worker:", args.route, "|", args.cacheMode, "|", args.__req__, "|", args.__version__)
 
   const routeKey = makeCacheKey(args)

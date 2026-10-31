@@ -4,6 +4,8 @@ export interface MenuItem {
   route?: string;
   icon?: string;
   minName?: string;
+  /** Listed but not clickable, e.g. a page that is planned but not built yet. */
+  disabled?: boolean;
   meta?: Record<string, unknown>;
 }
 

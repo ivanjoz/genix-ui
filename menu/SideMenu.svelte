@@ -21,6 +21,7 @@
 		header,
 		beforeOptions,
 		footer,
+		desktopFooter,
 	}: {
 		model: MenuGroup[];
 		activePath: string;
@@ -45,6 +46,9 @@
 		beforeOptions?: Snippet<[boolean]>;
 		/** Pinned to the bottom of the mobile drawer, under the menu groups. Mobile only. */
 		footer?: Snippet;
+		/** Pinned to the bottom of the desktop menu, e.g. the brand logo. Desktop only. Laid out at the
+		 *  expanded width; give `side-menu-expanded-only` to whatever must hide while collapsed. */
+		desktopFooter?: Snippet;
 	} = $props();
 
 	const filteredMenus = $derived.by(() => {
@@ -150,12 +154,15 @@
 {#snippet desktopOption(option: MenuItem, menuId: number)}
 	{@const isActive = option.route === activePath}
 	{@const optionName = translate(option.name)}
+	<!-- A disabled option is an <a> without href: listed, not focusable, not navigable. -->
 	<a class="submenu-option w-full flex items-center px-0 py-10 relative
-		hover:bg-indigo-600/20 transition-colors duration-150
+		transition-colors duration-150
 		border-l-2 border-transparent
+		{option.disabled ? 'opacity-45 cursor-not-allowed text-gray-400' : 'hover:bg-indigo-600/20'}
 		{isActive ? 'is-selected bg-indigo-600/30 border-indigo-400 text-white' : 'text-gray-300'}"
-		href={option.route || '/'}
-		onclick={(clickEvent) => navigateTo(clickEvent, option.route || '/', menuId)}
+		href={option.disabled ? undefined : option.route || '/'}
+		aria-disabled={option.disabled}
+		onclick={(clickEvent) => { if (!option.disabled) { navigateTo(clickEvent, option.route || '/', menuId) } }}
 	>
 		<div class="option-content flex w-full">
 			<!-- Keep one stable icon node during menu expansion to avoid mask repaint flicker. -->
@@ -183,9 +190,10 @@
 	{@const isActive = option.route === activePath}
 	{@const optionName = translate(option.name)}
 	<a
-		class="mobile-menu-option {isActive ? 'is-active' : ''}"
-		href={option.route || '/'}
-		onclick={(e) => navigateTo(e, option.route || '/', menuId, e.currentTarget)}
+		class="mobile-menu-option {isActive ? 'is-active' : ''} {option.disabled ? 'opacity-45 cursor-not-allowed' : ''}"
+		href={option.disabled ? undefined : option.route || '/'}
+		aria-disabled={option.disabled}
+		onclick={(e) => { if (!option.disabled) { navigateTo(e, option.route || '/', menuId, e.currentTarget) } }}
 		onmousedown={(e) => e.currentTarget.classList.add('is-pressed')}
 		onmouseup={(e) => e.currentTarget.classList.remove('is-pressed')}
 		onmouseleave={(e) => e.currentTarget.classList.remove('is-pressed')}
@@ -202,14 +210,14 @@
 <!-- Desktop Menu -->
 <!-- Only `width` transitions: content keeps its layout and the growing edge reveals it. -->
 <div class="d-menu fixed left-0 top-0 bg-linear-to-b from-gray-900 via-gray-900 to-gray-950
-		text-white shadow-xl z-300 hidden md:block select-none
+		text-white shadow-xl z-300 hidden md:flex md:flex-col select-none
 		{useTopMinimalMenu ? '' : 'h-screen transition-[width] ease-in-out duration-200'}"
 	class:useTopMinimalMenu
 	class:no-animations={disableAnimations}
 	role="navigation"
 	aria-label="Main navigation"
 >
-	<div class="flex items-center h-48 border-b border-gray-800/30 w-full overflow-hidden"
+	<div class="flex items-center h-48 shrink-0 border-b border-gray-800/30 w-full overflow-hidden"
 		class:minimal-menu={useTopMinimalMenu}
 	>
 		{#if useTopMinimalMenu}
@@ -298,6 +306,12 @@
 		{/each}
 		{/if}
 	</div>
+
+	{#if desktopFooter}
+		<!-- Pinned under the options (they take the free height). Laid out at the expanded width, like
+		     `header`: the collapsed menu clips it and the expansion reveals it. -->
+		<div class="w-(--menu-max-width) shrink-0 px-6 py-8 border-t border-gray-800/30">{@render desktopFooter()}</div>
+	{/if}
 </div>
 
 <!-- Mobile Menu -->

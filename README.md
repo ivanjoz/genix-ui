@@ -416,6 +416,7 @@ component writes straight into it (bindable, no event plumbing).
 | `CheckboxOptions` **(ui)** | Single/multi option set, optionally rendered as buttons | `options`, `keyId`, `keyName`, `type: 'single'\|'multiple'`, `useButtons`, `useButtonsSlim`, `onChange` |
 | `InputList` | Editable list of one-line texts (checklists, criteria): borderless rows in one frame, + button by the title, ✕ on row hover; with `checkKey` a checkbox per row and a right-aligned done count | `items` (bindable), `textKey`, `checkKey`, `makeItem`, `title`, `countLabel`, `placeholder`, `emptyText`, `disabled` (read-only), `css` |
 | `SelectedTags` | Coloured tags of what the fields bound to `saveOn` selected; hover ✕ clears it in the field too | `saveOn`, `fields: { save, options?, keyId?, keyName?, label? }[]`, `css`, `useBorder` |
+| `AvatarToggleGroup` **(ui)** | People filter drawn as avatars: a click toggles one, several can be chosen; the name shows on hover. Each `id` is also the avatar's color seed; id 0 is a gray circle with `icon` | `options: { id, name }[]`, `selected` (bindable IDs), `label`, `optionLabel(name)`, `icon`, `css` |
 | `DateInput` **(ui)** | Calendar input over Unix day / SUnix values | `saveOn`, `save`, `type: 'unix'\|'sunix'`, `usePopover`, `useInlineStyle`, `required`, `onChange` |
 | `TimeInput` **(ui)** | Time of day as minutes after midnight (510 = 08:30): a 6 × 4 grid of hour buttons and a minutes slider in a popover; clearing deletes the key | `saveOn`, `save`, `label`, `minuteStep` (5), `minuteLabels` ([0, 15, 30, 55]), `disabled`, `onChange` |
 | `NumericSlider` **(ui)** | Single-value slider over a whole-pixel tick scale (`numeric-slider-scale.ts`); writes while dragging, `onChange` once on release | `min`, `max`, `referenceWidth`, `step`, `saveOn`, `save`, `value`, `label`, `prefix`, `suffix`, `scaleLabels` (default `[min, max]`), `onChange` |
@@ -534,7 +535,7 @@ Neither menu imports routing, security, or services; all policy arrives as props
 | `Imagehash` | Image with a thumbhash placeholder | `src`, `hash`, `size`, `folder`, `alt` |
 | `ImageUploader` **(ui)** | Convert (AVIF/WebP), queue, and upload images | `src`, `saveAPI`, `refreshRoutes`, `convertResolutions`, `useConvertAvif`, `folder`, `onChange`, `onUploaded`, `setDataToSend`, `hideForm`, `processName` |
 | `FileUploadSelector` **(ui)** | File picker with extension filtering | `selectedFile` (bindable), `accept`, `extensions`, `buttonLabel`, `onChange` |
-| `FileDropZone` **(ui)** | Drop area that also picks on click | `selectedFile` (bindable), `accept`, `extensions`, `label`, `hint`, `css`, `disabled`, `onChange` |
+| `FileDropZone` **(ui)** | Drop area that also picks on click. One file by default; with `multiple` every picked or dropped file goes to `onFiles` (the zone keeps none), the `children` snippet (the files already added) is drawn inside the frame and `uploadingCount` shows "Uploading... (n)". A file of a disallowed extension is refused with a notification, the others go on | `selectedFile` (bindable), `accept`, `extensions`, `label`, `hint`, `css`, `disabled`, `onChange`, `multiple`, `onFiles`, `uploadingCount`, `children` |
 
 ### `charts/`
 
@@ -581,6 +582,9 @@ given: the host translates its own data. Date math (`ganttRange`, `barBox`, `mon
 | `RecordByIDText` **(ui)** | Resolves and shows a record name from an id | `apiRoute`, `recordID`, `placeholder` |
 | `SquareBarSized` **(ui)** | Proportional square/bar KPI tile | `label`, `value`, `size`, `background`, `backgroundColor`, `sublabel` |
 | `LoadingBar` **(ui)** | Indeterminate progress bar | `css`, `label` |
+| `Badge` | Status tag in the consumer's colors (`css`, e.g. a state's `bg-green-bg-strong text-green-fg`); `Label` is the one with named colors | `text`, `css`, `size: 'default'\|'small'`, `pill`, `icon` |
+| `Avatar` | A person's circle: the initials of `name` over a color fixed by `colorSeed` (the user ID), the same on every page; without a seed a gray circle with `icon`. `avatarInitials` / `avatarColorCss` (`misc/avatar.ts`) are exported for custom markup | `name`, `colorSeed`, `size` (px), `icon`, `colorCss` (replaces the seed color), `css` |
+| `CollapsibleSection` | Boxed group with a header row (chevron, `header` snippet, `actions` snippet on the right) that collapses its body | `collapsed` (bindable), `onToggle`, `header`, `actions`, `children`, `css`, `headerCss` |
 
 ### `markdown/` — route user guides
 

@@ -3,6 +3,10 @@
   import FileCard from '../files/FileCard.svelte';
   import FileDropZone from '../files/FileDropZone.svelte';
   import FileUploadSelector from '../files/FileUploadSelector.svelte';
+  import AvatarToggleGroup from '../form/AvatarToggleGroup.svelte';
+  import Avatar from '../misc/Avatar.svelte';
+  import Badge from '../misc/Badge.svelte';
+  import CollapsibleSection from '../misc/CollapsibleSection.svelte';
   import HighlightText from '../misc/HighlightText.svelte';
   import Info from '../misc/Info.svelte';
   import Label from '../misc/Label.svelte';
@@ -20,6 +24,10 @@
 
   let selectedFile = $state<File | undefined>(undefined);
   let droppedFile = $state<File | undefined>(undefined);
+  let droppedFileNames = $state<string[]>([]);
+  // id 0 is the "Unassigned" option: a gray circle.
+  const showroomPeople = [{ id: 1, name: 'Ana Pérez' }, { id: 2, name: 'Luis Torres' }, { id: 3, name: 'admin' }, { id: 0, name: 'Unassigned' }];
+  let selectedPeopleIDs = $state<number[]>([]);
   let isPortalVisible = $state(false);
   let lastRendererClick = $state('—');
   // HTMLEditor pulls in tiptap, the heaviest import on the page, so it loads on demand.
@@ -81,6 +89,38 @@
   </div>
 </ShowroomBlock>
 
+<ShowroomBlock name="Badge" note="status tag in the consumer's colors · default and small">
+  <div class="flex flex-wrap items-center gap-8">
+    <Badge text="Pending|Pendiente" css="bg-blue-bg-strong text-blue-fg" />
+    <Badge text="In review|En revisión" css="bg-amber-bg-strong text-amber-fg" />
+    <Badge text="Finished|Finalizado" css="bg-green-bg-strong text-green-fg" icon="icon-[fa--check]" />
+    <Badge text="Not completed|No culminada" size="small" css="bg-orange-bg-strong text-orange-fg" />
+    <Badge text="Not planned|Sin planificar" size="small" pill />
+  </div>
+</ShowroomBlock>
+
+<ShowroomBlock name="Avatar" note="initials over a color fixed by the seed · no seed is gray">
+  <div class="flex items-center gap-8">
+    {#each showroomPeople as person (person.id)}
+      <Avatar name={person.name} colorSeed={person.id} />
+    {/each}
+    <Avatar name="Big" colorSeed={9} size={40} />
+  </div>
+</ShowroomBlock>
+
+<ShowroomBlock name="AvatarToggleGroup" note="click to toggle · hover shows the name">
+  <AvatarToggleGroup options={showroomPeople} bind:selected={selectedPeopleIDs} />
+  <div class="text-xs text-fg-muted mt-8">selected: {selectedPeopleIDs.join(', ') || '—'}</div>
+</ShowroomBlock>
+
+<ShowroomBlock name="CollapsibleSection" note="header snippet + actions · the chevron collapses the body">
+  <CollapsibleSection css="max-w-500">
+    {#snippet header()}<span class="ff-bold">Reportes</span><span class="text-[14px] text-fg-muted">3 · 12 h</span>{/snippet}
+    {#snippet actions()}<Button icon="icon-[fa--plus]" color="green" mode="subtle" height="small" label="Add|Agregar" />{/snippet}
+    <div class="px-10 py-8 text-[14px]">Body of the section.</div>
+  </CollapsibleSection>
+</ShowroomBlock>
+
 <ShowroomBlock name="LoadingBar" note="indeterminate progress, with and without a label">
   <LoadingBar css="mb-12" />
   <LoadingBar label="Syncing records…|Sincronizando registros…" />
@@ -138,6 +178,14 @@
     label="Drop the certificate here or click to select it|Suelte el certificado aquí o haga clic para seleccionarlo"
     hint="A .pfx or .p12 file|Un archivo .pfx o .p12" css="max-w-400" />
   <div class="text-xs text-fg-muted mt-8">dropped: {droppedFile?.name || '—'}</div>
+</ShowroomBlock>
+
+<ShowroomBlock name="FileDropZone multiple" note="several files to onFiles · the consumer's list drawn inside">
+  <FileDropZone multiple onFiles={(files) => { droppedFileNames = [...droppedFileNames, ...files.map((file) => file.name)] }} css="max-w-500">
+    {#each droppedFileNames as droppedFileName, fileIndex (fileIndex)}
+      <FileCard name={droppedFileName} onRemove={() => { droppedFileNames = droppedFileNames.filter((_, keptIndex) => keptIndex !== fileIndex) }} />
+    {/each}
+  </FileDropZone>
 </ShowroomBlock>
 
 <ShowroomBlock name="FileCard" note="logo by extension · hover shows the remove X when onRemove is set">

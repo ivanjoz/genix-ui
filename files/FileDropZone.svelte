@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { useUI } from '../runtime/index.js';
   import { notifyFailure } from '../notify/notify.svelte.js';
   import { ifcss } from '../utilities/css.js';
@@ -16,6 +17,14 @@ interface IFileDropZoneProps {
   hint?: string;
   /** Sizing and placement belong to the consumer; the zone fills what it is given. */
   css?: string;
+  /** Several files per pick or drop, handed to `onFiles`; the zone keeps none of them
+   *  (`selectedFile` and `onChange` are the single-file mode). */
+  multiple?: boolean;
+  onFiles?: (files: File[]) => void;
+  /** Multiple mode: files the consumer is still uploading, shown as "Uploading... (n)". */
+  uploadingCount?: number;
+  /** Multiple mode: content drawn inside the zone, over the picker (the files already added). */
+  children?: Snippet;
 }
 
 let {
@@ -24,10 +33,18 @@ let {
   accept = '',
   extensions = [],
   disabled = false,
-  label = 'Drop the file here or click to select it|Suelte el archivo aquí o haga clic para seleccionarlo',
+  label,
   hint = '',
-  css = ''
+  css = '',
+  multiple = false,
+  onFiles,
+  uploadingCount = 0,
+  children,
 }: IFileDropZoneProps = $props();
+
+const zoneLabel = $derived(label || (multiple
+  ? 'Select or drop files|Seleccione o arrastre archivos'
+  : 'Drop the file here or click to select it|Suelte el archivo aquí o haga clic para seleccionarlo'));
 
 let hiddenFileInputElement: HTMLInputElement | undefined;
 let isDraggingOver = $state(false);
@@ -56,24 +73,30 @@ const formatFileSize = (sizeInBytes: number): string =>
 // The only path that accepts a file, shared by the picker and the drop: an
 // extension the consumer did not allow is refused with the reason, not silently
 // dropped, because a rejected drop leaves no trace of what went wrong.
-const acceptFile = (file: File | undefined): void => {
-  if (!file) return;
+const isExtensionAllowed = (file: File): boolean => {
+  if (normalizedExtensions.length === 0 || normalizedExtensions.includes(extractExtension(file.name))) {
+    return true;
+  }
+  notifyFailure(
+    `${file.name}: ` + ui.translate('Extension not allowed. Allowed:|Extensión no permitida. Permitidas:') +
+      ' ' + normalizedExtensions.join(', ')
+  );
+  return false;
+};
 
-  const isExtensionAllowed =
-    normalizedExtensions.length === 0 ||
-    normalizedExtensions.includes(extractExtension(file.name));
-
-  if (!isExtensionAllowed) {
-    notifyFailure(
-      ui.translate('Extension not allowed. Allowed:|Extensión no permitida. Permitidas:') +
-        ' ' + normalizedExtensions.join(', ')
-    );
+const acceptFiles = (fileList: FileList | null | undefined): void => {
+  const files = Array.from(fileList || []);
+  if (multiple) {
+    const allowedFiles = files.filter(isExtensionAllowed);
+    if (allowedFiles.length > 0) onFiles?.(allowedFiles);
     return;
   }
-
+  const file = files[0];
+  if (!file || !isExtensionAllowed(file)) return;
   selectedFile = file;
   onChange?.(file, false);
 };
+
 
 const openNativeFilePicker = () => {
   if (disabled) return;
@@ -82,7 +105,7 @@ const openNativeFilePicker = () => {
 
 const handleFileSelection = (event: Event) => {
   const inputElement = event.target as HTMLInputElement;
-  acceptFile(inputElement.files?.[0]);
+  acceptFiles(inputElement.files);
   // Cleared so re-picking the same file still fires a change.
   inputElement.value = '';
 };
@@ -107,7 +130,7 @@ const handleDrop = (event: DragEvent) => {
   event.preventDefault();
   isDraggingOver = false;
   if (disabled) return;
-  acceptFile(event.dataTransfer?.files?.[0]);
+  acceptFiles(event.dataTransfer?.files);
 };
 
 const clearSelectedFile = (event: MouseEvent) => {
@@ -127,7 +150,7 @@ const clearSelectedFile = (event: MouseEvent) => {
 <div
   class={ifcss(css, "relative w-full")}
   role="group"
-  aria-label={ui.translate(label)}
+  aria-label={ui.translate(zoneLabel)}
   ondragenter={handleDragOver}
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
@@ -138,10 +161,30 @@ const clearSelectedFile = (event: MouseEvent) => {
     type="file"
     class="hidden"
     accept={effectiveAcceptAttribute}
+    {multiple}
     {disabled}
     onchange={handleFileSelection}
   />
 
+  {#if multiple}
+    <!-- A compact frame around the consumer's files: they stay visible while more are dropped. -->
+    <div class="flex flex-col gap-8 rounded-[8px] border-2 border-dashed p-8 transition-colors duration-150
+      {isDraggingOver ? 'border-blue-solid bg-blue-bg' : 'border-line-strong bg-surface-muted'}">
+      {@render children?.()}
+      <!-- Hover only tints the background: recoloring the text and the mask-drawn icon jittered 1px. -->
+      <button type="button" class="flex cursor-pointer items-center justify-center gap-8 rounded-[6px] py-6 text-fg-muted hover:bg-surface
+        disabled:cursor-not-allowed disabled:opacity-60" {disabled} onclick={openNativeFilePicker}>
+        <i class="icon-[fa--cloud-upload] text-[20px]"></i>
+        <span>{ui.translate(zoneLabel)}</span>
+      </button>
+      {#if hint}
+        <span class="text-center text-[14px] text-fg-muted">{ui.translate(hint)}</span>
+      {/if}
+      {#if uploadingCount > 0}
+        <span class="text-center text-[14px] text-fg-muted">{ui.translate('Uploading...|Subiendo...')} ({uploadingCount})</span>
+      {/if}
+    </div>
+  {:else}
   <button
     type="button"
     class="flex h-full w-full min-h-100 flex-col items-center justify-center gap-6
@@ -159,14 +202,16 @@ const clearSelectedFile = (event: MouseEvent) => {
       <span class="text-[13px] text-fg-muted">{formatFileSize(selectedFile.size)}</span>
     {:else}
       <i class="icon-[fa--cloud-upload] text-[24px] text-blue-solid"></i>
-      <span class="text-[14px] text-fg-soft">{ui.translate(label)}</span>
+      <span class="text-[14px] text-fg-soft">{ui.translate(zoneLabel)}</span>
       {#if hint}
         <span class="text-[13px] text-fg-muted">{ui.translate(hint)}</span>
       {/if}
     {/if}
   </button>
 
-  {#if selectedFile && !disabled}
+  {/if}
+
+  {#if selectedFile && !disabled && !multiple}
     <button
       type="button"
       class="absolute right-8 top-8 flex h-26 w-26 items-center justify-center rounded-[50%]

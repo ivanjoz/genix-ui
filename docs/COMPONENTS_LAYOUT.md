@@ -43,7 +43,9 @@ unidad, igual que `vTable/`.
 ### `files/` — file selection, upload, image rendering
 Components that handle binary assets (upload, preview, hash-based loading).
 - `FileUploadSelector.svelte` — file selector with upload trigger.
-- `FileDropZone.svelte` — drag & drop area, picks on click too.
+- `FileDropZone.svelte` — drag & drop area, picks on click too. One file
+  (`selectedFile`) or, with `multiple`, several handed to `onFiles` with the
+  consumer's file list drawn inside the frame.
 - `ImageUploader.svelte` — image-specific uploader with previews.
 - `Imagehash.svelte` — hash-based progressive image renderer.
 
@@ -57,6 +59,7 @@ Anything that captures user input into a typed value. The line between
 - `ButtonSelect.svelte` — select drawn as a button; its layer has a filter row over the options.
 - `FilterInput.svelte` — typeable filter/search input.
 - `SelectedTags.svelte` — removable coloured tags of the selections stored on a `saveOn`.
+- `AvatarToggleGroup.svelte` — people filter drawn as avatars; returns the chosen IDs.
 - `LabelText.svelte` — read-only labeled value pair (label above text).
 - `LoginForm.svelte` — auth form (kept here while it's the only auth piece;
   promote to `auth/` if more auth UIs land).
@@ -100,6 +103,14 @@ that don't justify their own folder.
   `orange`, `yellow`, `purple`, `gray`) with a translatable `text`, for tagging
   a value inline (a currency, a status).
 - `LoadingBar.svelte` — animated indeterminate loading bar.
+- `Badge.svelte` — status tag whose colors come from the consumer (`css`), for
+  palettes a module owns (story states, sprint states). `Label` is the one with
+  the package's named colors.
+- `Avatar.svelte`, `avatar.ts` — a person's circle: initials over a color fixed
+  by a seed (the user ID). `avatar.ts` holds `avatarInitials` / `avatarColorCss`,
+  shared with `form/AvatarToggleGroup`.
+- `CollapsibleSection.svelte` — boxed group whose header row (chevron, title
+  snippet, actions) collapses its body.
 - `RecordByIDText.svelte` — resolves a record by ID through the cache and
   renders its display text.
 - `SquareBarSized.svelte` — proportional square bar with label/value.

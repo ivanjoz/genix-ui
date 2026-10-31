@@ -223,7 +223,7 @@ import { ifcss } from '../utilities/css.js';
 
 {#if ui.state.sideLayerId === id && (type === 'side' || type === 'bottom')}
   <div data-id="Layer:{componentID}"
-    class={ifcss(css, "flex flex-col w-800")}
+    class={ifcss(css, "flex flex-col w-800 p-8")}
     bind:this={divLayer}
     data-layer-id={id}
     class:_8={contentOverflow}

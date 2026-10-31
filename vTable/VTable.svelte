@@ -69,6 +69,11 @@
     // inside the last cell. Visibility is pure CSS (`.vtable-row:hover`), so no
     // mouseenter/mouseleave handler and no per-row state.
     onRowHover?: Snippet<[T, number]>;
+    // Row selection: a checkbox column is prepended, and clicking it adds or removes the row's
+    // id. Pass a SvelteSet so the checkboxes follow changes made outside the table too (a
+    // "select all" button). getRowID is required with it.
+    selectedIDs?: Set<string | number>;
+    getRowID?: (row: T) => string | number;
   }
 
   let {
@@ -95,7 +100,29 @@
     disableHeaderPadding = false,
     disableVirtualizer = false,
     onRowHover,
+    selectedIDs,
+    getRowID,
   }: VTableProps<T> = $props();
+
+  // The selection checkbox is an ordinary click cell, so it renders on desktop, in the plain
+  // table and on mobile cards, and the agent can click it like any other cell.
+  const selectionColumn = $derived.by((): ITableColumn<T> | null => {
+    if (!selectedIDs || !getRowID) { return null; }
+    return {
+      id: '_selection',
+      header: '',
+      width: '36px',
+      css: 'text-center',
+      render: (row) => selectedIDs.has(getRowID(row))
+        ? '<i class="icon-[fa--check-square-o] text-green-solid text-[16px]"></i>'
+        : '<i class="icon-[fa--square-o] text-fg-subtle text-[16px]"></i>',
+      onCellClick: (row) => {
+        const rowID = getRowID(row);
+        if (selectedIDs.has(rowID)) { selectedIDs.delete(rowID); } else { selectedIDs.add(rowID); }
+      },
+      mobile: { order: -1, css: 'col-span-2' },
+    };
+  });
 
   // Shared header look with TableGrid: bold 15px, centered unless the column declares an
   // `align` (a right-aligned numeric column keeps its header over the digits), 6px sides.
@@ -155,7 +182,7 @@
     const level2: ITableColumn<T>[] = [];
     const flatColumns: ITableColumn<T>[] = [];
 
-    for (const col of columns) {
+    for (const col of selectionColumn ? [selectionColumn, ...columns] : columns) {
       if (col.hidden) continue;
 
       const colWithSpan = { ...col };
@@ -436,7 +463,7 @@
     },
   });
 
-  const hasInteractiveCell = $derived(
+  const hasInteractiveCell = $derived(!!selectionColumn ||
     columns.some((column) => column.onCellEdit || column.onCellSelect || column.onCellMultiSelect || column.onCellClick),
   );
   // When the table flips to mobile view, MobileCardsVirtualList registers its

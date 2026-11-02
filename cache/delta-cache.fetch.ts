@@ -422,25 +422,41 @@ const makeRecordIDOfLogID = (args: serviceHttpProps, responseKey: string, heldRe
   }
 }
 
-// readDeltaLogs strips every response key's Metadata records, turns their log entries into the cached
-// records to remove, and moves the key's cursor on routeRow. Keys answered with `replace` hold their
-// whole view: the caller drops the held records they don't bring.
+// makeServerIDOfRecord reads the server's ID of a cached record, the table's integer key: the record
+// ID for a route keyed by one field, its last key field for a route keyed by several.
+const makeServerIDOfRecord = (args: serviceHttpProps, responseKey: string) => {
+  const keyFields = getRecordKeyFields(args, responseKey)
+  const serverIDField = Array.isArray(keyFields) ? keyFields[keyFields.length - 1] as string : keyFields
+  return (record: any) => Number(record?.[serverIDField] || 0)
+}
+
+// readDeltaLogs strips every response key's Metadata records, turns them into the cached records to
+// remove, and moves the key's cursor on routeRow. Keys answered with `replace` hold their whole view:
+// the caller drops the held records they don't bring. A key whose window hash mismatched loses its
+// cursor: the caller asks again, and the server answers it a replace.
 const readDeltaLogs = (
   args: serviceHttpProps, routeRow: ICacheRouteRow, response: CacheContent, heldContent?: CacheContent,
 ) => {
   const removedRecordIDsByKey = new Map<string, CacheRecordID[]>()
   const replacedResponseKeys = new Set<string>()
+  const mismatchedResponseKeys = new Set<string>()
   for(const [responseKey, records] of listRecordResponseEntries(response)){
     const heldRecords = Array.isArray(heldContent?.[responseKey]) ? heldContent[responseKey] : []
     const keyResponse = readDeltaKeyResponse(
-      records, routeRow.deltaCursors[responseKey] || {}, makeRecordIDOfLogID(args, responseKey, heldRecords),
+      records, routeRow.deltaCursors[responseKey], makeRecordIDOfLogID(args, responseKey, heldRecords),
+      { records: heldRecords, serverIDOfRecord: makeServerIDOfRecord(args, responseKey) },
     )
     response[responseKey] = keyResponse.records
-    if(keyResponse.cursor){ routeRow.deltaCursors[responseKey] = keyResponse.cursor }
+    if(keyResponse.cursor !== undefined){ routeRow.deltaCursors[responseKey] = keyResponse.cursor }
     if(keyResponse.removedRecordIDs.length > 0){ removedRecordIDsByKey.set(responseKey, keyResponse.removedRecordIDs) }
     if(keyResponse.isReplace){ replacedResponseKeys.add(responseKey) }
+    if(keyResponse.isWindowMismatch){
+      console.warn("[DeltaCache] window hash mismatch, re-requesting the whole view:", args.route, responseKey)
+      delete routeRow.deltaCursors[responseKey]
+      mismatchedResponseKeys.add(responseKey)
+    }
   }
-  return { removedRecordIDsByKey, replacedResponseKeys }
+  return { removedRecordIDsByKey, replacedResponseKeys, mismatchedResponseKeys }
 }
 
 const countResponseRecords = (response: CacheContent) => {
@@ -653,6 +669,8 @@ const handleFetchResponse = async (
   const idsToRemoveByResponseKey = listIDsToRemoveByResponseKey(response)
   // The delta logs say which held records left each view, and move the keys' cursors.
   const deltaLogs = readDeltaLogs(args, routeRow, response, baseSnapshot)
+  // A missed write: the next read goes to the network, and syncDeltaCache does it right away.
+  if(deltaLogs.mismatchedResponseKeys.size > 0){ routeRow.forceNetwork = true }
   for(const [responseKey, removedRecordIDs] of deltaLogs.removedRecordIDsByKey){
     idsToRemoveByResponseKey.set(responseKey, [...(idsToRemoveByResponseKey.get(responseKey) || []), ...removedRecordIDs])
   }
@@ -956,9 +974,16 @@ const syncDeltaCache = async (args: serviceHttpProps) => {
     const networkResponse = await fetchNetworkResponse(args, route)
     const { response, isArray } = await parseNetworkResponse(args, networkResponse.preResponse)
     console.log(`Fetch response recibida! (${route}) | Has-caché: ${hasCache}`)
-    const content = routeRow && routeRow.fetchTime
+    let content = routeRow && routeRow.fetchTime
       ? await handleFetchResponse(args, routeRow, response, fetchTime, isArray)
       : await saveInitialSnapshot(args, routeReference, response, fetchTime, isArray)
+    // A window hash mismatch dropped the key's cursor: ask again once, the server answers it a replace.
+    if(hasCache && routeRow?.forceNetwork){
+      routeRow.forceNetwork = false
+      const replaceRequest = await fetchNetworkResponse(args, getNextRouteURL(args, routeRow).route)
+      const replaceResponse = await parseNetworkResponse(args, replaceRequest.preResponse)
+      content = await handleFetchResponse(args, routeRow, replaceResponse.response, fetchTime, replaceResponse.isArray)
+    }
     const responsePreparedAt = Date.now()
     const requestRouteInfo = parseRequestLogRoute(route)
 

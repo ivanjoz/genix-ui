@@ -32,6 +32,39 @@ Rules:
 A response carrying a record or a removal is applied; an empty one means nothing new. A record whose
 `ver` equals the held one's is the same record and is not rewritten in IndexedDB.
 
+## Two protocols
+
+A response key's Metadata says which protocol answered it. Flag `8` is the **window protocol**
+(genix-orm's Scylla driver, below); anything else is the **delta log** (the Dynamo driver, the
+section after it). Both keep their cursor in `deltaCursors[key]`, and `readDeltaKeyResponse` picks the
+branch.
+
+## The window protocol
+
+There is no change log. A `TypeDelta` index is a slim materialized view `(ID, upd, ver, filter)`, and
+the cursor is a plain number: the highest `upd` (SUnixTime, 2-second ticks) the browser holds.
+
+```
+GET example-clients?up=400000000
+```
+
+The server answers the records the view lists with `upd ≥ C − 10 s`, read by ID in every status,
+plus one Metadata record (`ID = −1`). Its `mdt` (`delta-window.wire.ts`) carries the next cursor,
+the window `[from, to)` = `[C − 15 min, C − 10 s)` and its hash, the sync filter field and values,
+and the IDs that moved out of the pinned prefix. The client:
+
+- removes the moved IDs, and every returned record whose filter value is not in the values (it left
+  the view: a soft delete, an annulment);
+- hashes the records it holds with `upd` in the window and a matching filter value, leaving out the
+  IDs the response brought or removed (sum mod 2³² of `deltaRecordHash(ID, ver)`);
+- on a mismatch (a missed write: one that landed late, view lag, a lost move) drops the key's cursor
+  and asks again at once: a request without a cursor gets a **replace**.
+
+A replace (flag `2`) comes on a first sync, or more changed or moved records than the index's
+threshold (100 by default). The cursor's age alone never causes one. `genix-orm/db/cache/delta_window.go` is the Go side; the
+vectors in `genix-orm/db/cache/testdata/delta_window_vectors.json` are copied into
+`delta-window.wire.test.ts`.
+
 ## The delta log and its cursor
 
 Every record carries `ver`, an int16 the backend raises on each write (1 on insert). For each delta

@@ -34,6 +34,8 @@ export interface ICardCell<T> {
 	// Allow cards to inject runtime field classes per record.
 	setCellCss?: (record: T) => string | undefined
 	cellOptions?: any[]
+	// Per-row options of a select cell; replaces cellOptions for that row.
+	getCellOptions?: (record: T) => any[]
 	cellOptionsKeyId?: string
 	cellOptionsKeyName?: string
 	disableCellInteractions?: (record: T, idx?: number) => boolean
@@ -70,6 +72,8 @@ export interface IMobileCardsListCell<T, TSource = unknown> {
   cellCss?: string
   setCellCss?: (record: T) => string | undefined
   cellOptions?: any[]
+  // Per-row options of a select cell; replaces cellOptions for that row.
+  getCellOptions?: (record: T) => any[]
   cellOptionsKeyId?: string
   cellOptionsKeyName?: string
   disableCellInteractions?: (record: T, idx?: number) => boolean
@@ -125,6 +129,9 @@ export interface ITableColumn<T> {
   subcols?: ITableColumn<T>[]
 	cardColumn?: [number, (1|2|3)?]
 	cellOptions?: any[]
+	// Per-row options of a select cell (VTable and its mobile cards); replaces cellOptions for that row.
+	// Return the same array reference for equal options: the select caches its option maps per array.
+	getCellOptions?: (e: T) => any[]
 	cellOptionsKeyId?: string
 	cellOptionsKeyName?: string
 	onBeforeCellChange?: (e: T, value: string|number) => boolean

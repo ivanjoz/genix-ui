@@ -706,7 +706,7 @@
                       id={`${String(column.id || column.field || j)}_${rowIndex}`}
                       saveOn={resolvedRecord}
                       save={column.field as keyof T}
-                      options={(column.cellOptions || []) as any[]}
+                      options={(column.getCellOptions?.(resolvedRecord) || column.cellOptions || []) as any[]}
                       keyId={(column.cellOptionsKeyId || 'ID') as never}
                       keyName={(column.cellOptionsKeyName || 'Name') as never}
                       cellID={buildCellID(rowIndex, j)}
@@ -720,7 +720,7 @@
                       id={`${String(column.id || column.field || j)}_${rowIndex}`}
                       saveOn={resolvedRecord}
                       save={column.field as keyof T}
-                      options={(column.cellOptions || []) as any[]}
+                      options={(column.getCellOptions?.(resolvedRecord) || column.cellOptions || []) as any[]}
                       keyId={(column.cellOptionsKeyId || 'ID') as never}
                       keyName={(column.cellOptionsKeyName || 'Name') as never}
                       cellID={buildCellID(rowIndex, j)}

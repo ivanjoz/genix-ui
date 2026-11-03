@@ -464,7 +464,7 @@
                             id={buildSelectorId(cell, recordIndex, cellIndex)}
                             saveOn={resolvedRecord}
                             save={cell.field as keyof TRecord}
-                            options={cell.cellOptions as any[]}
+                            options={(cell.getCellOptions?.(resolvedRecord) || cell.cellOptions) as any[]}
                             keyId={(cell.cellOptionsKeyId || 'ID') as never}
                             keyName={(cell.cellOptionsKeyName || 'Name') as never}
                             cellID={buildCellID(sourceIndex, cellIndex)}
@@ -568,7 +568,7 @@
                             id={buildSelectorId(cell, recordIndex, cellIndex)}
                             saveOn={resolvedRecord}
                             save={cell.field as keyof TRecord}
-                            options={cell.cellOptions as any[]}
+                            options={(cell.getCellOptions?.(resolvedRecord) || cell.cellOptions) as any[]}
                             keyId={(cell.cellOptionsKeyId || 'ID') as never}
                             keyName={(cell.cellOptionsKeyName || 'Name') as never}
                             cellID={buildCellID(sourceIndex, cellIndex)}
@@ -688,7 +688,7 @@
                           id={buildSelectorId(cell, recordIndex, cellIndex)}
                           saveOn={resolvedRecord}
                           save={cell.field as keyof TRecord}
-                          options={cell.cellOptions as any[]}
+                          options={(cell.getCellOptions?.(resolvedRecord) || cell.cellOptions) as any[]}
                           keyId={(cell.cellOptionsKeyId || 'ID') as never}
                           keyName={(cell.cellOptionsKeyName || 'Name') as never}
                           cellID={buildCellID(sourceIndex, cellIndex)}

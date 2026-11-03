@@ -112,16 +112,6 @@ describe('readDeltaKeyResponse on the window protocol', () => {
 		expect(response.isWindowMismatch).toBe(false)
 	})
 
-	it('removes a returned record whose filter value left the call', () => {
-		const response = readDeltaKeyResponse([
-			{ ID: 7, upd: 98, ver: 2, ss: 0 },
-			windowMetadataRecord({ from: 40, to: 95, hash: serverWindowHash, next: 98 }),
-		], 100, recordIDOfServerID, heldOf(heldRecords))
-		expect(response.records).toEqual([])
-		expect(response.removedRecordIDs).toEqual([7])
-		expect(response.isWindowMismatch).toBe(false)
-	})
-
 	it('flags a missed write', () => {
 		const response = readDeltaKeyResponse([
 			windowMetadataRecord({ from: 40, to: 95, hash: sumDeltaRecordHashes([[1, 2], [87, 5]]), next: 99 }),

@@ -2,7 +2,7 @@
  * The delta window protocol as the browser reads it (genix-orm's Scylla driver). Pure: no fetch, no Svelte.
  *
  * There is no change log: the cursor is the highest `upd` (SUnixTime) the browser holds, sent as a
- * plain number. The server answers the records the view lists past `cursor − 10 s`, read by ID, plus
+ * plain number. The server answers the records its view holds past `cursor − 10 s`, plus
  * one Metadata record (ID −1) whose `mdt` holds, in Safe85:
  *
  *   [flags: u8]                      8 (window protocol), | 2 (replace)
@@ -32,7 +32,8 @@ export interface DeltaWindowMetadata {
 	windowFrom: number
 	windowTo: number
 	windowHash: number
-	// The JSON name of the sync filter field, "" when the index has none.
+	// The JSON name of the index's last key, whose values the call read (one prefix each); "" when
+	// the index has no key. The window hash only covers held records with one of these values.
 	filterField: string
 	filterValues: number[]
 	// The IDs that left the pinned prefix inside the window.

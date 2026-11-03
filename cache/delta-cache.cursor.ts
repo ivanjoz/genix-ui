@@ -126,24 +126,17 @@ const readDeltaWindowResponse = (
 	if (metadata.isReplace) {
 		return { records, removedRecordIDs: [], isReplace: true, cursor: metadata.nextCursor, isWindowMismatch: false }
 	}
-	// A changed record comes back in any status: one whose filter value is not in the call's values
-	// left the view (a soft delete, an annulment) and is removed instead of kept.
-	const filterValues = new Set(metadata.filterValues)
-	const leftServerIDs: number[] = []
-	const keptRecords = records.filter((record) => {
-		if (!metadata.filterField || filterValues.has(Number(record?.[metadata.filterField] ?? 0))) return true
-		leftServerIDs.push(held.serverIDOfRecord(record))
-		return false
-	})
+	// The server reads only the call's prefixes, so every returned record belongs here; a record that
+	// left them (a soft delete, an annulment) comes as a removed ID.
 	const removedRecordIDs: CacheRecordID[] = []
-	for (const removedID of [...metadata.removedIDs, ...leftServerIDs]) {
+	for (const removedID of metadata.removedIDs) {
 		const recordID = recordIDOfServerID(removedID, [])
 		if (recordID !== undefined) removedRecordIDs.push(recordID)
 	}
 	const excludedServerIDs = new Set([...records.map(held.serverIDOfRecord), ...metadata.removedIDs])
 	const heldWindowHash = hashHeldDeltaWindow(held.records, metadata, excludedServerIDs, held.serverIDOfRecord)
 	return {
-		records: keptRecords, removedRecordIDs, isReplace: false, cursor: metadata.nextCursor,
+		records, removedRecordIDs, isReplace: false, cursor: metadata.nextCursor,
 		isWindowMismatch: heldWindowHash !== metadata.windowHash,
 	}
 }

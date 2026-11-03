@@ -41,21 +41,24 @@ branch.
 
 ## The window protocol
 
-There is no change log. A `TypeDelta` index is a slim materialized view `(ID, upd, ver, filter)`, and
-the cursor is a plain number: the highest `upd` (SUnixTime, 2-second ticks) the browser holds.
+There is no change log. A `TypeDelta` index is a materialized view of the whole record, clustered
+by its keys packed ahead of `upd` (`[keys…][upd]`), and the cursor is a plain number: the highest
+`upd` (SUnixTime, 2-second ticks) the browser holds. A call names the values of the index's last key
+(for example the statuses of a tab); every value is one prefix the server reads, so a returned
+record always belongs to the call.
 
 ```
 GET example-clients?up=400000000
 ```
 
-The server answers the records the view lists with `upd ≥ C − 10 s`, read by ID in every status,
-plus one Metadata record (`ID = −1`). Its `mdt` (`delta-window.wire.ts`) carries the next cursor,
-the window `[from, to)` = `[C − 15 min, C − 10 s)` and its hash, the sync filter field and values,
-and the IDs that moved out of the pinned prefix. The client:
+The server answers, per prefix, the records with `upd ≥ C − 10 s`, plus one Metadata record
+(`ID = −1`). Its `mdt` (`delta-window.wire.ts`) carries the next cursor, the window `[from, to)` =
+`[C − 15 min, C − 10 s)` and its hash, the last key's field and the call's values, and the IDs that
+moved out of the prefixes (a key value changed: a move between warehouses, a soft delete, an
+annulment). The client:
 
-- removes the moved IDs, and every returned record whose filter value is not in the values (it left
-  the view: a soft delete, an annulment);
-- hashes the records it holds with `upd` in the window and a matching filter value, leaving out the
+- removes the moved IDs;
+- hashes the records it holds with `upd` in the window and a matching last-key value, leaving out the
   IDs the response brought or removed (sum mod 2³² of `deltaRecordHash(ID, ver)`);
 - on a mismatch (a missed write: one that landed late, view lag, a lost move) drops the key's cursor
   and asks again at once: a request without a cursor gets a **replace**.

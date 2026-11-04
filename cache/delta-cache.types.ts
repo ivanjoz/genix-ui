@@ -3,8 +3,8 @@ export type CacheRecordID = string | number
 export interface ILastSync {
   fetchTime: number
   // The delta cursor of each response key (delta-cache.cursor.ts): the bytes held of each log file
-  // (delta log), or the highest `upd` held (window protocol).
-  deltaCursors: { [key: string]: DeltaCursor | number }
+  // (delta log), or "C.V" / "C.V.r" (window protocol, delta-window.wire.ts).
+  deltaCursors: { [key: string]: DeltaCursor | string }
   fetchedRecordsCount: number
   fetchedBytes: number
   forceNetwork?: boolean

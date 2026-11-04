@@ -2,8 +2,8 @@
  * The delta cursor of a response key and how a delta response moves it. Pure: no IndexedDB, no fetch.
  *
  * Two protocols share it, told apart by the Metadata flags. The window protocol (genix-orm's Scylla
- * driver, delta-window.wire.ts) keeps a plain number: the highest `upd` held. The delta log (the
- * Dynamo driver) keeps the bytes held of each log file, described below.
+ * driver, delta-window.wire.ts) keeps a "C.V" string: the highest `upd` held and the server's read
+ * time. The delta log (the Dynamo driver) keeps the bytes held of each log file, described below.
  *
  * A delta log response carries the changed records plus one Metadata record per log file the backend read
  * (delta-log.wire.ts): `mdt` holds the file's whole content, and the cursor is what the browser held of
@@ -12,7 +12,13 @@
  * from those offsets on, so no entry is missed whatever order the writes landed in.
  */
 import type { CacheRecordID, DeltaCursor } from './delta-cache.types'
-import { decodeDeltaWindowMetadata, hashHeldDeltaWindow, isDeltaWindowMetadataText } from './delta-window.wire'
+import {
+	decodeDeltaWindowMetadata,
+	formatDeltaWindowCursor,
+	hashHeldDeltaWindow,
+	isDeltaWindowMetadataText,
+	readTimeOfDeltaWindowCursor,
+} from './delta-window.wire'
 import {
 	DELTA_METADATA_FLAG_64_BIT_SCALE,
 	DELTA_METADATA_FLAG_REPLACE,
@@ -22,8 +28,8 @@ import {
 	type DeltaMetadata,
 } from './delta-log.wire'
 
-export const formatDeltaCursor = (cursor: DeltaCursor | number): string => {
-	if (typeof cursor === 'number') return cursor > 0 ? String(cursor) : ''
+export const formatDeltaCursor = (cursor: DeltaCursor | string): string => {
+	if (typeof cursor === 'string') return cursor
 	return Object.entries(cursor)
 		.sort(([leftBucket], [rightBucket]) => Number(leftBucket) - Number(rightBucket))
 		.map(([bucket, heldBytes]) => `${bucket}.${heldBytes}`)
@@ -41,9 +47,9 @@ export interface DeltaKeyResponse {
 	isReplace: boolean
 	// The cursor to send next time; undefined when the response carried no Metadata record (a route
 	// not backed by a delta log), which leaves the held one as it was.
-	cursor?: DeltaCursor | number
-	// Window protocol: the held window hashes differently from the server's, so a write was missed.
-	// The caller drops the cursor and asks again: the server answers a replace.
+	cursor?: DeltaCursor | string
+	// Window protocol: the held slice hashes differently from the server's, so a write was missed.
+	// The cursor already asks for the slice ("C.V.r"): the caller only has to sync again.
 	isWindowMismatch: boolean
 }
 
@@ -64,14 +70,15 @@ export interface DeltaHeldRecords {
  */
 export const readDeltaKeyResponse = (
 	responseRecords: any[],
-	heldCursor: DeltaCursor | number | undefined,
+	heldCursor: DeltaCursor | string | undefined,
 	recordIDOfLogID: (logID: number, logIDColumnBits: number[]) => CacheRecordID | undefined,
 	held: DeltaHeldRecords = { records: [], serverIDOfRecord: (record) => Number(record?.ID) },
 ): DeltaKeyResponse => {
 	const records = responseRecords.filter((record) => !isDeltaMetadataRecord(record))
 	const windowMetadataRecord = responseRecords.find((record) => isDeltaMetadataRecord(record) && isDeltaWindowMetadataText(record.mdt))
 	if (windowMetadataRecord) {
-		return readDeltaWindowResponse(records, windowMetadataRecord.mdt, recordIDOfLogID, held)
+		const heldWindowCursor = typeof heldCursor === 'string' ? heldCursor : ''
+		return readDeltaWindowResponse(records, windowMetadataRecord.mdt, heldWindowCursor, recordIDOfLogID, held)
 	}
 	const heldLogCursor: DeltaCursor = typeof heldCursor === 'object' ? heldCursor : {}
 	const metadataList: DeltaMetadata[] = responseRecords
@@ -114,17 +121,21 @@ export const readDeltaKeyResponse = (
 
 /**
  * readDeltaWindowResponse applies a window protocol answer: its removed IDs go, its next cursor is
- * kept, and — unless it is a replace — the held records of its window must hash as the server's.
+ * kept, and — unless it is a replace — the held records of its unsettled slice must hash as the
+ * server's. On a mismatch the cursor keeps the held V, whose slice is the one that missed a write,
+ * and asks for it to be resent.
  */
 const readDeltaWindowResponse = (
 	records: any[],
 	metadataText: string,
+	heldCursor: string,
 	recordIDOfServerID: (serverID: number, logIDColumnBits: number[]) => CacheRecordID | undefined,
 	held: DeltaHeldRecords,
 ): DeltaKeyResponse => {
 	const metadata = decodeDeltaWindowMetadata(metadataText)
+	const cursor = formatDeltaWindowCursor(metadata.nextCursor, metadata.readTime)
 	if (metadata.isReplace) {
-		return { records, removedRecordIDs: [], isReplace: true, cursor: metadata.nextCursor, isWindowMismatch: false }
+		return { records, removedRecordIDs: [], isReplace: true, cursor, isWindowMismatch: false }
 	}
 	// The server reads only the call's prefixes, so every returned record belongs here; a record that
 	// left them (a soft delete, an annulment) comes as a removed ID.
@@ -135,8 +146,9 @@ const readDeltaWindowResponse = (
 	}
 	const excludedServerIDs = new Set([...records.map(held.serverIDOfRecord), ...metadata.removedIDs])
 	const heldWindowHash = hashHeldDeltaWindow(held.records, metadata, excludedServerIDs, held.serverIDOfRecord)
-	return {
-		records, removedRecordIDs, isReplace: false, cursor: metadata.nextCursor,
-		isWindowMismatch: heldWindowHash !== metadata.windowHash,
+	if (heldWindowHash !== metadata.windowHash) {
+		const resendCursor = formatDeltaWindowCursor(metadata.nextCursor, readTimeOfDeltaWindowCursor(heldCursor), true)
+		return { records, removedRecordIDs, isReplace: false, cursor: resendCursor, isWindowMismatch: true }
 	}
+	return { records, removedRecordIDs, isReplace: false, cursor, isWindowMismatch: false }
 }

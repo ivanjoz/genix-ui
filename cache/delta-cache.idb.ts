@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type EntityTable, type Transaction } from 'dexie'
 import type { ICacheDebugRow } from './cache-debug.types'
 import type { IGroupCacheRow } from './group-cache.idb'
 import type {
@@ -15,7 +15,14 @@ import type {
 
 // v8 drops every cached route on upgrade: the `upd` watermark became the delta log cursor, records
 // carry `ver`, and `upd` changed unit (a SUnixTime). Re-syncing once is the cheap fix.
-const CACHE_DB_VERSION = 8
+// v9 drops the grouped cache: groups are labelled `lw` (the group's LastWrite) instead of `upc`.
+// GroupCacheDatabase opens the same IDB, so it declares this same version and upgrade.
+export const CACHE_DB_VERSION = 9
+
+// clearGroupRowsOnUpgrade empties the grouped cache; its rows carry the label of the previous protocol.
+export const clearGroupRowsOnUpgrade = async (transaction: Transaction) => {
+  await transaction.table('groupRows').clear()
+}
 
 const deltaCacheDatabasesByName = new Map<string, DeltaCacheDatabase>()
 const routeMemoryByLookupKey = new Map<string, ICacheRouteRow>()
@@ -44,7 +51,7 @@ class DeltaCacheDatabase extends Dexie {
     // Multi-key routes live in `cacheRecords` keyed `[_r+_k+ID]`; array routes use
     // `cacheRecordsSingle` keyed `[_r+ID]` since their responseKey is always `_default`.
     // `routeData` is a simple key-value store for cross-navigation handoffs.
-    this.version(CACHE_DB_VERSION).stores({
+    this.version(8).stores({
       cacheRoutes: '++id,&routeLookupKey,module',
       cacheRecords: '[_r+_k+ID],[_r+ss]',
       cacheRecordsSingle: '[_r+ID],[_r+ss]',
@@ -56,6 +63,9 @@ class DeltaCacheDatabase extends Dexie {
       await transaction.table('cacheRecords').clear()
       await transaction.table('cacheRecordsSingle').clear()
     })
+    this.version(CACHE_DB_VERSION).stores({
+      groupRows: '[queryShape+key],[queryShape+id+lw],queryShape',
+    }).upgrade(clearGroupRowsOnUpgrade)
   }
 }
 

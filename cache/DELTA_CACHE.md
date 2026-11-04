@@ -42,26 +42,30 @@ branch.
 ## The window protocol
 
 There is no change log. A `TypeDelta` index is a materialized view of the whole record, clustered
-by its keys packed ahead of `upd` (`[keys…][upd]`), and the cursor is a plain number: the highest
-`upd` (SUnixTime, 2-second ticks) the browser holds. A call names the values of the index's last key
-(for example the statuses of a tab); every value is one prefix the server reads, so a returned
-record always belongs to the call.
+by its keys packed ahead of `upd` (`[keys…][upd]`), and the cursor is `C.V`: C the highest `upd`
+(SUnixTime, 2-second ticks) the browser holds, V the server clock when the read that answered it
+began. A call names the values of the index's last key (for example the statuses of a tab); every
+value is one prefix the server reads, so a returned record always belongs to the call. A
+multi-table route sends one cursor per response key.
 
 ```
-GET example-clients?up=400000000
+GET example-clients?up=400000000.400000001
 ```
 
-The server answers, per prefix, the records with `upd ≥ C − 10 s`, plus one Metadata record
-(`ID = −1`). Its `mdt` (`delta-window.wire.ts`) carries the next cursor, the window `[from, to)` =
-`[C − 15 min, C − 10 s)` and its hash, the last key's field and the call's values, and the IDs that
-moved out of the prefixes (a key value changed: a move between warehouses, a soft delete, an
-annulment). The client:
+A write becomes visible at most 16 s after its `upd`, so the browser can only have missed the writes
+in the **unsettled slice** `[V − 16 s, C]`. The server answers, per prefix, the records with
+`upd > C`, plus one Metadata record (`ID = −1`). Its `mdt` (`delta-window.wire.ts`) carries the
+next C and V, the slice as a window `[from, to)` and its hash (empty once C is settled, V − 16 s > C),
+the last key's field and the call's values, and the IDs that moved out of the prefixes since the
+slice began (a key value changed: a move between warehouses, a soft delete, an annulment). The
+slice is hashed, not resent, so a reload right after a bulk write doesn't download it again. The
+client:
 
 - removes the moved IDs;
 - hashes the records it holds with `upd` in the window and a matching last-key value, leaving out the
   IDs the response brought or removed (sum mod 2³² of `deltaRecordHash(ID, ver)`);
-- on a mismatch (a missed write: one that landed late, view lag, a lost move) drops the key's cursor
-  and asks again at once: a request without a cursor gets a **replace**.
+- on a mismatch (a write that landed late in the slice) keeps the new C with its held V as
+  `C.V.r` and asks again at once: the server resends the slice's records (`upd ≥ V − 16 s`).
 
 A replace (flag `2`) comes on a first sync, or more changed or moved records than the index's
 threshold (100 by default). The cursor's age alone never causes one. `genix-orm/db/cache/delta_window.go` is the Go side; the

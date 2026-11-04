@@ -432,8 +432,8 @@ const makeServerIDOfRecord = (args: serviceHttpProps, responseKey: string) => {
 
 // readDeltaLogs strips every response key's Metadata records, turns them into the cached records to
 // remove, and moves the key's cursor on routeRow. Keys answered with `replace` hold their whole view:
-// the caller drops the held records they don't bring. A key whose window hash mismatched loses its
-// cursor: the caller asks again, and the server answers it a replace.
+// the caller drops the held records they don't bring. A key whose window hash mismatched keeps a
+// "C.V.r" cursor: the caller asks again, and the server resends that key's unsettled slice.
 const readDeltaLogs = (
   args: serviceHttpProps, routeRow: ICacheRouteRow, response: CacheContent, heldContent?: CacheContent,
 ) => {
@@ -451,8 +451,7 @@ const readDeltaLogs = (
     if(keyResponse.removedRecordIDs.length > 0){ removedRecordIDsByKey.set(responseKey, keyResponse.removedRecordIDs) }
     if(keyResponse.isReplace){ replacedResponseKeys.add(responseKey) }
     if(keyResponse.isWindowMismatch){
-      console.warn("[DeltaCache] window hash mismatch, re-requesting the whole view:", args.route, responseKey)
-      delete routeRow.deltaCursors[responseKey]
+      console.warn("[DeltaCache] window hash mismatch, re-requesting the unsettled slice:", args.route, responseKey)
       mismatchedResponseKeys.add(responseKey)
     }
   }

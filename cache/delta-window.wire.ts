@@ -1,12 +1,15 @@
 /**
  * The delta window protocol as the browser reads it (genix-orm's Scylla driver). Pure: no fetch, no Svelte.
  *
- * There is no change log: the cursor is the highest `upd` (SUnixTime) the browser holds, sent as a
- * plain number. The server answers the records its view holds past `cursor − 10 s`, plus
- * one Metadata record (ID −1) whose `mdt` holds, in Safe85:
+ * There is no change log: the cursor is "C.V", C the highest `upd` (SUnixTime) the browser holds and
+ * V the server clock when the read that answered it began. Writes become visible at most 16 s after
+ * their `upd`, so the browser can only have missed those in the unsettled slice [V − 16 s, C]. The
+ * server answers the records past C, hashes the slice instead of resending it, and adds one Metadata
+ * record (ID −1) whose `mdt` holds, in Safe85:
  *
  *   [flags: u8]                      8 (window protocol), | 2 (replace)
- *   [next cursor: uvarint]
+ *   [next cursor: uvarint]           the next C
+ *   [read time: uvarint]             the next V
  *   [window from: uvarint][window to: uvarint]
  *   [window hash: u32 LE]
  *   [filter field length: u8][filter field: UTF-8]
@@ -14,8 +17,9 @@
  *   [removed ID count: uvarint][removed ID delta: uvarint] × count   ascending, the first absolute
  *
  * The window hash is the sum (mod 2³²) of deltaRecordHash(ID, ver) over the view rows with `upd` in
- * [from, to) whose filter field holds one of the filter values. The browser hashes what it holds in
- * the same window and, on a mismatch, asks again without a cursor (a replace).
+ * [from, to) whose filter field holds one of the filter values; from = to when nothing is hashed (a
+ * replace, a settled C, a resend). The browser hashes what it holds in the same window and, on a
+ * mismatch, asks again with "C.V.r": the server resends the slice's records.
  *
  * The Go side is genix-orm/db/cache/delta_window.go; both are pinned by
  * genix-orm/db/cache/testdata/delta_window_vectors.json.
@@ -29,6 +33,8 @@ const DELTA_WINDOW_FLAG_REPLACE = 2
 export interface DeltaWindowMetadata {
 	isReplace: boolean
 	nextCursor: number
+	// The server clock when the read began: the V of the next cursor.
+	readTime: number
 	windowFrom: number
 	windowTo: number
 	windowHash: number
@@ -59,8 +65,9 @@ export const decodeDeltaWindowMetadata = (safe85Text: string): DeltaWindowMetada
 	const bytes = decodeSafe85(safe85Text)
 	const flags = bytes[0] as number
 	let position = 1
-	let nextCursor: number, windowFrom: number, windowTo: number
+	let nextCursor: number, readTime: number, windowFrom: number, windowTo: number
 	;[nextCursor, position] = readUvarint(bytes, position)
+	;[readTime, position] = readUvarint(bytes, position)
 	;[windowFrom, position] = readUvarint(bytes, position)
 	;[windowTo, position] = readUvarint(bytes, position)
 	const windowHash = new DataView(bytes.buffer, bytes.byteOffset + position, 4).getUint32(0, true)
@@ -91,9 +98,19 @@ export const decodeDeltaWindowMetadata = (safe85Text: string): DeltaWindowMetada
 	}
 	return {
 		isReplace: (flags & DELTA_WINDOW_FLAG_REPLACE) !== 0,
-		nextCursor, windowFrom, windowTo, windowHash, filterField, filterValues, removedIDs,
+		nextCursor, readTime, windowFrom, windowTo, windowHash, filterField, filterValues, removedIDs,
 	}
 }
+
+// formatDeltaWindowCursor is the cursor a response leaves: "C.V", or "C.V.r" to have the next sync
+// resend the unsettled slice. An empty view has no C: the next sync is a first sync again.
+export const formatDeltaWindowCursor = (nextCursor: number, readTime: number, resendUnsettled = false): string => {
+	if (nextCursor <= 0) return ''
+	return `${nextCursor}.${readTime}${resendUnsettled ? '.r' : ''}`
+}
+
+// readTimeOfDeltaWindowCursor reads V back from a held "C.V[.r]" cursor; 0 when there is none.
+export const readTimeOfDeltaWindowCursor = (cursor: string): number => Number(cursor.split('.')[1] ?? 0) || 0
 
 // deltaRecordHash is one record's term of the window hash: the murmur3 32-bit finalizer over the ID's
 // two 32-bit halves and the version, as Go's cache.DeltaRecordHash.

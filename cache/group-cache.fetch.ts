@@ -71,7 +71,7 @@ export const createGroupCacheGetter = (runtime: GroupCacheGetterRuntime): GroupC
 		if (cachedMetadataRows.length > 0) {
 			// Group IDs stay signed in IndexedDB and become uint32 only for compact transport.
 			requestParams.set('cc-gh', concatenateInts(cachedMetadataRows.map((row) => row.id >>> 0)))
-			requestParams.set('cc-upc', concatenateInts(cachedMetadataRows.map((row) => row.upc)))
+			requestParams.set('cc-lw', concatenateInts(cachedMetadataRows.map((row) => row.lw)))
 		}
 
 		const queryString = requestParams.toString()
@@ -104,13 +104,15 @@ export const createGroupCacheGetter = (runtime: GroupCacheGetterRuntime): GroupC
 			}
 
 			const cachedRow = cachedRowsByKey.get(key)
-			if (cachedRow && cachedRow.upc === responseGroup.upc && responseRecords.length === 0) {
+			// lw 0 is a group the server sent while it was still settling: it is always the fetched
+			// content, even empty, never a match for what is held.
+			if (cachedRow && responseGroup.lw !== 0 && cachedRow.lw === responseGroup.lw && responseRecords.length === 0) {
 				mergedGroups.push({
 					ig: responseGroup.ig,
 					id: responseGroup.id,
 					igVal: responseGroup.igVal,
 					records: cachedRow.records || [],
-					upc: responseGroup.upc,
+					lw: responseGroup.lw,
 				})
 				continue
 			}

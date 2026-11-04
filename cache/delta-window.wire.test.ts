@@ -24,23 +24,23 @@ const windowVectors: { records: [number, number][]; hash: number }[] = [
 ]
 const metadataVectors = [
 	{
-		hex: '088088debe01be84debe01fb87debe0115cd5b070273730102030c4bc502',
+		hex: '088088debe018a88debe01be84debe01fb87debe0115cd5b070273730102030c4bc502',
 		metadata: {
-			isReplace: false, nextCursor: 400000000, windowFrom: 399999550, windowTo: 399999995,
+			isReplace: false, nextCursor: 400000000, readTime: 400000010, windowFrom: 399999550, windowTo: 399999995,
 			windowHash: 123456789, filterField: 'ss', filterValues: [1], removedIDs: [12, 87, 412],
 		},
 	},
 	{
-		hex: '0afb88debe010000000000000553746174650300040500',
+		hex: '0afb88debe018289debe010000000000000553746174650300040500',
 		metadata: {
-			isReplace: true, nextCursor: 400000123, windowFrom: 0, windowTo: 0,
+			isReplace: true, nextCursor: 400000123, readTime: 400000130, windowFrom: 0, windowTo: 0,
 			windowHash: 0, filterField: 'State', filterValues: [0, 2, -3], removedIDs: [],
 		},
 	},
 	{
-		hex: '08050000ffffffff000000',
+		hex: '0805070000ffffffff000000',
 		metadata: {
-			isReplace: false, nextCursor: 5, windowFrom: 0, windowTo: 0,
+			isReplace: false, nextCursor: 5, readTime: 7, windowFrom: 0, windowTo: 0,
 			windowHash: 4294967295, filterField: '', filterValues: [], removedIDs: [],
 		},
 	},
@@ -50,7 +50,9 @@ const fromHex = (hex: string) => Uint8Array.from(hex.match(/../g) || [], (pair) 
 
 // windowMetadataRecord builds the Metadata record of a window sync: ss filter on [1], no removals
 // unless given (one-byte uvarints: every value < 128).
-const windowMetadataRecord = (window: { from: number; to: number; hash: number; next: number; removed?: number[] }) => {
+const windowMetadataRecord = (window: {
+	from: number; to: number; hash: number; next: number; readTime: number; removed?: number[]
+}) => {
 	const hashBytes = new Uint8Array(4)
 	new DataView(hashBytes.buffer).setUint32(0, window.hash, true)
 	const removedIDs = window.removed || []
@@ -58,7 +60,7 @@ const windowMetadataRecord = (window: { from: number; to: number; hash: number; 
 	return {
 		ID: -1,
 		mdt: encodeSafe85(Uint8Array.from([
-			8, window.next, window.from, window.to, ...hashBytes, 2, 0x73, 0x73, 1, 2,
+			8, window.next, window.readTime, window.from, window.to, ...hashBytes, 2, 0x73, 0x73, 1, 2,
 			removedIDs.length, ...removedDeltas,
 		])),
 	}
@@ -82,22 +84,24 @@ describe('decodeDeltaWindowMetadata', () => {
 })
 
 describe('readDeltaKeyResponse on the window protocol', () => {
+	// Held cursor "60.62": C = 60, V = 62, so the unsettled slice is [54, 60] (window [54, 61)).
+	const heldCursor = '60.62'
 	const heldRecords = [
-		{ ID: 1, upd: 50, ver: 1, ss: 1 },
+		{ ID: 1, upd: 55, ver: 1, ss: 1 },
 		{ ID: 87, upd: 60, ver: 5, ss: 1 },
-		// Out of the filter and out of the window: neither counts.
+		// Out of the filter and out of the slice: neither counts.
 		{ ID: 90, upd: 60, ver: 3, ss: 0 },
 		{ ID: 91, upd: 10, ver: 3, ss: 1 },
 	]
-	const serverWindowHash = sumDeltaRecordHashes([[1, 1], [87, 5]])
+	const serverSliceHash = sumDeltaRecordHashes([[1, 1], [87, 5]])
 
-	it('keeps the next cursor when the held window hashes as the server', () => {
+	it('keeps "C.V" when the held slice hashes as the server', () => {
 		const response = readDeltaKeyResponse([
 			{ ID: 5, upd: 99, ver: 1, ss: 1 },
-			windowMetadataRecord({ from: 40, to: 95, hash: serverWindowHash, next: 99 }),
-		], 100, recordIDOfServerID, heldOf(heldRecords))
+			windowMetadataRecord({ from: 54, to: 61, hash: serverSliceHash, next: 99, readTime: 100 }),
+		], heldCursor, recordIDOfServerID, heldOf(heldRecords))
 		expect(response.records).toEqual([{ ID: 5, upd: 99, ver: 1, ss: 1 }])
-		expect(response.cursor).toBe(99)
+		expect(response.cursor).toBe('99.100')
 		expect(response.isWindowMismatch).toBe(false)
 		expect(response.isReplace).toBe(false)
 	})
@@ -106,16 +110,27 @@ describe('readDeltaKeyResponse on the window protocol', () => {
 		// 87 was edited again (it comes back) and 1 moved out of the prefix: the server hashes neither.
 		const response = readDeltaKeyResponse([
 			{ ID: 87, upd: 98, ver: 6, ss: 1 },
-			windowMetadataRecord({ from: 40, to: 95, hash: 0, next: 98, removed: [1] }),
-		], 100, recordIDOfServerID, heldOf(heldRecords))
+			windowMetadataRecord({ from: 54, to: 61, hash: 0, next: 98, readTime: 100, removed: [1] }),
+		], heldCursor, recordIDOfServerID, heldOf(heldRecords))
 		expect(response.removedRecordIDs).toEqual([1])
 		expect(response.isWindowMismatch).toBe(false)
 	})
 
-	it('flags a missed write', () => {
+	it('asks for the slice again on a missed write, from the held V', () => {
 		const response = readDeltaKeyResponse([
-			windowMetadataRecord({ from: 40, to: 95, hash: sumDeltaRecordHashes([[1, 2], [87, 5]]), next: 99 }),
-		], 100, recordIDOfServerID, heldOf(heldRecords))
+			{ ID: 5, upd: 99, ver: 1, ss: 1 },
+			windowMetadataRecord({ from: 54, to: 61, hash: sumDeltaRecordHashes([[1, 2], [87, 5]]), next: 99, readTime: 100 }),
+		], heldCursor, recordIDOfServerID, heldOf(heldRecords))
 		expect(response.isWindowMismatch).toBe(true)
+		// The new C (record 5 is applied), the held V: its slice is the one that missed the write.
+		expect(response.cursor).toBe('99.62.r')
+	})
+
+	it('hashes nothing on a settled cursor', () => {
+		const response = readDeltaKeyResponse([
+			windowMetadataRecord({ from: 0, to: 0, hash: 0, next: 60, readTime: 120 }),
+		], heldCursor, recordIDOfServerID, heldOf(heldRecords))
+		expect(response.isWindowMismatch).toBe(false)
+		expect(response.cursor).toBe('60.120')
 	})
 })

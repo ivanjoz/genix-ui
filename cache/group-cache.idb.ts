@@ -1,9 +1,8 @@
 import Dexie from 'dexie'
 import type { ICacheDebugRow } from './cache-debug.types'
-import { makeCacheDatabaseName } from './delta-cache.idb'
+import { CACHE_DB_VERSION, clearGroupRowsOnUpgrade, makeCacheDatabaseName } from './delta-cache.idb'
 import { getCacheRuntime } from './runtime.js'
 
-const GROUP_CACHE_DB_VERSION = 4
 const LOG_PREFIX = '[group-cache:idb]'
 const groupCacheDatabasesByName = new Map<string, GroupCacheDatabase>()
 
@@ -16,8 +15,9 @@ export interface IGroupCacheRecord<T = any> {
 	igVal: number[]
 	// The actual payload is stored only on the primary row, never in metadata indexes.
 	records: T[]
-	// UpdateCounter is compared with backend freshness metadata to skip unchanged buckets.
-	upc: number
+	// LastWrite (SUnixTime) the group was read at, compared with the server's to skip unchanged
+	// buckets; 0 when it was read while still settling, which never matches.
+	lw: number
 }
 
 export interface IGroupCacheRow<T = any> extends IGroupCacheRecord<T> {
@@ -30,9 +30,9 @@ export interface IGroupCacheRow<T = any> extends IGroupCacheRecord<T> {
 }
 
 export interface IGroupCacheMetadata {
-	// These fields are duplicated in an index so cc-gh/cc-upc can be built without loading records.
+	// These fields are duplicated in an index so cc-gh/cc-lw can be built without loading records.
 	id: number
-	upc: number
+	lw: number
 }
 
 class GroupCacheDatabase extends Dexie {
@@ -46,15 +46,17 @@ class GroupCacheDatabase extends Dexie {
 		super(databaseName)
 
 		// Indexed metadata lets GETWithGroupCache send freshness keys without loading record JSON.
-		// Schema must mirror DeltaCacheDatabase since both classes share the same underlying IDB.
-		this.version(GROUP_CACHE_DB_VERSION).stores({
+		// Schema and version must mirror DeltaCacheDatabase since both classes share the same
+		// underlying IDB: whichever opens it first runs the upgrade.
+		this.version(CACHE_DB_VERSION).stores({
 			cacheRoutes: '++id,&routeLookupKey,module',
 			cacheRecords: '[_r+_k+ID],[_r+ss]',
 			cacheRecordsSingle: '[_r+ID],[_r+ss]',
 			requestLogs: '&id,route',
 			// Primary key fetches exact groups; secondary index streams all freshness pairs by shape.
-			groupRows: '[queryShape+key],[queryShape+id+upc],queryShape',
-		})
+			groupRows: '[queryShape+key],[queryShape+id+lw],queryShape',
+			routeData: '&key',
+		}).upgrade(clearGroupRowsOnUpgrade)
 	}
 }
 
@@ -95,7 +97,7 @@ export const readGroupCacheMetadata = async (queryShape: string): Promise<IGroup
 	try {
 		// keys() reads only the compound index values; it avoids deserializing the cached records payload.
 		const indexKeys = await getGroupCacheDatabase().groupRows
-			.where('[queryShape+id+upc]')
+			.where('[queryShape+id+lw]')
 			.between(
 				[queryShape, Dexie.minKey, Dexie.minKey],
 				[queryShape, Dexie.maxKey, Dexie.maxKey],
@@ -104,12 +106,12 @@ export const readGroupCacheMetadata = async (queryShape: string): Promise<IGroup
 
 		const metadataRows: IGroupCacheMetadata[] = []
 		for (const indexKey of indexKeys) {
-			const [, id, upc] = indexKey as unknown as [string, number, number]
-			if (typeof id !== 'number' || typeof upc !== 'number') {
+			const [, id, lw] = indexKey as unknown as [string, number, number]
+			if (typeof id !== 'number' || typeof lw !== 'number') {
 				console.warn(`${LOG_PREFIX} Invalid metadata index key.`, indexKey)
 				continue
 			}
-			metadataRows.push({ id, upc })
+			metadataRows.push({ id, lw })
 		}
 
 		console.debug(`${LOG_PREFIX} Metadata read.`, { queryShape, groups: metadataRows.length })
@@ -170,7 +172,7 @@ export const upsertGroupCacheRows = async <T>(
 			id: Number(groupRecord.id || 0),
 			igVal: [...groupRecord.igVal],
 			records: Array.isArray(groupRecord.records) ? groupRecord.records : [],
-			upc: Number(groupRecord.upc || 0),
+			lw: Number(groupRecord.lw || 0),
 			fetchTime,
 		})
 	}

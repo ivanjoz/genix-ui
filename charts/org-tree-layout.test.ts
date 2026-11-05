@@ -8,10 +8,10 @@ const cardOf = (layout: ReturnType<typeof layoutOrgTree<string>>, item: string) 
 describe('layoutOrgTree', () => {
   it('hangs a short list of leaves under the parent card as an indented column', () => {
     const layout = layoutOrgTree([node('boss', node('a'), node('b'))], sizes);
-    expect(cardOf(layout, 'boss')).toEqual({ item: 'boss', x: 0, y: 0 });
+    expect(cardOf(layout, 'boss')).toMatchObject({ item: 'boss', x: 0, y: 0 });
     // Indented by 20, stacked with an 8 gap below the 40-high boss card.
-    expect(cardOf(layout, 'a')).toEqual({ item: 'a', x: 20, y: 48 });
-    expect(cardOf(layout, 'b')).toEqual({ item: 'b', x: 20, y: 96 });
+    expect(cardOf(layout, 'a')).toMatchObject({ item: 'a', x: 20, y: 48 });
+    expect(cardOf(layout, 'b')).toMatchObject({ item: 'b', x: 20, y: 96 });
     expect([layout.width, layout.height]).toEqual([120, 136]);
     // The rail runs from the boss card's bottom to the middle of the last card.
     expect(layout.lines).toContainEqual({ x1: 10, y1: 40, x2: 10, y2: 116 });
@@ -20,9 +20,9 @@ describe('layoutOrgTree', () => {
   it('wraps more leaves than maxStack into columns under a bar', () => {
     const layout = layoutOrgTree([node('boss', node('a'), node('b'), node('c'), node('d'))], sizes);
     // Two columns of 120 with a 10 gap; their rails (x 10 and 140) hang from the bar at y 50.
-    expect(cardOf(layout, 'a')).toEqual({ item: 'a', x: 20, y: 58 });
+    expect(cardOf(layout, 'a')).toMatchObject({ item: 'a', x: 20, y: 58 });
     // Balanced 2 + 2: c heads the second column.
-    expect(cardOf(layout, 'c')).toEqual({ item: 'c', x: 150, y: 58 });
+    expect(cardOf(layout, 'c')).toMatchObject({ item: 'c', x: 150, y: 58 });
     expect(layout.lines).toContainEqual({ x1: 10, y1: 50, x2: 140, y2: 50 });
     // The boss is centered over the bar: middle at 75.
     expect(cardOf(layout, 'boss').x).toBe(25);
@@ -41,8 +41,8 @@ describe('layoutOrgTree', () => {
     const layout = layoutOrgTree([node('boss', node('team', node('x')), node('solo'))], sizes);
     expect(cardOf(layout, 'solo').x).toBe(20);
     // The column is 120 wide, the subtree starts after the 10 gap and its card sits on the row top.
-    expect(cardOf(layout, 'team')).toEqual({ item: 'team', x: 130, y: 60 });
-    expect(cardOf(layout, 'x')).toEqual({ item: 'x', x: 150, y: 108 });
+    expect(cardOf(layout, 'team')).toMatchObject({ item: 'team', x: 130, y: 60 });
+    expect(cardOf(layout, 'x')).toMatchObject({ item: 'x', x: 150, y: 108 });
     // A stub joins the bar to the subtree card's middle.
     expect(layout.lines).toContainEqual({ x1: 180, y1: 50, x2: 180, y2: 60 });
   });
@@ -52,6 +52,11 @@ describe('layoutOrgTree', () => {
     // A single subtree: the bar collapses to its anchor, so the parent sits right above the team card.
     expect(cardOf(layout, 'boss').x).toBe(cardOf(layout, 'team').x);
     expect(Math.min(...layout.cards.map((card) => card.x))).toBe(0);
+  });
+
+  it('gives every card the item it hangs from', () => {
+    const layout = layoutOrgTree([node('boss', node('team', node('x')), node('solo'))], sizes);
+    expect(['boss', 'team', 'x', 'solo'].map((item) => cardOf(layout, item).parent)).toEqual([undefined, 'boss', 'team', 'boss']);
   });
 
   it('places the roots of a forest side by side', () => {

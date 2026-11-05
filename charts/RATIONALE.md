@@ -1,3 +1,8 @@
+## OrgTree: compact layout with stacked leaves and fixed-size cards
+**Context** — The HR org chart drew every child side by side, so a boss with six reports and no sub-teams took six card widths. Asked for a smarter layout that saves space, as a reusable genix-ui component.
+**Decision** — `layoutOrgTree` is a pure function over fixed `cardWidth` × `cardHeight` cards that returns absolute card positions and connector segments. Reports without reports of their own stack vertically on a left rail, in balanced columns of at most `maxStack` (5 with a max of 4 → 3 + 2). When a node's children are all leaves and fit in one column, the column hangs straight under the parent card. Otherwise the leaf columns come first, then the subtrees, under a bar with the parent centered over it. `OrgTree.svelte` draws the lines in one SVG and the cards through the caller's snippet.
+**Rationale** — Fixed card sizes make the geometry exact in one pass, with no measuring or CSS connector tricks, and keep it unit-testable. The cost is that card content must fit its box (it is clipped).
+
 ## Chart: labelEvery from the chart's width when not given
 **Context** — Asked to label every bar when there is room. `AgentAnswer` forced one label per `ceil(labels / 8)`, so 10 bars showed 5 labels even with room for all.
 **Decision** — `labelEvery` is optional; without it, `Chart` thins the labels only when a slot is narrower than a label needs: 22px for a tilted one (its 14px line over sin 40°), the widest flat label plus 8px otherwise. Whether the axis tilts is now decided over all labels, not only the drawn ones. `AgentAnswer` no longer passes `labelEvery`.

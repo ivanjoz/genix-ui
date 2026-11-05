@@ -10,3 +10,6 @@ export type {
   ChartCanvasSeries,
 } from './ChartCanvas.svelte';
 export type { ChartBarMode } from './chart-bar-layout';
+export { default as OrgTree } from './OrgTree.svelte';
+export { layoutOrgTree } from './org-tree-layout';
+export type { IOrgTreeNode, IOrgTreeSizes, IOrgTreeLayout } from './org-tree-layout';

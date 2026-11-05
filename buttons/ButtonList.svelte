@@ -2,6 +2,7 @@
   import angleSvg from '../assets/angle.svg?raw';
   import Button from './Button.svelte';
   import T from '../misc/T.svelte';
+  import './buttons.css';
 
   interface ActionItem {
     id: number;

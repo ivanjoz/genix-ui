@@ -1,0 +1,141 @@
+/* ── Buttons ────────────────────────────────────────────────────────────────────────
+   `bx-<color>` is what Button's `color` prop renders, and `round` its `useCircle`. They are global,
+   not scoped to Button.svelte, because Modal, ButtonLayer and ButtonList style their own <button>
+   with them; each of those components imports this file.
+
+   This file lives outside the Tailwind entry on purpose: Tailwind rewrites every `color-mix()` it
+   compiles into a fallback rule plus an `@supports (color: color-mix(...))` copy. Every supported
+   browser has color-mix, so the duplicates are only noise in DevTools.
+
+   One rule paints: the base `.bx-*` rule below is the only one that writes the visual properties.
+   Color, mode, shape, height and shadow only set `--bx-*` variables, so nothing is overridden (or
+   crossed out in DevTools) and no class combination (`.round.bx-small`) or !important is needed.
+   The sections share one specificity (a single class), so a later section wins over an earlier
+   one: the order below is base → color → mode → shape → height → shadow. */
+
+/* Neutral variant a host passes through `css`, without a color. */
+.bn-white {
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+	line-height: 1;
+	text-align: center;
+	cursor: pointer;
+	white-space: nowrap;
+	user-select: none;
+	box-sizing: border-box;
+	outline: none;
+	flex-shrink: 0;
+	height: 38px;
+	box-shadow: rgba(0, 0, 0, 0.20) 0px 1px 4px;
+	color: var(--blue-fg);
+	border-radius: 7px;
+	padding: 5px 12px 4px 12px;
+	background-color: var(--surface-raised);
+}
+
+.bn-white:hover {
+	outline: 1px solid var(--fg-muted);
+}
+
+/* ── 1. Base: the only rule writing properties. The defaults are the `default` mode and height. ── */
+:is(.bx-blue, .bx-green, .bx-purple, .bx-red, .bx-orange, .bx-yellow) {
+	/* The border is the family's text color half-mixed into the surface: the buttons' original
+	   borders sat there (e.g. #849de6 for blue), far stronger than the family's pastel `-border` step. */
+	--bx-fill: linear-gradient(338deg, var(--bx-bg-strong) 0%, var(--bx-bg) 100%);
+	--bx-fill-hover: var(--surface);
+	--bx-border: 1px solid color-mix(in srgb, var(--bx-fg) 55%, var(--surface));
+	--bx-border-bottom: 2px solid color-mix(in srgb, var(--bx-fg) 55%, var(--surface));
+	--bx-shadow: 0px 3px 7px -1px color-mix(in srgb, var(--bx-solid) 50%, transparent);
+	--bx-shadow-hover: var(--bx-shadow);
+	--bx-height: 39px;
+	--bx-min-width: 46px;
+	--bx-padding-x: 12px;
+	--bx-radius: 7px;
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	vertical-align: middle;
+	line-height: 1;
+	text-align: center;
+	cursor: pointer;
+	white-space: nowrap;
+	user-select: none;
+	box-sizing: border-box;
+	outline: none;
+	flex-shrink: 0;
+	height: var(--bx-height);
+	width: var(--bx-round-size, auto);
+	min-width: var(--bx-round-size, var(--bx-min-width));
+	padding: 0 var(--bx-round-padding, var(--bx-padding-x));
+	border-radius: var(--bx-radius);
+	color: var(--bx-fg);
+	background: var(--bx-fill);
+	border: var(--bx-border);
+	border-bottom: var(--bx-border-bottom);
+	box-shadow: var(--bx-shadow);
+}
+
+:is(.bx-blue, .bx-green, .bx-purple, .bx-red, .bx-orange, .bx-yellow):hover {
+	color: var(--bx-solid);
+	background: var(--bx-fill-hover);
+	border-color: var(--bx-solid);
+	box-shadow: var(--bx-shadow-hover);
+}
+
+/* ── 2. Color: binds the family to the --bx-* color variables. ── */
+.bx-blue { --bx-fg: var(--blue-fg); --bx-solid: var(--blue-solid); --bx-bg: var(--blue-bg); --bx-bg-strong: var(--blue-bg-strong); }
+.bx-green { --bx-fg: var(--green-fg); --bx-solid: var(--green-solid); --bx-bg: var(--green-bg); --bx-bg-strong: var(--green-bg-strong); }
+.bx-purple { --bx-fg: var(--purple-fg); --bx-solid: var(--purple-solid); --bx-bg: var(--purple-bg); --bx-bg-strong: var(--purple-bg-strong); }
+.bx-red { --bx-fg: var(--red-fg); --bx-solid: var(--red-solid); --bx-bg: var(--red-bg); --bx-bg-strong: var(--red-bg-strong); }
+.bx-orange { --bx-fg: var(--orange-fg); --bx-solid: var(--orange-solid); --bx-bg: var(--orange-bg); --bx-bg-strong: var(--orange-bg-strong); }
+.bx-yellow { --bx-fg: var(--yellow-fg); --bx-solid: var(--yellow-solid); --bx-bg: var(--yellow-bg); --bx-bg-strong: var(--yellow-bg-strong); }
+
+/* ── 3. Button `mode` (default = no class). ──
+   subtle: same fill, but a soft outer halo and a thin bottom edge instead of the border and the
+   drop shadow, for buttons sitting inside a dense row (a group header). The halo is blurred outside
+   the button rather than an inset ring, so it doesn't eat into the fill.
+   minimal: just the light background of the color, no border or shadow; stronger on hover.
+   white: a raised white chip with the colored icon/text, for actions over a tinted row. */
+.bx-subtle {
+	--bx-border: none;
+	--bx-border-bottom: 1px solid color-mix(in srgb, var(--bx-solid) 70%, transparent);
+	--bx-shadow: 0 0 1px 1px color-mix(in srgb, var(--bx-solid) 35%, transparent);
+	--bx-shadow-hover: 0 0 1px 1px color-mix(in srgb, var(--bx-solid) 75%, transparent);
+}
+
+.bx-minimal {
+	--bx-fill: var(--bx-bg);
+	--bx-fill-hover: var(--bx-bg-strong);
+	--bx-border: none;
+	--bx-border-bottom: none;
+	--bx-shadow: none;
+}
+
+.bx-white {
+	--bx-fill: var(--surface-raised);
+	--bx-fill-hover: var(--surface-raised);
+	--bx-border: none;
+	--bx-border-bottom: none;
+	--bx-shadow: rgb(53 53 90 / 24%) 0px 1px 3px 0px;
+	--bx-shadow-hover: inset 0 0 0 1px var(--bx-solid);
+}
+
+/* ── 4. Shape: `round` is a circle as wide as it is tall, 38px by default. The --bx-round-* variables
+   win over the min-width and padding a height class sets, so the circle follows the height. ── */
+.round {
+	--bx-height: 38px;
+	--bx-round-size: var(--bx-height);
+	--bx-round-padding: 0px;
+	--bx-radius: 50%;
+}
+
+/* ── 5. Button `height`. Also sizes the round circle, through --bx-round-size. ── */
+.bx-compact { --bx-height: 35px; }
+.bx-small { --bx-height: 32px; --bx-min-width: 38px; --bx-padding-x: 10px; }
+.bx-tiny { --bx-height: 28px; --bx-min-width: 32px; --bx-padding-x: 8px; font-size: 14px; }
+
+/* ── 6. Button `shadow`: overrides the mode's shadow, also on hover. ── */
+.bx-shadow-none { --bx-shadow: none; --bx-shadow-hover: none; }
+.bx-shadow-minimal { --bx-shadow: rgb(0 0 0 / 12%) 0px 1px 2.5px; --bx-shadow-hover: var(--bx-shadow); }

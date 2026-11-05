@@ -4,6 +4,7 @@
   import { tick, type Snippet } from 'svelte';
 import angleSvg from '../assets/angle.svg?raw';
 import { Agent } from '../agent/registry';
+import './buttons.css';
 
   interface Props {
     /** Button text or content */

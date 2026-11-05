@@ -41,6 +41,7 @@
 	import OptionsStrip from "../navigation/OptionsStrip.svelte";
 	import FileUploadSelector from "../files/FileUploadSelector.svelte";
 	import { Agent } from "../agent/registry";
+	import "../buttons/buttons.css";
 
 	interface Props {
 		children?: import("svelte").Snippet;

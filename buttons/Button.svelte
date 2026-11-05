@@ -3,6 +3,7 @@
   const ui = useUI();
   import { Agent } from '../agent/registry';
   import T from '../misc/T.svelte';
+  import './buttons.css';
 
   type ButtonColor = 'blue' | 'green' | 'red' | 'orange' | 'yellow' | 'purple';
   type ButtonMode = 'default' | 'subtle' | 'minimal' | 'white';

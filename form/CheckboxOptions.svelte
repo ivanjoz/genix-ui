@@ -6,7 +6,7 @@
 
   const {
 		options, saveOn = $bindable(), save, keyId, keyName, css, type,
-		useButtons = false, useButtonsSlim = false, autospace = false, onChange
+		useButtons = false, useButtonsSlim = false, autospace = false, required = false, onChange
 	}: {
     saveOn?: T
 		save?: keyof T
@@ -19,6 +19,8 @@
     useButtonsSlim?: boolean
     /** Lays the options out in equal columns sized by their names (autospaceColumns). */
     autospace?: boolean
+    /** At least one option stays selected: the click that would leave none is ignored. */
+    required?: boolean
     onChange?: (selected: (number|string)[]) => void
   } = $props();
 
@@ -37,6 +39,7 @@
 
   const onSelect = (e: E) => {
     const id = e[keyId] as number|string
+    if(required && optionsSelected.length === 1 && optionsSelected.includes(id)){ return }
     if(type == 'multiple'){
       if(optionsSelected.includes(id)){
         optionsSelected = optionsSelected.filter(x => x !== id)

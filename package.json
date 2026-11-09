@@ -139,7 +139,7 @@
     "@tiptap/starter-kit": "^3.31.4",
     "axios": "^1.13.2",
     "chartist": "^2.0.0",
-    "colbin": "0.10.0",
+    "colbin": "0.10.1",
     "date-fns": "^4.1.0",
     "dexie": "^4.2.0",
     "dompurify": "^3.4.2",

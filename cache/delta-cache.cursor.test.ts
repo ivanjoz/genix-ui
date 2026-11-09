@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { formatDeltaCursor, readDeltaKeyResponse } from './delta-cache.cursor'
+import { formatDeltaCursor, formatWriteDeltaRequest, readDeltaKeyResponse } from './delta-cache.cursor'
 import { encodeSafe85 } from './safe85'
 
 const fromHex = (hex: string) => Array.from(hex.match(/../g) || [], (pair) => parseInt(pair, 16))
@@ -65,5 +65,18 @@ describe('readDeltaKeyResponse', () => {
 		const response = readDeltaKeyResponse([{ ID: 1 }], { 11: 3 }, recordIDOfLogID)
 		expect(response.cursor).toBeUndefined()
 		expect(response.records).toEqual([{ ID: 1 }])
+	})
+})
+
+describe('formatWriteDeltaRequest', () => {
+	it('joins the route and its query pairs with "~"', () => {
+		expect(formatWriteDeltaRequest('crm-opportunities?pipeline-id=3&up=12.4096.13.512'))
+			.toBe('crm-opportunities~pipeline-id~3~up~12.4096.13.512')
+		expect(formatWriteDeltaRequest('crm-lost-reasons')).toBe('crm-lost-reasons')
+		expect(formatWriteDeltaRequest('products?name=a%20b')).toBe('products~name~a b')
+	})
+
+	it('answers empty when a value holds "~"', () => {
+		expect(formatWriteDeltaRequest('products?name=a~b')).toBe('')
 	})
 })

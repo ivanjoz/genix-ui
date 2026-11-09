@@ -10,7 +10,9 @@ import {
 } from '../cache/frame-cache.fetch.js';
 import {
   COLBIN_ACCEPT,
+  COLBIN_MEDIA_TYPE,
   decodeColbinBody,
+  encodeColbinBody,
   isColbinContentType,
   isColbinDisabled,
 } from './serialization.js';
@@ -45,6 +47,10 @@ export interface httpProps {
   // a form, for instance. The promise still rejects with the raw response; pair it with
   // extractError() to get the readable text.
   silentError?: boolean;
+  // Sends the body of a POST/PUT as a self-describing colbin message instead of JSON text. Opt-in
+  // per call: colbin is lossy where JSON is not for empty arrays (they come back as null) and the
+  // backend then gets a nil slice. Falls back to JSON when the value has no colbin shape.
+  colbinBody?: boolean;
   module?: string;
   onUploadProgress?: (event: AxiosProgressEvent) => void;
   status?: IHttpStatus;
@@ -250,10 +256,13 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
 
     try {
       console.log(`[http] ${method}:`, props.route);
+      const colbinBody = props.colbinBody && !isColbinDisabled() ? await encodeColbinBody(props.data) : null;
+      const headers = buildHeaders('json', props.route);
+      if (colbinBody) headers['Content-Type'] = COLBIN_MEDIA_TYPE;
       const response = await fetch(runtime.makeRoute(props.route), {
         method,
-        headers: buildHeaders('json', props.route),
-        body: JSON.stringify(props.data),
+        headers,
+        body: colbinBody ? (colbinBody as BodyInit) : JSON.stringify(props.data),
       });
       const result = transformResponse(await parsePreResponse(response, status, props.route));
 

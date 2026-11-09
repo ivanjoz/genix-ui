@@ -27,7 +27,7 @@ import {
 } from './delta-cache.idb';
 import type { CacheRecordID, ICacheRecordRow, ICacheRecordRowMulti, ICacheRecordRowSingle, ICacheRouteRow, IDeltaCacheRouteRef, ILastSync, IRefreshDeltaRoutesArgs } from './delta-cache.types';
 import { deltaCursorParamOfDefaultKey } from './delta-cache.types';
-import { formatDeltaCursor, readDeltaKeyResponse } from './delta-cache.cursor';
+import { formatDeltaCursor, formatWriteDeltaRequest, readDeltaKeyResponse } from './delta-cache.cursor';
 import { packDeltaLogID } from './delta-log.wire';
 import type { serviceHttpProps } from './service-http.types.js';
 import { parseObject } from './parse-object.js';
@@ -814,11 +814,16 @@ const saveInitialSnapshot = async (
   return rememberRouteSnapshot(routeRow, response)
 }
 
-export const getDeltaCursors = async (args: serviceHttpProps) => {
+// getWriteDeltaRequest builds the `dl` param of a write that wants this route's delta back in its own
+// response: the route's query plus its delta cursors, the same request the delta GET would send. Empty
+// when the route was never synced or its version changed: there is no held state to apply a delta to.
+export const getWriteDeltaRequest = async (args: serviceHttpProps) => {
   const routeReference = makeRouteReference(args)
   const routeRow = await getCacheRouteRow(routeReference)
-  const lastSync = routeRow || makeEmptyLastSync(routeReference.version)
-  return { deltaCursors: lastSync.deltaCursors || {}, fetchTime: lastSync.fetchTime || 0 }
+  if(!routeRow?.fetchTime || routeRow.__version__ !== routeReference.version){ return { deltaRequest: '' } }
+  // The backend runs the GET handler in process, so the route goes bare, without the API host.
+  const { route } = getNextRouteURL({ ...args, routeParsed: undefined }, routeRow)
+  return { deltaRequest: formatWriteDeltaRequest(route) }
 }
 
 // firstSyncFromSnapshotFile bootstraps a route from a static CDN snapshot file (.db) instead of
@@ -1012,6 +1017,9 @@ const syncDeltaCache = async (args: serviceHttpProps) => {
   }
 }
 
+// applyExternalDeltaResponse applies the delta a write returned with its own response (`dl`, see
+// getWriteDeltaRequest) as if the route's delta GET had answered it, and returns the route's content
+// in the shape action 3 does.
 export const applyExternalDeltaResponse = async (args: ICacheSyncUpdate) => {
   const nowTime = Math.floor(Date.now()/1000) - 5
   args.args.__enviroment__ = args.__enviroment__
@@ -1021,7 +1029,8 @@ export const applyExternalDeltaResponse = async (args: ICacheSyncUpdate) => {
   args.args.contentLength = measureResponseBytes(normalizeResponse(args.response))
   const routeReference = makeRouteReference(args.args)
   const routeRow = await ensureCacheRouteRow(routeReference)
-  return await handleFetchResponse(args.args, routeRow, normalizeResponse(args.response), nowTime, isArray)
+  const content = await handleFetchResponse(args.args, routeRow, normalizeResponse(args.response), nowTime, isArray)
+  return { content: content?._default ? content._default : content }
 }
 
 export const setDeltaRouteForceNetwork = async (args: serviceHttpProps) => {

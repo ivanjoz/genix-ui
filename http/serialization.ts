@@ -59,6 +59,22 @@ export const preloadColbinCodec = (): Promise<Codec> => {
  * A nil slice on the backend is a colbin `null`, where its JSON path answers `[]`: both routes
  * hand the caller the same empty list.
  */
+/**
+ * A request body as a self-describing colbin message (the schema travels inside it, which is what
+ * backend/core/request_body.go reads), or null when the value has no colbin shape — an empty
+ * array, a type conflict, a field that is only ever null — so the caller sends JSON instead.
+ * Warnings count as "no shape": a lossy guess is not worth a smaller body.
+ */
+export const encodeColbinBody = async (value: unknown): Promise<Uint8Array | null> => {
+  try {
+    const codec = await preloadColbinCodec();
+    const { standalone, warnings } = codec.marshal(value);
+    return warnings.length === 0 ? standalone : null;
+  } catch {
+    return null;
+  }
+};
+
 export const decodeColbinBody = async (body: Uint8Array): Promise<any> => {
   const codec = await preloadColbinCodec();
   return codec.unmarshal(body) ?? [];

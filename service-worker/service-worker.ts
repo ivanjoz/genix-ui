@@ -4,7 +4,7 @@ import {
   clearDeltaModuleCache,
   fetchDeltaCache,
   getDeltaCacheStats,
-  getDeltaCursors,
+  getWriteDeltaRequest,
   openDeltaRoutesWrite,
   readDeltaCacheSubObject,
   refreshDeltaRoutes,
@@ -31,9 +31,9 @@ HandlersMap.set(11, async () => {
   return await triggerDeltaForceFetchWindow()
 })
 
-// Action 12 exposes the delta cursor of each response key of a route.
+// Action 12 builds the `dl` param of a write that wants a route's delta back in its response.
 HandlersMap.set(12, async (args: serviceHttpProps) => {
-  return await getDeltaCursors(args)
+  return await getWriteDeltaRequest(args)
 })
 
 // Action 13 applies delta payloads produced by write endpoints into the cache.

@@ -14,6 +14,13 @@ export interface INewIDToID {
 	TempID: number
 }
 
+// What a write answers when it carried a `dl` param (backend/write_delta.go). Delta is null when
+// the backend could not build it.
+interface IWriteWithDelta {
+	Response: unknown
+	Delta: unknown
+}
+
 export interface GetHandlerRecord {
 	ID: number
 	ss?: number
@@ -30,7 +37,13 @@ export interface GetHandlerRuntime {
 	buildHeaders: (contentType?: string, route?: string) => Record<string, string>
 	fetchCached: (request: serviceHttpProps) => Promise<unknown>
 	post: (request: GetHandlerPostRequest) => Promise<unknown>
-	getRecordsByID: <T extends IMinimalRecord>(
+	// The `dl` param of a write that wants this route's delta back ('' when the route has no synced
+	// cache to apply it to), and the application of that delta to the cache (service worker 12 / 13).
+	readWriteDeltaRequest: (request: serviceHttpProps) => Promise<string>
+	applyWriteDelta: (request: serviceHttpProps, delta: unknown) => Promise<unknown>
+	// Marks routes so their next read goes to the server (service worker 24).
+	refreshRoutes: (routes: string[], module: string) => Promise<unknown>
+	getRecordsByID:<T extends IMinimalRecord>(
 		route: string,
 		ids: number[],
 	) => Promise<Map<number, T>>
@@ -283,31 +296,90 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 		}
 	}
 
-	async post(records: T[], requestWrapper?: Record<string, unknown>): Promise<INewIDToID[]> {
-		if (requestWrapper) requestWrapper.records = records
-		const routeToPost = this.routePost || this.route
-		console.debug(`[GetHandler] Posting route=${routeToPost} records=${records.length}`)
+	// sendWrite posts `data` to `writeRoute` and brings `this.route` up to date in the same request:
+	// when the route is delta-cached here, the write carries its cursors (`dl`) and the backend answers
+	// {Response, Delta}, the delta since those cursors (this write plus anything else the client had
+	// not seen), which is applied to the cache as a delta GET would. Without a synced cache, or when
+	// the delta does not come back, the route is marked so its next read goes to the server.
+	private async sendWrite(
+		writeRoute: string,
+		data: unknown,
+		extraRefreshRoutes: string[],
+	): Promise<{ response: unknown, deltaApplied: boolean }> {
+		const cacheProps = this.makeProps()
+		cacheProps.__version__ = this.useCache?.ver || 1
+		const deltaRequest = this.route ? await this.runtime.readWriteDeltaRequest(cacheProps) : ''
+		const routeWithDelta = deltaRequest
+			? `${writeRoute}${writeRoute.includes('?') ? '&' : '?'}dl=${encodeURIComponent(deltaRequest)}`
+			: writeRoute
+		console.debug(`[GetHandler] Writing route=${routeWithDelta}`)
 
+		let response: unknown
 		try {
-			return await this.runtime.post({
-				data: requestWrapper || records,
-				route: routeToPost,
-				refreshRoutes: [this.route, ...this.refreshRoutes],
-			}) as INewIDToID[]
-		} catch (postError) {
-			console.error(`[GetHandler] Post failed: route=${routeToPost}`, postError)
-			if (this.returnEmptyOnPostFailure) return []
-			throw postError
+			response = await this.runtime.post({
+				data,
+				route: routeWithDelta,
+				// The route whose delta comes back is written from the response: marking it would
+				// send its next read to the server again. Marking matches by prefix ("projects-epics"
+				// also marks "projects-epics?project-id=3"), so every prefix of this route is left out.
+				refreshRoutes: deltaRequest
+					? extraRefreshRoutes.filter((refreshRoute) => !this.route.startsWith(refreshRoute))
+					// A handler whose route is not set yet marks nothing: '' is a prefix of every route.
+					: [this.route, ...extraRefreshRoutes].filter(Boolean),
+			})
+		} catch (writeError) {
+			console.error(`[GetHandler] Write failed: route=${writeRoute}`, writeError)
+			// A failed write may still have written part of its records.
+			if (deltaRequest) void this.runtime.refreshRoutes([this.route], this.module)
+			throw writeError
 		}
+		if (!deltaRequest) return { response, deltaApplied: false }
+
+		const { Response, Delta } = response as IWriteWithDelta
+		const routeContent = Delta ? await this.runtime.applyWriteDelta(cacheProps, Delta) : null
+		if (this.handleResponse(routeContent)) {
+			console.debug(`[GetHandler] Write delta applied: route=${this.route}`)
+			this.isReady++
+			return { response: Response, deltaApplied: true }
+		}
+		void this.runtime.refreshRoutes([this.route], this.module)
+		return { response: Response, deltaApplied: false }
 	}
 
+	// writeAndSync sends any write (a command such as a move, not only a list of records) and leaves
+	// `this.route` up to date: from the delta that came back with the write, or otherwise from a read
+	// of the server. Answers the write's own response.
+	async writeAndSync<WriteResponse = unknown>(
+		writeRoute: string,
+		data: unknown,
+		extraRefreshRoutes: string[] = [],
+	): Promise<WriteResponse> {
+		const { response, deltaApplied } = await this.sendWrite(writeRoute, data, extraRefreshRoutes)
+		if (!deltaApplied) await this.fetchOnline()
+		return response as WriteResponse
+	}
+
+	// postAndSync saves the records (see sendWrite for how the route is brought up to date) and
+	// assigns the IDs the backend gave the temporary ones. Without a delta, the saved records are
+	// merged in memory instead.
 	async postAndSync(
 		records: T[],
 		requestWrapper?: Record<string, unknown>,
 	): Promise<Map<number, number>> {
 		for (const record of records) this.setTempID(record)
+		if (requestWrapper) requestWrapper.records = records
 
-		const idMappings = await this.post(records, requestWrapper)
+		let idMappings: INewIDToID[] = []
+		let deltaApplied = false
+		try {
+			const write = await this.sendWrite(
+				this.routePost || this.route, requestWrapper || records, this.refreshRoutes,
+			)
+			idMappings = Array.isArray(write.response) ? write.response as INewIDToID[] : []
+			deltaApplied = write.deltaApplied
+		} catch (writeError) {
+			if (!this.returnEmptyOnPostFailure) throw writeError
+		}
 		const tempToNewIDs = new Map<number, number>()
 
 		for (const mapping of idMappings) {
@@ -323,7 +395,7 @@ export class GetHandler<T extends GetHandlerRecord = any> {
 			}
 		}
 
-		this.addSavedRecords(...records)
+		if (!deltaApplied) this.addSavedRecords(...records)
 		this.afterSaveRecords(...records)
 		return tempToNewIDs
 	}

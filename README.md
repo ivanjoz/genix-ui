@@ -365,8 +365,14 @@ Useful fields: `route`, `routeByID`, `keyID` / `keysIDs` (when the id field is n
 Behaviour worth knowing:
 - Fetched records need an `upd` (updated) and `ID` field, or a configured `keyID`.
 - `ss === 0` is treated as a tombstone when `inferRemoveFromStatus` is enabled.
-- `post()` logs failures and returns `[]` by default; set `returnEmptyOnPostFailure = false`
-  when callers must receive the rejection.
+- `postAndSync()` logs failures and returns no ID mappings by default; set
+  `returnEmptyOnPostFailure = false` when callers must receive the rejection.
+- `postAndSync()` and `writeAndSync(route, data, extraRefreshRoutes)` bring the handler's route up
+  to date in the same request as the write: when the route is delta-cached, the POST carries
+  `dl=<route>~<key>~<value>…` (its delta cursors) and the backend answers `{Response, Delta}`. The
+  delta is applied to the cache as a delta GET would be, so no GET follows the write. Without a
+  synced cache, or when no delta comes back, `postAndSync` merges the saved records in memory and
+  `writeAndSync` (for commands whose body is not a list of records) reads the route from the server.
 - The class uses runes, so it only works in a Svelte-aware build.
 
 Four cache engines live in `@genix/ui/cache`: the delta cache (watermark sync), the group

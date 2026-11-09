@@ -36,7 +36,29 @@ export const formatDeltaCursor = (cursor: DeltaCursor | string): string => {
 		.join('.')
 }
 
-export const isDeltaMetadataRecord = (record: any): boolean => typeof record?.mdt === 'string'
+/**
+ * formatWriteDeltaRequest turns a delta GET route ("crm-opportunities?pipeline-id=3&up=12.40") into
+ * the `dl` param of a write that wants that delta back in its response:
+ * "crm-opportunities~pipeline-id~3~up~12.40" (backend/write_delta.go). Routes, query keys and delta
+ * cursors are digits, dots and dashes, so "~" needs no escaping; a value that holds one answers ''
+ * and the write falls back to a normal refresh.
+ */
+export const formatWriteDeltaRequest = (deltaRoute: string): string => {
+	const [routePath, queryString = ''] = deltaRoute.split('?')
+	const parts = [routePath]
+	for (const queryPair of queryString.split('&')) {
+		if (!queryPair) continue
+		const separatorIndex = queryPair.indexOf('=')
+		const queryKey = separatorIndex < 0 ? queryPair : queryPair.slice(0, separatorIndex)
+		const queryValue = separatorIndex < 0 ? '' : queryPair.slice(separatorIndex + 1)
+		// The backend reads the pairs as they come, so a value a URL would have carried encoded goes decoded.
+		parts.push(decodeURIComponent(queryKey), decodeURIComponent(queryValue))
+	}
+	if (!routePath || parts.some((part) => part.includes('~'))) return ''
+	return parts.join('~')
+}
+
+export const isDeltaMetadataRecord =(record: any): boolean => typeof record?.mdt === 'string'
 
 export interface DeltaKeyResponse {
 	// The records of the response, without its Metadata records.

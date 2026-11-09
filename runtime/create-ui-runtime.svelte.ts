@@ -103,6 +103,22 @@ export const createUiRuntime = <UserInfoType = unknown>(
     buildHeaders: http.buildHeaders,
     fetchCached: fetchCacheParsed,
     post: http.POST,
+    readWriteDeltaRequest: async (request) => {
+      const response = await sendServiceMessage(12, request);
+      return response?.deltaRequest || '';
+    },
+    // Null on any failure: GetHandler.postAndSync then merges in memory and marks the route.
+    applyWriteDelta: async (request, delta) => {
+      try {
+        const response = await sendServiceMessage(13, { args: request, response: delta });
+        if (!response?.error) { return response?.content; }
+        console.warn('[GetHandler] Write delta could not be applied:', request.route, response.error);
+      } catch (applyError) {
+        console.warn('[GetHandler] Write delta could not be applied:', request.route, applyError);
+      }
+      return null;
+    },
+    refreshRoutes: (routes, module) => sendServiceMessage(24, { routes, module }),
     getRecordsByID,
     // Cached services must not fetch for a page the user cannot open, so the guard
     // checks the current path rather than the service route.

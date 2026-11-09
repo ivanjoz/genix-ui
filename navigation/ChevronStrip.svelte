@@ -131,7 +131,8 @@
     scrollbar-width: thin;
   }
   /* An arrow: a 10px point on the right, and a matching notch on the left that receives the
-     previous option's point. The first option has no notch, the last one no point. */
+     previous option's point. The first option has no notch, the last one no point (so the strip
+     always ends square). */
   .chevron-option {
     --chevron-bg: var(--surface-strong);
     background-color: var(--chevron-bg);
@@ -148,6 +149,10 @@
   }
   .chevron-option:last-child:not(:first-child) {
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);
+  }
+  /* A lone option has nothing to point at nor receive: a plain rectangle. */
+  .chevron-option:only-child {
+    clip-path: none;
   }
   .chevron-option:hover {
     --chevron-bg: var(--accent-bg-strong);

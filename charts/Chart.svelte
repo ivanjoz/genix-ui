@@ -108,10 +108,15 @@
   function shortenObliqueLabel(label: string) {
     return label.length > OBLIQUE_MAX_CHARS ? `${label.slice(0, OBLIQUE_MAX_CHARS - 1)}...` : label
   }
-  // Grouped bars share their label's slot.
+  // Grouped bars share their label's slot. Chartist places the grouped bars seriesBarDistance apart
+  // (15px by default) whatever their width, so a wider bar overlapped its neighbor: the distance is
+  // set to the bar width plus a gap. Whole pixels keep every bar the same width.
+  const GROUPED_BAR_GAP = 2
+  const groupedBarsCount = $derived(stacked || type === 'line' ? 1 : Math.max(1, shownSeries.length))
   const barWidth = $derived.by(() => {
-    const slotWidth = (chartWidth - yAxisWidth) / Math.max(1, labels.length)
-    return Math.max(2, Math.min(48, (slotWidth * BAR_SHARE_OF_SLOT) / (stacked || type === 'line' ? 1 : Math.max(1, shownSeries.length))))
+    const slotWidth = (chartWidth - yAxisWidth - CHART_PADDING_RIGHT) / Math.max(1, labels.length)
+    const groupWidth = slotWidth * BAR_SHARE_OF_SLOT - GROUPED_BAR_GAP * (groupedBarsCount - 1)
+    return Math.max(2, Math.min(48, Math.floor(groupWidth / groupedBarsCount)))
   })
   // Each drawn series reads its opacity from --chart-series-opacity-<index>: the legend's hovered
   // series leaves its own unset and fades the rest, without redrawing the chart.
@@ -154,7 +159,7 @@
     // No left padding: the y axis is already sized to its labels (chartist's default adds 10px).
     const chartPadding = { top: 15, right: CHART_PADDING_RIGHT, bottom: 5, left: 0 }
     const chart = type === 'bar'
-      ? barChart(chartElement, data, { height: chartHeight, chartPadding, stackBars: stacked, axisX, axisY, plugins })
+      ? barChart(chartElement, data, { height: chartHeight, chartPadding, stackBars: stacked, seriesBarDistance: barWidth + GROUPED_BAR_GAP, axisX, axisY, plugins })
       : lineChart(chartElement, data, { height: chartHeight, chartPadding, axisX, axisY, plugins, lineSmooth: false })
     return () => { chart.destroy() }
   })
@@ -219,6 +224,9 @@
 <style>
   /* The hovered bar or point stands out; a legend hover fades the other series smoothly. */
   .chart :global(:is(.ct-bar, .ct-point, .ct-line)) { transition: opacity 0.15s; }
+  /* Bar edges fall on fractional pixels (slot centers, and any browser zoom other than 100%), which
+     antialiasing blurs into a half-tinted column: snap them to device pixels instead. */
+  .chart :global(.ct-bar) { shape-rendering: crispEdges; }
   .chart :global(.ct-bar:hover), .chart :global(.ct-point:hover) { opacity: 0.75 !important; }
   /* Theme tokens instead of chartist's fixed grays, so the axes follow light and dark mode. The raw
      tokens, not --color-*: `@theme inline` never emits those as CSS variables. */

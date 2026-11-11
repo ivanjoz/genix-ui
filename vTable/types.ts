@@ -148,6 +148,11 @@ export interface ITableColumn<T> {
 	onCellEdit?: (e: T, value: string|number, rerender: () => void) => void
 	disableCellInteractions?: (e:T, idx?: number) => boolean
 	onCellSelect?: (e: T, value: string|number, rerender: () => void) => void
+	// How an onCellSelect cell picks (VTable and TableGrid): 'search' (default) types to filter
+	// (CellSelect); 'pick' opens one button per option with no typing (CellSelectBox), for short lists.
+	cellSelectMode?: 'search' | 'pick'
+	// Columns of the 'pick' list's option buttons (default 1).
+	cellSelectColumns?: 1 | 2
 	// Renders a CellMultiSelect: `field` holds the array of selected cellOptions ids.
 	onCellMultiSelect?: (e: T, selectedIDs: (string|number)[], rerender: () => void) => void
 	onCellClick?: (e: T, idx: number, rerender: () => void) => void

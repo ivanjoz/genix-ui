@@ -9,9 +9,12 @@
   import { Markdown } from "@tiptap/markdown";
   import EditorTablePicker from "./EditorTablePicker.svelte";
   import EditorTableHandles from "./EditorTableHandles.svelte";
+  import EditorVariablePicker from "./EditorVariablePicker.svelte";
   // Aliased: the generic record parameter of this component is already named T.
   import TranslatedText from "../misc/T.svelte";
+  import { useUI } from "../runtime/index.js";
   import { editorBackgroundColors, editorTextColors, editorTextSizes } from "./HTMLEditor"
+  import { createEditorVariableNode, editorVariableLabel, type EditorVariableOption } from "./EditorVariable"
   import {
     editorIconAlignCenter,
     editorIconAlignJustify,
@@ -30,9 +33,15 @@
     editorIconTextSize,
     editorIconUnderline,
     editorIconUndo,
+    editorIconVariable,
   } from "./icons"
 
-  const { saveOn, save, css, placeholder = "Start writing rich content…|Empieza a escribir contenido enriquecido…", format = "html" }: {
+  const ui = useUI()
+
+  const {
+    saveOn, save, css, placeholder = "Start writing rich content…|Empieza a escribir contenido enriquecido…", format = "html",
+    variables = [], variablesHint,
+  }: {
     saveOn: T
     save: keyof T
     css?: string
@@ -43,10 +52,18 @@
      * alignment or underline, so those buttons are hidden and the text size button picks headings.
      */
     format?: "html" | "markdown"
+    /**
+     * HTML only. Adds a toolbar button that inserts these variables, shown as "Group: Field" labels
+     * and saved as <span data-variable="name">{{name}}</span>.
+     */
+    variables?: EditorVariableOption[]
+    /** Bilingual note shown under the variable list. */
+    variablesHint?: string
   } = $props()
 
   // Read once: switching the format would need a different set of extensions.
   const isMarkdown = untrack(() => format === "markdown")
+  const hasVariables = untrack(() => !isMarkdown && variables.length > 0)
 
   const readBoundValue = () =>
     (saveOn && save && ((saveOn[save] as string) ?? "")) || ""
@@ -62,7 +79,7 @@
   let lastSyncedValue = readBoundValue()
 
   // Popovers opened from a toolbar button: centered under it, with an arrow pointing at it
-  type ToolbarPopover = "textSize" | "heading" | "table" | "textColor" | "backgroundColor" | "align"
+  type ToolbarPopover = "variables" | "textSize" | "heading" | "table" | "textColor" | "backgroundColor" | "align"
   let openPopover = $state<ToolbarPopover | null>(null)
   let popoverAnchor = $state.raw<HTMLElement | null>(null)
   let popoverElement = $state<HTMLDivElement>()
@@ -165,6 +182,11 @@
     openPopover = null
   }
 
+  const insertVariable = (name: string) => {
+    runCommand(chain => chain.insertContent({ type: "variable", attrs: { name } }))
+    openPopover = null
+  }
+
   const applyColor = (color: string) => {
     if (openPopover === "backgroundColor") runCommand(chain => chain.setBackgroundColor(color))
     else runCommand(chain => chain.setColor(color))
@@ -189,6 +211,7 @@
           TextAlign.configure({ types: ["heading", "paragraph"] }),
           // Dragging a column border resizes it; the widths are stored as colwidth on the cells.
           TableKit.configure({ table: { resizable: true } }),
+          ...(hasVariables ? [createEditorVariableNode(name => editorVariableLabel(variables, name, ui.translate))] : []),
         ],
       content: lastSyncedValue,
       contentType: format,
@@ -242,6 +265,9 @@
     'Clear format', 'Undo', 'Redo',
   ])
   const allToolbarItems = $derived<ToolbarItem[]>([
+    ...(hasVariables
+      ? [{ label: 'Insert variable', icon: editorIconVariable, action: (ev: MouseEvent) => togglePopover("variables", ev), active: openPopover === "variables" }]
+      : []),
     { label: 'Bold', icon: editorIconBold, action: () => runCommand(chain => chain.toggleBold()), active: isActive("bold") },
     { label: 'Italic', icon: editorIconItalic, action: () => runCommand(chain => chain.toggleItalic()), active: isActive("italic") },
     isMarkdown
@@ -308,7 +334,9 @@
           <!-- Arrow: a square turned 45deg showing only its top-left borders, centered on the anchor button -->
           <div class="absolute -top-7 w-12 h-12 rotate-45 bg-surface border-l border-t border-line"
             style="left: {popoverAnchorCenter - popoverLeft - 6}px;"></div>
-          {#if openPopover === "textSize"}
+          {#if openPopover === "variables"}
+            <EditorVariablePicker {variables} hint={variablesHint} onPick={insertVariable} />
+          {:else if openPopover === "textSize"}
             <div class="flex gap-4 p-6">
               {#each editorTextSizes as textSize}
                 <button type="button"

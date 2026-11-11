@@ -113,7 +113,8 @@ import { getVTableAgentContext } from '../vTable/agentContext';
       buildMap()
       untrack(() => {
         const idToRecord = ui.searchReferences.get(options)?.idToRecord || new Map()
-        selected = saveOn[save] ? idToRecord.get(saveOn[save]) as E : null as E
+        // Look the value up even when falsy: an option may use id 0 ("none", "the owner").
+        selected = (idToRecord.get(saveOn[save]) ?? null) as E
         if (selected) {
           if(inputRef){ inputRef.value = selected[keyName] as string }
         } else {

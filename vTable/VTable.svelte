@@ -10,6 +10,7 @@
   } from "./types";
   import CellInput from '../vTable/CellInput.svelte';
   import CellSelect from '../vTable/CellSelect.svelte';
+  import CellSelectBox from '../vTable/CellSelectBox.svelte';
   import CellMultiSelect from '../vTable/CellMultiSelect.svelte';
   import { highlString, wordInclude } from '../utilities/ui.js';
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
@@ -702,7 +703,8 @@
                       }}
                     />
                   {:else if column.onCellSelect && !cellInteractionsDisabled}
-                    <CellSelect
+                    {@const SelectCell = column.cellSelectMode === 'pick' ? CellSelectBox : CellSelect}
+                    <SelectCell
                       id={`${String(column.id || column.field || j)}_${rowIndex}`}
                       saveOn={resolvedRecord}
                       save={column.field as keyof T}
@@ -711,6 +713,7 @@
                       keyName={(column.cellOptionsKeyName || 'Name') as never}
                       cellID={buildCellID(rowIndex, j)}
                       contentClass={column.css}
+                      columns={column.cellSelectColumns}
                       onChange={(value: string | number) => {
                         column.onCellSelect?.(resolvedRecord, value, () => rerenderRow(rowIndex))
                       }}

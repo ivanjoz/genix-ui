@@ -6,6 +6,7 @@
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
   import CellInput from '../vTable/CellInput.svelte';
   import CellSelect from '../vTable/CellSelect.svelte';
+  import CellSelectBox from '../vTable/CellSelectBox.svelte';
   import CellMultiSelect from '../vTable/CellMultiSelect.svelte';
   import { createFixedTableVirtualizer } from './vtable-virtual-fixed.svelte';
   import { splitTwoStrings } from '../utilities/ui.js';
@@ -578,7 +579,8 @@
                       onChange={(value) => colDef.onCellEdit?.(rowRecord, value, () => rerenderRow(rowIndex))}
                     />
                   {:else if colDef.onCellSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}
-                    <CellSelect
+                    {@const SelectCell = colDef.cellSelectMode === 'pick' ? CellSelectBox : CellSelect}
+                    <SelectCell
                       id={`${componentID}_${String(colDef.id || colDef.field || columnIndex)}_${rowIndex}`}
                       saveOn={rowRecord}
                       save={colDef.field as keyof TRecord}
@@ -587,6 +589,7 @@
                       keyName={(colDef.cellOptionsKeyName || 'Name') as never}
                       cellID={buildCellID(rowIndex, columnIndex)}
                       contentClass={`${contentPaddingCss} ${colDef.css || ""}`}
+                      columns={colDef.cellSelectColumns}
                       onChange={(value) => colDef.onCellSelect?.(rowRecord, value, () => rerenderRow(rowIndex))}
                     />
                   {:else if colDef.onCellMultiSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}
@@ -719,7 +722,8 @@
                         onChange={(value) => colDef.onCellEdit?.(rowRecord, value, () => rerenderRow(rowIndex))}
                       />
                     {:else if colDef.onCellSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}
-                      <CellSelect
+                      {@const SelectCell = colDef.cellSelectMode === 'pick' ? CellSelectBox : CellSelect}
+                      <SelectCell
                         id={`${componentID}_${String(colDef.id || colDef.field || columnIndex)}_${rowIndex}`}
                         saveOn={rowRecord}
                         save={colDef.field as keyof TRecord}
@@ -728,6 +732,7 @@
                         keyName={(colDef.cellOptionsKeyName || 'Name') as never}
                         cellID={buildCellID(rowIndex, columnIndex)}
                         contentClass={`${contentPaddingCss} ${colDef.css || ""}`}
+                      columns={colDef.cellSelectColumns}
                         onChange={(value) => colDef.onCellSelect?.(rowRecord, value, () => rerenderRow(rowIndex))}
                       />
                     {:else if colDef.onCellMultiSelect && !colDef.disableCellInteractions?.(rowRecord, rowIndex)}

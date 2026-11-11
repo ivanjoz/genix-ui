@@ -101,6 +101,13 @@ export interface IMobileCardsListCell<T, TSource = unknown> {
   buttonDeleteIf?: (record: T) => boolean
 }
 
+export interface ICellAbsolute {
+  css?: string
+  text?: string
+  width?: string
+  height?: string
+}
+
 export interface ITableColumn<T> {
   id?: number | string
   header: string | (() => string)
@@ -123,6 +130,9 @@ export interface ITableColumn<T> {
 	cellInputType?: 'number'
 	// Allow columns to inject runtime cell classes per record
 	setCellCss?: (record: T) => string | undefined
+	// An absolute element drawn inside the cell (the <td> is its positioning context): bars, badges.
+	// Return undefined to draw nothing for that row.
+	renderAbsolute?: (record: T) => ICellAbsolute | undefined
 	formatInputValue?: (value: number | string) => string
   cardCss?: string
   field?: string

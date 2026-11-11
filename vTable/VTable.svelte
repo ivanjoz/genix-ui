@@ -764,6 +764,14 @@
                       {/if}
                     </div>
                   {/if}
+                  {#if column.renderAbsolute}
+                    {@const cellAbsolute = column.renderAbsolute(resolvedRecord)}
+                    {#if cellAbsolute}
+                      <div class="absolute {cellAbsolute.css || ''}" style:width={cellAbsolute.width} style:height={cellAbsolute.height}>
+                        {cellAbsolute.text || ''}
+                      </div>
+                    {/if}
+                  {/if}
                   {#if isRowHoverCell && onRowHover}
                     <div class="vtable-row-hover-action">
                       {@render onRowHover(resolvedRecord, rowIndex)}

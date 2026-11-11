@@ -573,6 +573,13 @@ The range always includes today and opens scrolled to it. Row, bar and marker la
 given: the host translates its own data. Date math (`ganttRange`, `barBox`, `monthCells`,
 `tickCells`, `visibleRows`) is pure, in `gantt/gantt.ts`.
 
+| Component | Purpose | Key props |
+| --- | --- | --- |
+| `GanttTimeline` **(ui)** | Items drawn as a line through dated points over a fixed day window (one column per day, weekends shaded), grouped with a sticky group column; items that do not overlap share a lane. A dot per point in its colour (or its icon), dashed stretches, and an end icon for items still running. Positions are snapped to screen pixels so ticks stay even at any browser zoom | `groups: { id, label, items: { id, label, labelCss?, startDay, endDay, endIcon?, points: { day, offset, color, icon?, dashed? }[] }[] }[]`, `fromDay` / `toDay` (Unix days), `groupsTitle`, `groupRender(group)` snippet, `tooltipRender(item)` snippet, `dayWidth`, `laneHeight`, `labelWidth`, `emptyText`, `css` |
+
+Items keep their own extra fields: the snippets receive the host's item type. Lane packing
+(`packTimelineLanes`), the per-day line colour and pixel snapping are pure, in `gantt/gantt-timeline.ts`.
+
 ### `misc/` — primitives
 
 | Component | Purpose | Key props |

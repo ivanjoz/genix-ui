@@ -93,6 +93,26 @@ import './buttons.css';
     return document.documentElement;
   }
 
+  // A `position: fixed` layer is placed relative to the viewport only while no ancestor has a
+  // transform/filter/perspective/contain; otherwise that ancestor becomes its containing block
+  // (e.g. a Modal card kept at `transform: translateY(0)`). Returns that block's viewport origin so
+  // viewport coordinates can be converted into the block's coordinate space.
+  function getFixedContainingBlockOrigin(element: HTMLElement): { top: number; left: number } {
+    let ancestor = element.parentElement;
+    while (ancestor && ancestor !== document.documentElement) {
+      const style = window.getComputedStyle(ancestor);
+      const createsContainingBlock = style.transform !== 'none' || style.filter !== 'none' ||
+        style.perspective !== 'none' || style.backdropFilter !== 'none' ||
+        /paint|layout|strict|content/.test(style.contain) || /transform|filter|perspective/.test(style.willChange);
+      if (createsContainingBlock) {
+        const ancestorRect = ancestor.getBoundingClientRect();
+        return { top: ancestorRect.top + ancestor.clientTop, left: ancestorRect.left + ancestor.clientLeft };
+      }
+      ancestor = ancestor.parentElement;
+    }
+    return { top: 0, left: 0 };
+  }
+
   // Toggle the layer open/closed
   function toggleLayer() {
     if (disableTriggerToggle) return;
@@ -167,7 +187,9 @@ import './buttons.css';
       }
     }
 
-    position = { top, left };
+    // top/left are viewport coordinates; shift them into the containing block's space when one exists.
+    const containingBlockOrigin = getFixedContainingBlockOrigin(layerElement);
+    position = { top: top - containingBlockOrigin.top, left: left - containingBlockOrigin.left };
 
     // Calculate angle position to be centered below/above the button
     const buttonCenter = buttonRect.left + (buttonRect.width / 2);

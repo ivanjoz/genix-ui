@@ -135,7 +135,7 @@
         if (current.role !== 'bar' && current.role !== 'point' && current.role !== 'line') { return }
         const seriesIndex = current.ctx.seriesIndex ?? 0
         return current.attr({
-          style: `stroke: ${chartSeries[seriesIndex]?.color}; opacity: var(--chart-series-opacity-${seriesIndex}, 1)`,
+          style: `stroke: ${chartSeries[seriesIndex]?.color}; stroke-opacity: var(--chart-series-opacity-${seriesIndex}, 1)`,
           'data-label-index': current.ctx.valueIndex,
         })
       })
@@ -202,9 +202,11 @@
   style:--ct-bar-width={`${barWidth}px`} style:--chart-label-every={xLabelEvery} onpointermove={followPointer} onpointerleave={() => { hoveredLabelIndex = -1 }}>
   <div bind:this={chartElement}></div>
   {#if tooltipRows.length > 0}
+    <!-- Above the pointer: below it, a chart near the page's end pushed the tooltip past the bottom
+         and the page grew a scrollbar. Past the middle it flips to the pointer's left. -->
     <div class="pointer-events-none absolute z-10 rounded border border-line bg-surface px-10 py-6 text-[14px] shadow-md whitespace-nowrap"
-      style:left={`${tooltipLeft + 12}px`} style:top={`${tooltipTop + 12}px`}
-      style:transform={tooltipLeft > chartWidth / 2 ? 'translateX(calc(-100% - 24px))' : ''}>
+      style:left={`${tooltipLeft + 12}px`} style:top={`${tooltipTop - 12}px`}
+      style:transform={`translate(${tooltipLeft > chartWidth / 2 ? 'calc(-100% - 24px)' : '0'}, -100%)`}>
       <div class="ff-bold mb-2">{(formatTooltipLabel || formatLabel)(labels[hoveredLabelIndex])}</div>
       {#each tooltipRows as row (row.name)}
         <div class="flex items-center gap-6">
@@ -222,12 +224,15 @@
 </div>
 
 <style>
-  /* The hovered bar or point stands out; a legend hover fades the other series smoothly. */
-  .chart :global(:is(.ct-bar, .ct-point, .ct-line)) { transition: opacity 0.15s; }
+  /* The hovered bar or point stands out; a legend hover fades the other series smoothly.
+     stroke-opacity, not opacity: a transitioning `opacity` puts the element on its own compositor
+     layer, rasterized without crispEdges snapping, so at a fractional zoom the bars blurred for the
+     length of the transition. stroke-opacity is a plain repaint and keeps the snapping. */
+  .chart :global(:is(.ct-bar, .ct-point, .ct-line)) { transition: stroke-opacity 0.15s; }
   /* Bar edges fall on fractional pixels (slot centers, and any browser zoom other than 100%), which
      antialiasing blurs into a half-tinted column: snap them to device pixels instead. */
   .chart :global(.ct-bar) { shape-rendering: crispEdges; }
-  .chart :global(.ct-bar:hover), .chart :global(.ct-point:hover) { opacity: 0.75 !important; }
+  .chart :global(.ct-bar:hover), .chart :global(.ct-point:hover) { stroke-opacity: 0.75 !important; }
   /* Theme tokens instead of chartist's fixed grays, so the axes follow light and dark mode. The raw
      tokens, not --color-*: `@theme inline` never emits those as CSS variables. */
   .chart { --ct-label-color: var(--fg-muted); }

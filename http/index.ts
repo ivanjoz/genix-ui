@@ -402,4 +402,4 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
   };
 };
 
-export { isColbinDisabled, setColbinDisabled } from './serialization.js';
+export { isColbinDisabled, setColbinDisabled, decodeColbinBody, isColbinContentType, COLBIN_ACCEPT } from './serialization.js';

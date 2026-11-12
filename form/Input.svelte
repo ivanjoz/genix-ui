@@ -60,8 +60,9 @@
         // digits means RUC — and it stops being consulted the moment the user picks, so an
         // explicit choice is never overwritten by the next keystroke.
         deriveLeftOption?: (value: string | number) => number | undefined;
-        // Draws the ✔ / ⚠ validity glyph small and inline after the label text instead of in
-        // the field's right slot, leaving the whole box to the value.
+        // Draws the ✔ / ⚠ validity glyph small and inline after the label text (default) instead
+        // of in the field's right slot, leaving the whole box to the value. A field without a
+        // label always draws it in the right slot.
         validityIconInLabel?: boolean;
         // type="number" only: a − button on the left and a + button on the right step the
         // value by 1, and the value is centred between them. The + takes the right slot, so
@@ -118,7 +119,7 @@
         leftOptions,
         saveLeft,
         deriveLeftOption,
-        validityIconInLabel,
+        validityIconInLabel = true,
         useIncrementButtons,
         useNumericSwipe,
         useFileDragUpload,
@@ -322,7 +323,8 @@
     const showInvalid = $derived(isInputValid === 1 && hasBeenBlurred);
     const showValid = $derived(isInputValid === 2);
     const showIncrementButtons = $derived(!!useIncrementButtons && type === "number");
-    const showValidityInLabel = $derived(!!validityIconInLabel || showIncrementButtons);
+    // The glyph only goes to the label when there is a label to carry it.
+    const showValidityInLabel = $derived(!!label && (validityIconInLabel || showIncrementButtons));
     // Passing the snippet only when there is something in it keeps `has-suffix` — and the
     // 34px of padding it reserves — off fields that need neither an icon nor a unit.
     const hasSuffix = $derived(!showIncrementButtons

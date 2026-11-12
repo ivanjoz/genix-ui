@@ -424,6 +424,14 @@ textarea.inp {
   box-shadow: none;
 }
 
+/* A labelled field's label straddles the top line, so a flat fill cut the label in half:
+   page colour above the line, grey below it. The grey fades in from transparent at the top
+   edge instead, reaching full strength at 16px — past the label's bottom on desktop (8px
+   into the box) and mobile (10px). Unlabelled fields have nothing to cut and keep the flat fill. */
+.field:global(.is-disabled):not(:global(.no-label)) .box {
+  background: linear-gradient(to bottom, transparent, var(--input-bg-disabled, var(--surface-muted)) 16px);
+}
+
 /* Only the line: a disabled control cannot take focus, so --_ring stays transparent. */
 .field:global(.is-disabled) .box::before {
   --_line: var(--input-border-color-disabled, var(--line));

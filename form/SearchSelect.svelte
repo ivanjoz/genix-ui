@@ -49,7 +49,8 @@ import type { Snippet } from 'svelte';
     columns?: number;
     getSearchText?: (e: E) => string;
     useDividingLine?: boolean;
-    /** Draws the ✔ / ⚠ validity glyph small and inline after the label text instead of next to the arrow. */
+    /** Draws the ✔ / ⚠ validity glyph small and inline after the label text (default) instead of
+     *  next to the arrow. A field without a label always draws it next to the arrow. */
     validityIconInLabel?: boolean;
   }
 
@@ -86,7 +87,7 @@ import type { Snippet } from 'svelte';
     columns = 1,
     getSearchText,
     useDividingLine = false,
-    validityIconInLabel = false,
+    validityIconInLabel = true,
   }: SearchSelectProps<T,E> = $props();
 
   let show = $state(false);
@@ -325,7 +326,9 @@ import type { Snippet } from 'svelte';
 
   // The arrow is always there unless disabled, so the suffix almost always reserves its
   // 34px — which is what keeps a long option name from running under the arrow.
-  const hasSuffix = $derived((isValid > 0 && !validityIconInLabel) || !isDisabled);
+  // The glyph only goes to the label when there is a label to carry it.
+  const showValidityInLabel = $derived(validityIconInLabel && !!label);
+  const hasSuffix = $derived((isValid > 0 && !showValidityInLabel) || !isDisabled);
 
   // Watch for changes in props
   $effect(() => {
@@ -451,7 +454,7 @@ import type { Snippet } from 'svelte';
 {/snippet}
 
 {#snippet validityAndArrow()}
-  {#if !validityIconInLabel}
+  {#if !showValidityInLabel}
     {@render validityIcon("v-icon")}
   {/if}
   {#if !isDisabled}
@@ -465,7 +468,7 @@ import type { Snippet } from 'svelte';
   variant={shellVariant}
   disabled={isDisabled}
   suffix={hasSuffix ? validityAndArrow : undefined}
-  labelSuffix={validityIconInLabel ? validityInLabel : undefined}
+  labelSuffix={showValidityInLabel ? validityInLabel : undefined}
   overlay={dropdown}
   data-id="Select:{componentID}"
   data-value={agentDataValue}

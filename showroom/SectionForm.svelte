@@ -70,9 +70,9 @@
     <!-- transform runs on every keystroke: uppercase here. -->
     <Input saveOn={form} save="Name" label="Uppercase transform" css="col-span-24 md:col-span-8"
       transform={(value) => String(value).toUpperCase()} />
-    <!-- The validity glyph drawn small after the label; the ± buttons move it there too. -->
-    <Input saveOn={form} save="Email" label="Email (✔ in label)|Email (✔ en la etiqueta)" required
-      validityIconInLabel css="col-span-24 md:col-span-8" />
+    <!-- The validity glyph goes after the label by default; validityIconInLabel={false} puts it back in the right slot. -->
+    <Input saveOn={form} save="Email" label="Email (✔ in right slot)|Email (✔ a la derecha)" required
+      validityIconInLabel={false} css="col-span-24 md:col-span-8" />
     <Input saveOn={form} save="Quantity" label="Quantity ±|Cantidad ±" type="number" required
       useIncrementButtons useNumericSwipe={{ min: 0, max: 50 }} css="col-span-24 md:col-span-8" />
     <!-- Drag a file over the page: the box hints it accepts files; dropping notifies the names. -->

@@ -171,6 +171,8 @@ body {
 	--row-height: 34px;
 	--input-height: 42px;
 	--input-border-color: var(--line-strong);
+	/* --fg-subtle was too faint for a disabled field's label to stay readable. */
+	--input-label-color-disabled: #5f6794;
 	--font-mono: mono;
 
 	/* Above the app header (z-250), below the side menu and the TopLayer pickers (300) */
@@ -245,6 +247,8 @@ body.dark {
 	--accent-bg: color-mix(in oklab, var(--accent-solid) 14%, var(--surface));
 	--accent-bg-strong: color-mix(in oklab, var(--accent-solid) 26%, var(--surface));
 	--input-inline-label-bg: var(--accent-bg);
+	/* body.dark sits on the same element as body, so the light value would leak in: reset it. */
+	--input-label-color-disabled: var(--fg-subtle);
 	--accent-border: color-mix(in oklab, var(--accent-solid) 50%, var(--surface));
 	--red-bg: color-mix(in oklab, var(--red-solid) 14%, var(--surface));
 	--red-bg-strong: color-mix(in oklab, var(--red-solid) 26%, var(--surface));

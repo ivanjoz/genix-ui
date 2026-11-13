@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { MobileMenuItem } from './types.js';
 
   let {
@@ -6,11 +7,18 @@
     open = $bindable(false),
     onSelect = () => {},
     closeLabel = 'Close menu',
+    content,
+    isFullWidth = false,
   }: {
     items: MobileMenuItem[];
     open?: boolean;
     onSelect?: (item: MobileMenuItem) => void;
     closeLabel?: string;
+    /** Shown instead of the item tiles, e.g. the section an item opened. It owns its top row
+        (left of the close button) and scrolls inside the drawer. */
+    content?: Snippet;
+    /** The drawer spans the whole screen instead of 74vw, for content that needs the width. */
+    isFullWidth?: boolean;
   } = $props();
 
   let menuElement: HTMLDivElement;
@@ -52,30 +60,34 @@
 
 <div
   bind:this={menuElement}
-  class="_1 w-[74vw] h-[100vh] fixed top-0 left-0"
+  class="_1 {isFullWidth ? 'w-full' : 'w-[74vw]'} h-[100vh] fixed top-0 left-0"
   class:_2={open}
 >
-  <button class="_3 absolute top-4 right-4 w-40 h-40" aria-label={closeLabel} onclick={closeMenu}>
+  <button class="_3 absolute top-4 right-4 w-40 h-40 z-1" aria-label={closeLabel} onclick={closeMenu}>
     <i class="icon-[fa--close]"></i>
   </button>
 
-  <div class="grid gap-8 grid-cols-2 p-8 mt-54">
-    {#each items as item (item.id)}
-      <button
-        class="_7"
-        onclick={(event) => {
-          event.stopPropagation();
-          onSelect(item);
-        }}
-      >
-        <div class="_8"></div>
-        {#if item.icon}
-          <div class="h-24 fs20 mt-[-4px]"><i class={item.icon}></i></div>
-        {/if}
-        <div class="flex items-center text-center grow-1">{item.name}</div>
-      </button>
-    {/each}
-  </div>
+  {#if content}
+    <div class="h-full overflow-y-auto">{@render content()}</div>
+  {:else}
+    <div class="grid gap-8 grid-cols-2 p-8 mt-54">
+      {#each items as item (item.id)}
+        <button
+          class="_7"
+          onclick={(event) => {
+            event.stopPropagation();
+            onSelect(item);
+          }}
+        >
+          <div class="_8"></div>
+          {#if item.icon}
+            <div class="h-24 fs20 mt-[-4px]"><i class={item.icon}></i></div>
+          {/if}
+          <div class="flex items-center text-center grow-1">{item.name}</div>
+        </button>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>

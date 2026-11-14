@@ -26,6 +26,8 @@ import type { Snippet } from 'svelte';
     labelPosition?: "top" | "side" | "inline";
     /** Overrides the label's font size (px) set by labelStyle. */
     labelFontSize?: number;
+    /** normal = the 39px field; small = a 32px one for dense bars. A small field has no room for a top label: pair it with labelPosition "side" or "inline". */
+    size?: "normal" | "small";
     placeholder?: string;
     /** The placeholder stands in for a missing label: paint it in the label colour, not placeholder grey. */
     placeholderAsLabel?: boolean;
@@ -63,6 +65,7 @@ import type { Snippet } from 'svelte';
     label,
     labelStyle,
     labelPosition,
+    size = "normal",
     labelFontSize,
     placeholder,
     placeholderAsLabel = false,
@@ -464,7 +467,7 @@ import type { Snippet } from 'svelte';
 {/snippet}
 
 <FieldShell
-  {label} {labelStyle} {labelPosition} {labelFontSize} {css}
+  {label} {labelStyle} {labelPosition} {labelFontSize} {size} {css}
   variant={shellVariant}
   disabled={isDisabled}
   suffix={hasSuffix ? validityAndArrow : undefined}

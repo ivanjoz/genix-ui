@@ -26,6 +26,8 @@
         labelPosition?: "top" | "side" | "inline";
         /** Overrides the label's font size (px) set by labelStyle. */
         labelFontSize?: number;
+        /** normal = the 39px field; small = a 32px one for dense bars. A small field has no room for a top label: pair it with labelPosition "side" or "inline". */
+        size?: "normal" | "small";
         css?: string;
         inputCss?: string;
         required?: boolean;
@@ -99,6 +101,7 @@
         label,
         labelStyle,
         labelPosition,
+        size = "normal",
         labelFontSize,
         css,
         inputCss,
@@ -735,7 +738,7 @@
 {/snippet}
 
 <FieldShell
-    {label} {labelStyle} {labelPosition} {labelFontSize} {disabled}
+    {label} {labelStyle} {labelPosition} {labelFontSize} {size} {disabled}
     css="{css || ''}{hasLeftSelector ? ' has-interactive-prefix' : ''}{showIncrementButtons && hasNotchLabel ? ' has-increment-buttons' : ''}{swipeRuler ? ' is-swiping' : ''}"
     invalid={showInvalid}
     autoHeight={useTextArea}

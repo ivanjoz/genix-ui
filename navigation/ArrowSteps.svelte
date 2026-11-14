@@ -16,12 +16,18 @@ import { Agent } from '../agent/registry';
     selected,
     optionRender,
     columnsTemplate,
+    pointedStart = false,
+    pointedEnd = false,
   }: {
     options: IICardArrowStepsOption[];
     onSelect?: (e: IICardArrowStepsOption) => void;
     selected?: number;
     optionRender?: (e: IICardArrowStepsOption) => any;
     columnsTemplate?: string;
+    /** The first step keeps its tail notch instead of a flat, rounded start. */
+    pointedStart?: boolean;
+    /** The last step keeps its tip instead of a flat, rounded end. */
+    pointedEnd?: boolean;
   } = $props();
 
   function handleSelect(option: IICardArrowStepsOption) {
@@ -50,7 +56,9 @@ import { Agent } from '../agent/registry';
   })
 </script>
 
-<div data-id="ArrowSteps:{componentID}" class="grid mr-8" style:grid-template-columns={gridTemplateColumns}>
+<div data-id="ArrowSteps:{componentID}" class="grid mr-8" style:grid-template-columns={gridTemplateColumns}
+  class:arrow_steps_flat_start={!pointedStart} class:arrow_steps_flat_end={!pointedEnd}
+>
   {#each options as option (option.id)}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -80,7 +88,8 @@ import { Agent } from '../agent/registry';
 <style>
   /* --arrow-depth: horizontal length of the tip and the tail notch (same slope on both,
      so neighbouring edges are parallel). --arrow-gap: width of the light chevron between steps.
-     The first step has no tail notch and the last step has no tip: both ends are flat and rounded. */
+     By default the first step has no tail notch and the last step has no tip: both ends are flat and
+     rounded. pointedStart / pointedEnd drop the flat_start / flat_end class so that end keeps its chevron. */
   .card_arrow_ctn {
     --arrow-depth: 0.8rem;
     --arrow-gap: 3px;
@@ -111,7 +120,8 @@ import { Agent } from '../agent/registry';
     );
   }
   /* The first step has a flat tail. */
-  .card_arrow_ctn:first-child .card_arrow_shape, .card_arrow_ctn:first-child .card_arrow_shape::before {
+  .arrow_steps_flat_start .card_arrow_ctn:first-child .card_arrow_shape,
+  .arrow_steps_flat_start .card_arrow_ctn:first-child .card_arrow_shape::before {
     clip-path: polygon(
       0 0,
       calc(100% - var(--clip-depth, var(--arrow-depth))) 0,
@@ -121,7 +131,8 @@ import { Agent } from '../agent/registry';
     );
   }
   /* The last step has a flat head: the row ends in a straight edge, mirroring the first step. */
-  .card_arrow_ctn:last-child .card_arrow_shape, .card_arrow_ctn:last-child .card_arrow_shape::before {
+  .arrow_steps_flat_end .card_arrow_ctn:last-child .card_arrow_shape,
+  .arrow_steps_flat_end .card_arrow_ctn:last-child .card_arrow_shape::before {
     clip-path: polygon(
       0 0,
       100% 0,
@@ -133,10 +144,10 @@ import { Agent } from '../agent/registry';
   /* Rounded outer ends of the row. The background follows border-radius and the clip-path cuts the
      chevron on top, so only the flat ends show the rounding. The inner hover layer uses the radius
      minus the 2px outline so the outline keeps its width around the corners. */
-  .card_arrow_ctn:first-child .card_arrow_shape { border-radius: 8px 0 0 8px; }
-  .card_arrow_ctn:first-child .card_arrow_shape::before { border-radius: 6px 0 0 6px; }
-  .card_arrow_ctn:last-child .card_arrow_shape { border-radius: 0 8px 8px 0; }
-  .card_arrow_ctn:last-child .card_arrow_shape::before { border-radius: 0 6px 6px 0; }
+  .arrow_steps_flat_start .card_arrow_ctn:first-child .card_arrow_shape { border-radius: 8px 0 0 8px; }
+  .arrow_steps_flat_start .card_arrow_ctn:first-child .card_arrow_shape::before { border-radius: 6px 0 0 6px; }
+  .arrow_steps_flat_end .card_arrow_ctn:last-child .card_arrow_shape { border-radius: 0 8px 8px 0; }
+  .arrow_steps_flat_end .card_arrow_ctn:last-child .card_arrow_shape::before { border-radius: 0 6px 6px 0; }
   /* Hover outline: clip-path cannot draw borders, so on hover the shape fills with the outline
      color and this inner copy, inset by the outline width, paints the body on top. Its tip depth
      shrinks with its height (2.8rem - 4px ≈ 91%) so the diagonal edges stay parallel; the 2.3px

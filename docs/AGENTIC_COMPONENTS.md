@@ -125,7 +125,8 @@ the agent doesn't learn a new verb per component.
 
 Pure-display, infrastructural, or trivially composed components don't register:
 `Virtualizer`, `LoginForm`, `Charts`, `ChartCanvas`, `Imagehash`, `charts/*`,
-`misc/Popover`, `misc/Portal`, `micro/*`, `files/*`, and `vTable/CardsList`.
+`misc/Popover`, `misc/Portal`, `micro/*`, `files/*`, `vTable/CardsList`, and
+`navigation/StepsTimeline` (read-only progress; the step names are in the DOM).
 
 ## Component spec
 
@@ -149,6 +150,7 @@ Pure-display, infrastructural, or trivially composed components don't register:
 | `Layer` | `Layer` | header buttons as `Button:<id>` with `data-value` and `aria-label` | `open`, `close`, `select` (only when an `options` prop is set) |
 | `LayerStatic` | `LayerStatic` | — | `open`, `close` |
 | `MobileLayerVertical` | `MobileLayerVertical` | — | `open`, `close` |
+| `CardsDetailLayer` | `CardsDetailLayer` | root has `data-value="<key of the open card>"` (empty when closed); each card as `Option:<key>` with `data-selected="true"` on the open one | `select(key)` (opens that card's detail), `close` |
 | `Modal` | `Modal` | header save/delete/close as `Button:<id>` with `data-value="save"\|"delete"\|"close"` | `close` |
 | `TopLayerSelector` | `TopLayerSelector` | each option as `Option:<id>` | `search`, `select`, `close` |
 | `TopLayerDatePicker` | `TopLayerDatePicker` | root has `data-value="YYYY-MM-DD"` | `setValue`, `close` |

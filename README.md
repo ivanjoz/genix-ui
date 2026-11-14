@@ -514,7 +514,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 | Component | Purpose | Key props |
 | --- | --- | --- |
 | `OptionsStrip` **(ui)** | Tab/section strip; the standard sub-view switcher | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `useMobileGrid`, `activeClass`, `inactiveClass` |
-| `ArrowSteps` **(ui)** | Chevron step/stage picker | `options`, `selected`, `onSelect`, `optionRender`, `columnsTemplate` |
+| `ArrowSteps` **(ui)** | Chevron step/stage picker | `options`, `selected`, `onSelect`, `optionRender`, `columnsTemplate`, `pointedStart`, `pointedEnd` (keep the chevron at that end instead of a flat, rounded edge) |
 | `ChevronStrip` **(ui)** | Horizontally scrolling strip of arrow-shaped steps fitted into each other; options take 28% of the width so the 4th is cut, hinting the scroll (up to 3 options share the full width instead); a mouse scrolls it with the wheel or by dragging; `autocenter` scrolls the selected one to the 2nd place; the options fill the strip's height (set through `css`, `h-48` by default) minus its 4px scrollbar gutter | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `optionWidth`, `autocenter`, `css` |
 
 ### `menu/` — fully host-driven

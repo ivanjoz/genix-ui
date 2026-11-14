@@ -20,7 +20,7 @@
     placeholder?: string
     throttle?: number
     icon?: string
-    /** small = 32px tall, with a smaller icon to match. For layers and other dense surfaces. */
+    /** small = 34px tall, with a smaller icon to match. For layers and other dense surfaces. */
     size?: 'normal' | 'small'
     /** Accessible name only — this control never draws a visible label. */
     label?: string

@@ -26,7 +26,7 @@ import type { Snippet } from 'svelte';
     labelPosition?: "top" | "side" | "inline";
     /** Overrides the label's font size (px) set by labelStyle. */
     labelFontSize?: number;
-    /** normal = the 39px field; small = a 32px one for dense bars. A small field has no room for a top label: pair it with labelPosition "side" or "inline". */
+    /** normal = the 39px field; small = a 34px one for dense bars. A small field has no room for a top label: pair it with labelPosition "side" or "inline". */
     size?: "normal" | "small";
     placeholder?: string;
     /** The placeholder stands in for a missing label: paint it in the label colour, not placeholder grey. */

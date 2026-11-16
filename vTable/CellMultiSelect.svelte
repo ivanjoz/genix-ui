@@ -45,16 +45,13 @@
     if (ui.state.popoverId === id) { ui.state.popoverId = 0; }
   };
 
-  // Picking an option adds it and closes the layer: one pick per open.
-  const addOption = (option: E) => {
+  // A click adds an unselected option or removes a selected one, and closes the layer: one change per open.
+  const toggleOption = (option: E) => {
     const optionID = option[keyId] as MultiSelectOptionID;
-    if (!selectedIDs.includes(optionID)) { saveSelectedIDs([...selectedIDs, optionID]); }
+    saveSelectedIDs(selectedIDs.includes(optionID)
+      ? selectedIDs.filter((selectedID) => selectedID !== optionID)
+      : [...selectedIDs, optionID]);
     closePopover();
-  };
-
-  // Removing keeps the layer open so several options can be dropped in a row.
-  const removeOption = (option: E) => {
-    saveSelectedIDs(selectedIDs.filter((selectedID) => selectedID !== option[keyId]));
   };
 
   const openPopover = () => {
@@ -115,7 +112,7 @@
   onclick={(ev) => { ev.stopPropagation(); }}
 ></div>
 <MultiSelectLayer referenceElement={cellElement} open={show} {options} {keyId} {keyName} {selectedIDs}
-  bind:filterValue inputID={String(id)} onPick={addOption} onRemove={removeOption} onClose={closePopover} />
+  bind:filterValue inputID={String(id)} onToggle={toggleOption} onClose={closePopover} />
 
 <style>
   ._chip {

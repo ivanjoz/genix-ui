@@ -5,8 +5,8 @@
   import { buildMultiSelectItems, type MultiSelectOptionID } from './multi-select';
 
   // The picking layer of a multi-select: a filter box over a virtual list where the selected
-  // options come first (✓, × on hover to remove) and a click on any other adds it. The owner
-  // (SelectMultiple, CellMultiSelect) keeps the open state, the selection and the filter.
+  // options come first, highlighted. A click toggles the option. The owner (SelectMultiple,
+  // CellMultiSelect) keeps the open state, the selection and the filter.
   interface MultiSelectLayerProps<E> {
     referenceElement: HTMLElement | null;
     open: boolean;
@@ -17,14 +17,14 @@
     /** Lowercased, trimmed text of the filter box. Bindable so the owner's agent `search` can set it. */
     filterValue?: string;
     inputID?: string;
-    onPick: (option: E) => void;
-    onRemove: (option: E) => void;
+    /** Adds the option if unselected, removes it if selected. */
+    onToggle: (option: E) => void;
     onClose: () => void;
   }
 
   let {
     referenceElement, open, options, keyId, keyName, selectedIDs, filterValue = $bindable(''), inputID,
-    onPick, onRemove, onClose,
+    onToggle, onClose,
   }: MultiSelectLayerProps<E> = $props();
 
   const ui = useUI();
@@ -59,7 +59,7 @@
           // Enter picks the first unselected match.
           if (ev.key === 'Enter') {
             const firstUnselected = listItems.find((item) => !item.isSelected);
-            if (firstUnselected) { onPick(firstUnselected.option); }
+            if (firstUnselected) { onToggle(firstUnselected.option); }
           }
         }}
       />
@@ -69,29 +69,16 @@
       <SvelteVirtualList items={listItems}>
         {#snippet renderItem(item)}
           <div class="pr-10 pb-1">
-            {#if item.isSelected}
-              <div class="_selected group relative h-32 pl-8 pr-32 rounded-[6px] flex items-center">
-                <span class="truncate">{item.option[keyName]}</span>
-                <!-- The check and the remove button share the right corner: hover swaps one for the other. -->
-                <i class="icon-[fa--check] absolute right-11 text-[10px] group-hover:opacity-0"></i>
-                <button type="button" class="_remove absolute top-4 right-4 w-24 h-24 rounded-[4px] flex items-center justify-center
-                  opacity-0 group-hover:opacity-100 focus-visible:opacity-100 cursor-pointer"
-                  aria-label="{ui.translate('Remove|Quitar')} {item.option[keyName]}"
-                  onclick={(ev) => { ev.stopPropagation(); onRemove(item.option); }}
-                >
-                  <i class="icon-[fa--times] text-[12px]"></i>
-                </button>
-              </div>
-            {:else}
-              <div class="_option h-32 px-8 rounded-[6px] flex items-center"
-                role="button"
-                tabindex="-1"
-                onclick={(ev) => { ev.stopPropagation(); onPick(item.option); }}
-                onkeydown={(ev) => { if (ev.key === 'Enter') { onPick(item.option); } }}
-              >
-                <span class="truncate">{item.option[keyName]}</span>
-              </div>
-            {/if}
+            <div class="_option h-32 px-8 rounded-[6px] flex items-center"
+              class:_selected={item.isSelected}
+              role="option"
+              aria-selected={item.isSelected}
+              tabindex="-1"
+              onclick={(ev) => { ev.stopPropagation(); onToggle(item.option); }}
+              onkeydown={(ev) => { if (ev.key === 'Enter') { onToggle(item.option); } }}
+            >
+              <span class="truncate">{item.option[keyName]}</span>
+            </div>
           </div>
         {/snippet}
       </SvelteVirtualList>
@@ -125,21 +112,12 @@
   ._option:hover {
     background-color: var(--surface-muted);
   }
-  ._selected {
-    user-select: none;
+  ._option._selected {
     background-color: var(--accent-bg);
     color: var(--accent-fg);
     border: 1px solid var(--accent-border);
   }
-  ._remove {
-    background-color: var(--surface);
-    color: var(--red-solid);
-  }
-  ._remove:hover {
-    background-color: var(--red-solid);
-    color: var(--surface);
-  }
-  @media (hover: none) {
-    ._remove { opacity: 1; }
+  ._option._selected:hover {
+    background-color: var(--accent-bg-strong);
   }
 </style>

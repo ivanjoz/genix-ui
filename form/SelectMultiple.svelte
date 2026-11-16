@@ -9,7 +9,7 @@
 
   // A labelled field holding several options, saved as an array of ids. The selected ones show
   // as chips inside the field; clicking it opens the same searchable layer as the VTable's
-  // CellMultiSelect: a pick adds one option and closes it, the × on a selected row removes it.
+  // CellMultiSelect, where a click selects or deselects one option and closes the layer.
   interface SelectMultipleProps<T, E> {
     options: E[];
     keyId: keyof E;
@@ -68,16 +68,13 @@
     isOpen = true;
   };
 
-  // Picking an option adds it and closes the layer: one pick per open.
-  const addOption = (option: E) => {
+  // A click adds an unselected option or removes a selected one, and closes the layer: one change per open.
+  const toggleOption = (option: E) => {
     const optionID = option[keyId] as MultiSelectOptionID;
-    if (!selectedIDs.includes(optionID)) { saveSelectedIDs([...selectedIDs, optionID]); }
+    saveSelectedIDs(selectedIDs.includes(optionID)
+      ? selectedIDs.filter((selectedID) => selectedID !== optionID)
+      : [...selectedIDs, optionID]);
     isOpen = false;
-  };
-
-  // Removing keeps the layer open so several options can be dropped in a row.
-  const removeOption = (option: E) => {
-    saveSelectedIDs(selectedIDs.filter((selectedID) => selectedID !== option[keyId]));
   };
 
   const componentID = ui.nextComponentId()
@@ -152,7 +149,7 @@
   </FieldShell>
 </div>
 <MultiSelectLayer referenceElement={fieldElement} open={isOpen} {options} {keyId} {keyName} {selectedIDs}
-  bind:filterValue onPick={addOption} onRemove={removeOption} onClose={() => { isOpen = false; }} />
+  bind:filterValue onToggle={toggleOption} onClose={() => { isOpen = false; }} />
 
 <style>
   ._chip {

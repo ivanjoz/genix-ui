@@ -31,6 +31,7 @@
     IsActive: true,
     IsVisible: 1,
     LanguageIDs: [] as number[],
+    StatusIDs: [] as number[],
     DateUnix: 0,
     DateSunix: 0,
     StartMinute: 510,
@@ -97,7 +98,7 @@
   </div>
 </ShowroomBlock>
 
-<ShowroomBlock name="SelectMultiple" note="one line (chips cut off) · useWrap (the field grows) · disabled — both write LanguageIDs">
+<ShowroomBlock name="SelectMultiple" note="one line (chips cut off) · useWrap (the field grows) · disabled · hideSearch · columns">
   <div class="grid grid-cols-24 gap-10">
     <SelectMultiple saveOn={form} save="LanguageIDs" label="Languages|Idiomas"
       options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
@@ -105,6 +106,10 @@
       options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
     <SelectMultiple saveOn={form} save="LanguageIDs" label="Disabled|Deshabilitado" disabled
       options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
+    <SelectMultiple saveOn={form} save="StatusIDs" label="Status · hideSearch · 3 columns|Estado · hideSearch · 3 columnas"
+      hideSearch columns={3} options={statusOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
+    <SelectMultiple saveOn={form} save="LanguageIDs" label="Languages · 2 columns|Idiomas · 2 columnas"
+      columns={2} options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
   </div>
 </ShowroomBlock>
 

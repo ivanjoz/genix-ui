@@ -26,6 +26,10 @@
     /** The chips wrap onto new lines and the field grows taller. Without it the field keeps one
      *  line and the chips that don't fit are cut off. */
     useWrap?: boolean;
+    /** No filter box in the layer, for lists of a few options. */
+    hideSearch?: boolean;
+    /** Options per row in the layer. */
+    columns?: 1 | 2 | 3;
     css?: string;
     disabled?: boolean;
   }
@@ -42,6 +46,8 @@
     labelPosition,
     placeholder = "— select —|— seleccione —",
     useWrap = false,
+    hideSearch = false,
+    columns = 1,
     css = "",
     disabled = false,
   }: SelectMultipleProps<T, E> = $props();
@@ -139,7 +145,7 @@
       <div id={controlId} class="{controlClass} flex items-center min-w-0 {useWrap ? '-mt-3 -mb-2' : ''}">
         <div class="flex items-center gap-4 w-full min-w-0 {useWrap ? 'flex-wrap' : 'overflow-hidden'}">
           {#each selectedOptions as option (option[keyId])}
-            <span class="_chip shrink-0 h-23 pb-1 px-6 rounded-[5px] flex items-center">{option[keyName]}</span>
+            <span class="_chip shrink-0 h-23 pb-1 px-6 rounded-[5px] flex items-center">{ui.translate(String(option[keyName] ?? ''))}</span>
           {:else}
             <span class="_placeholder truncate"><T text={placeholder} /></span>
           {/each}
@@ -149,7 +155,7 @@
   </FieldShell>
 </div>
 <MultiSelectLayer referenceElement={fieldElement} open={isOpen} {options} {keyId} {keyName} {selectedIDs}
-  bind:filterValue onToggle={toggleOption} onClose={() => { isOpen = false; }} />
+  bind:filterValue {hideSearch} {columns} onToggle={toggleOption} onClose={() => { isOpen = false; }} />
 
 <style>
   ._chip {

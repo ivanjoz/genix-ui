@@ -32,6 +32,27 @@ export function findOptionsByIDs<E>(optionsByID: Map<MultiSelectOptionID, E>, ra
     .filter((option): option is E => option != null);
 }
 
+// useBitmask stores the selection as one number: option id n is bit n-1 (id 1 = 1, id 2 = 2,
+// id 3 = 4…). Ids stop at 31 so the mask stays a positive int32 — JS bit operators are signed
+// 32-bit, and bit 31 would turn it negative.
+export const MAX_BITMASK_ID = 31;
+
+export function isBitmaskID(optionID: unknown): boolean {
+  return Number.isInteger(optionID) && (optionID as number) >= 1 && (optionID as number) <= MAX_BITMASK_ID;
+}
+
+export function bitmaskToIDs(mask: number): number[] {
+  const selectedIDs: number[] = [];
+  for (let optionID = 1; optionID <= MAX_BITMASK_ID; optionID++) {
+    if (mask & (1 << (optionID - 1))) { selectedIDs.push(optionID); }
+  }
+  return selectedIDs;
+}
+
+export function idsToBitmask(selectedIDs: MultiSelectOptionID[]): number {
+  return selectedIDs.reduce<number>((mask, optionID) => mask | (1 << (Number(optionID) - 1)), 0);
+}
+
 // The first `maxOptions` rows of the list as the agent reads them; 0 = all of them.
 export function toMultiSelectAgentOptions<E>(items: MultiSelectItem<E>[], keyId: keyof E, keyName: keyof E, maxOptions = 50): AgentOption[] {
   return items

@@ -32,6 +32,7 @@
     IsVisible: 1,
     LanguageIDs: [] as number[],
     StatusIDs: [] as number[],
+    StatusMask: 0,
     DateUnix: 0,
     DateSunix: 0,
     StartMinute: 510,
@@ -98,7 +99,7 @@
   </div>
 </ShowroomBlock>
 
-<ShowroomBlock name="SelectMultiple" note="one line (chips cut off) · useWrap (the field grows) · disabled · hideSearch · columns">
+<ShowroomBlock name="SelectMultiple" note="one line (chips cut off) · useWrap (the field grows) · disabled · hideSearch · columns · useBitmask">
   <div class="grid grid-cols-24 gap-10">
     <SelectMultiple saveOn={form} save="LanguageIDs" label="Languages|Idiomas"
       options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
@@ -110,6 +111,9 @@
       hideSearch columns={3} options={statusOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
     <SelectMultiple saveOn={form} save="LanguageIDs" label="Languages · 2 columns|Idiomas · 2 columnas"
       columns={2} options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
+    <!-- useBitmask: StatusMask is one number, id n = bit n-1 (Active=1, Blocked=2, Pending=4). -->
+    <SelectMultiple saveOn={form} save="StatusMask" label="Status · useBitmask = {form.StatusMask}|Estado · useBitmask = {form.StatusMask}"
+      useBitmask hideSearch columns={3} options={statusOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
   </div>
 </ShowroomBlock>
 

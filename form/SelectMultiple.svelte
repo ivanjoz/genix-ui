@@ -4,10 +4,14 @@
   import { useUI } from '../runtime/index.js';
   import FieldShell from './FieldShell.svelte';
   import MultiSelectLayer from './MultiSelectLayer.svelte';
-  import { buildMultiSelectItems, findOptionsByIDs, toMultiSelectAgentOptions, type MultiSelectOptionID } from './multi-select';
+  import {
+    bitmaskToIDs, buildMultiSelectItems, findOptionsByIDs, idsToBitmask, isBitmaskID, MAX_BITMASK_ID,
+    toMultiSelectAgentOptions, type MultiSelectOptionID,
+  } from './multi-select';
   const ui = useUI()
 
-  // A labelled field holding several options, saved as an array of ids. The selected ones show
+  // A labelled field holding several options, saved as an array of ids (or one bitmask number,
+  // see useBitmask). The selected ones show
   // as chips inside the field; clicking it opens the same searchable layer as the VTable's
   // CellMultiSelect, where a click selects or deselects one option and closes the layer.
   interface SelectMultipleProps<T, E> {
@@ -15,9 +19,13 @@
     keyId: keyof E;
     keyName: keyof E;
     saveOn?: T;
-    /** Field of saveOn holding the selected ids as an array. */
+    /** Field of saveOn holding the selected ids: an array, or one number with useBitmask. */
     save?: keyof T;
-    onChange?: (selectedIDs: MultiSelectOptionID[]) => void;
+    /** Called with what is saved: the id array, or the mask number with useBitmask. */
+    onChange?: (selection: MultiSelectOptionID[] | number) => void;
+    /** Saves the selection as one number instead of an array: option id n is bit n-1. Ids must
+     *  be integers from 1 to 31; any other option is hidden and reported in the console. */
+    useBitmask?: boolean;
     label?: string;
     labelStyle?: "normal" | "bold";
     /** Where the label sits: top (in the border, default), side (beside the field) or inline (inside it, before the chips). */
@@ -41,6 +49,7 @@
     saveOn,
     save,
     onChange,
+    useBitmask = false,
     label,
     labelStyle,
     labelPosition,
@@ -56,17 +65,30 @@
   let filterValue = $state('');
   let fieldElement: HTMLDivElement | null = $state(null);
 
+  // A bitmask holds only ids 1..31: any other option could never be saved, so it is not offered.
+  const selectableOptions = $derived(useBitmask ? options.filter((option) => isBitmaskID(option[keyId])) : options);
+  $effect(() => {
+    if (!useBitmask || selectableOptions.length === options.length) { return; }
+    const invalidIDs = options.filter((option) => !isBitmaskID(option[keyId])).map((option) => option[keyId]);
+    console.error(`SelectMultiple "${label || String(save)}": useBitmask takes integer ids from 1 to ${MAX_BITMASK_ID}; hidden options with ids`, invalidIDs);
+  });
+
   // Writable derived: follows saveOn, and is overwritten locally on every pick/removal so the
   // chips repaint even when saveOn is not a reactive proxy.
-  let selectedIDs = $derived((((saveOn && save ? saveOn[save] : undefined) || []) as MultiSelectOptionID[]).slice());
+  let selectedIDs = $derived.by((): MultiSelectOptionID[] => {
+    const savedValue = saveOn && save ? saveOn[save] : undefined;
+    if (useBitmask) { return bitmaskToIDs(Number(savedValue) || 0); }
+    return ((savedValue || []) as MultiSelectOptionID[]).slice();
+  });
 
-  const optionsByID = $derived(new Map(options.map((option) => [option[keyId] as MultiSelectOptionID, option])));
+  const optionsByID = $derived(new Map(selectableOptions.map((option) => [option[keyId] as MultiSelectOptionID, option])));
   const selectedOptions = $derived(findOptionsByIDs(optionsByID, selectedIDs));
 
   const saveSelectedIDs = (nextSelectedIDs: MultiSelectOptionID[]) => {
     selectedIDs = nextSelectedIDs;
-    if (saveOn && save) { saveOn[save] = nextSelectedIDs as NonNullable<T>[keyof T]; }
-    onChange?.(nextSelectedIDs);
+    const savedValue = useBitmask ? idsToBitmask(nextSelectedIDs) : nextSelectedIDs;
+    if (saveOn && save) { saveOn[save] = savedValue as NonNullable<T>[keyof T]; }
+    onChange?.(savedValue);
   };
 
   const openLayer = () => {
@@ -94,7 +116,7 @@
       search: (text: string) => {
         openLayer();
         filterValue = String(text || '').trim().toLowerCase();
-        return toMultiSelectAgentOptions(buildMultiSelectItems(options, selectedIDs, filterValue, keyId, keyName), keyId, keyName);
+        return toMultiSelectAgentOptions(buildMultiSelectItems(selectableOptions, selectedIDs, filterValue, keyId, keyName), keyId, keyName);
       },
       select: (...ids) => {
         const addedIDs = findOptionsByIDs(optionsByID, ids).map((option) => option[keyId] as MultiSelectOptionID);
@@ -104,7 +126,7 @@
         saveSelectedIDs(selectedIDs.filter((selectedID) => String(selectedID) !== String(id)));
       },
       getOptions: (maxOptions) => toMultiSelectAgentOptions(
-        buildMultiSelectItems(options, selectedIDs, filterValue, keyId, keyName), keyId, keyName, maxOptions),
+        buildMultiSelectItems(selectableOptions, selectedIDs, filterValue, keyId, keyName), keyId, keyName, maxOptions),
     });
   });
 </script>
@@ -135,7 +157,7 @@
     data-value={selectedOptions.map((option) => `[${option[keyId]}] ${option[keyName]}`).join(', ')}
     data-label={label || placeholder}
     data-type="other"
-    data-options-count={options.length}
+    data-options-count={selectableOptions.length}
   >
     {#snippet children({ controlId, controlClass })}
       <!-- With useWrap the row is auto-height with 8px + 6px of padding: the -3px/-2px margins
@@ -154,7 +176,7 @@
     {/snippet}
   </FieldShell>
 </div>
-<MultiSelectLayer referenceElement={fieldElement} open={isOpen} {options} {keyId} {keyName} {selectedIDs}
+<MultiSelectLayer referenceElement={fieldElement} open={isOpen} options={selectableOptions} {keyId} {keyName} {selectedIDs}
   bind:filterValue {hideSearch} {columns} onToggle={toggleOption} onClose={() => { isOpen = false; }} />
 
 <style>

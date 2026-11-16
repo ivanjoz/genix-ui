@@ -159,12 +159,8 @@
 
 <style>
   ._chip {
-    background-color: #eeecff;
+    background-color: var(--select-chip-bg);
     color: var(--accent-fg);
-  }
-  /* The light hex would glare on the dark surface: dark mode keeps the accent token. */
-  :global(body.dark) ._chip {
-    background-color: var(--accent-bg-strong);
   }
   ._placeholder {
     color: var(--input-placeholder-color, var(--fg-subtle));

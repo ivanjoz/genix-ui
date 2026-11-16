@@ -115,6 +115,8 @@ body {
 	--accent-bg-strong: #e7e4ff;
 	/* The chip behind a field's inline label (FieldShell labelPosition="inline"). */
 	--input-inline-label-bg: #f0f2ff;
+	/* The chip of a selected option (SelectMultiple, CellMultiSelect). */
+	--select-chip-bg: #eeecff;
 	--accent-border: #b9b5f0;
 	--accent-solid: #5f5fe3;
 	--accent-fg: #5243c2;
@@ -247,6 +249,7 @@ body.dark {
 	--accent-bg: color-mix(in oklab, var(--accent-solid) 14%, var(--surface));
 	--accent-bg-strong: color-mix(in oklab, var(--accent-solid) 26%, var(--surface));
 	--input-inline-label-bg: var(--accent-bg);
+	--select-chip-bg: var(--accent-bg-strong);
 	/* body.dark sits on the same element as body, so the light value would leak in: reset it. */
 	--input-label-color-disabled: var(--fg-subtle);
 	--accent-border: color-mix(in oklab, var(--accent-solid) 50%, var(--surface));

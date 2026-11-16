@@ -485,7 +485,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Layer` **(ui)** | Side / bottom / content panel with title, tabs, save-delete-close actions | `type: 'side'\|'bottom'\|'content'`, `id`, `title`, `options`, `selected`, `optionsSide` (snippet beside the tabs), `onSave`, `onDelete`, `onClose`, `actions`, `sideLayerSize`, `contentOverflow` |
+| `Layer` **(ui)** | Side / bottom / content panel with title, tabs, save-delete-close actions | `type: 'side'\|'bottom'\|'content'`, `id`, `title`, `options`, `selected`, `optionsSide` (snippet beside the tabs), `onSave`, `onDelete`, `onClose`, `actions`, `width` (side layer px), `leftPanel` (snippet: a panel left of the side layer, both kept within the page width), `leftPanelWidth`, `useLeftPanelBackdrop` (dims and blurs the page behind both panels; a click closes), `contentOverflow` |
 | `LayerStatic` **(ui)** | Always-present side panel (no open/close animation) | `show`, `css`, `mobileLayerTitle`, `useMobileLayerVertical`, `dockLeft` (px: fixed left navigator, desktop only) |
 | `Modal` **(ui)** | Centered dialog, optionally with file import + error list | `id`, `title`, `size`, `isEdit`, `onSave`, `onDelete`, `onClose`, `useFileImportWithErrors`, `onFileChange`, `fileErrors` |
 | `MobileLayerVertical` **(ui)** | Collapsible bottom sheet | `title`, `show`, `closedHeightPx`, `onToggle` |

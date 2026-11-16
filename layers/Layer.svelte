@@ -23,6 +23,7 @@ import { ifcss } from '../utilities/css.js';
     title,
     titleIcon,
     titleSide,
+    subtitle,
     optionsSide,
     titleCss,
     contentCss,
@@ -37,7 +38,10 @@ import { ifcss } from '../utilities/css.js';
     saveButtonName,
     saveButtonIcon,
     contentOverflow,
-    sideLayerSize,
+    width,
+    leftPanel,
+    leftPanelWidth,
+    useLeftPanelBackdrop,
     actionsButton,
     actions,
   }: {
@@ -47,6 +51,8 @@ import { ifcss } from '../utilities/css.js';
     /** Icon class rendered ahead of the title, sizing and colour included. */
     titleIcon?: string
     titleSide?: Snippet
+    /** A second line under the title, inside the header, so the header buttons center on both lines. */
+    subtitle?: Snippet
     /** Content on the tabs' row, after the tabs: status tags, counters. Drawn only with options. */
     optionsSide?: Snippet
     titleCss?: string
@@ -62,7 +68,16 @@ import { ifcss } from '../utilities/css.js';
     saveButtonName?: string
     saveButtonIcon?: string
     contentOverflow?: boolean
-    sideLayerSize?: number
+    /** The side layer's width in pixels (800 by default). */
+    width?: number
+    /** A panel left of a side layer, the layer keeping its width while there is room for both.
+     *  On a phone it goes inside the layer, below the content. */
+    leftPanel?: Snippet
+    /** The left panel's width in pixels (360 by default); it narrows first when the screen is short. */
+    leftPanelWidth?: number
+    /** While the left panel shows, dims and blurs the page behind both panels (4px) instead of
+     *  shrinking it beside them; a click on it closes the layer. */
+    useLeftPanelBackdrop?: boolean
     type: 'side' | 'bottom' | 'content'
     id?: number
     actionsButton?: { name: string; icon: string; css?: string }
@@ -76,38 +91,65 @@ import { ifcss } from '../utilities/css.js';
   const resolvedSideLayerWidth = $derived.by(() => {
     // Use the layer-local prop as the source of truth and fall back to the CSS default width.
     if (type !== 'side') { return 0 }
-    return sideLayerSize || 800
+    return width || 800
   })
 
-  const layerWidth = $derived.by(() => {
-  	return resolvedSideLayerWidth ? resolvedSideLayerWidth + 'px' : ''
+  // The left panel narrows down to this width; past it the layer itself gives up width.
+  const LEFT_PANEL_MIN_WIDTH = 280
+  // Beside the layer on desktop and tablet. A phone's layer is the whole screen, so there it goes inside.
+  const hasLeftPanel = $derived(type === 'side' && !!leftPanel && ui.state.deviceType !== 3)
+  // Modal-like: the page behind both panels is dimmed and blurred instead of shrunk beside them.
+  const hasBackdrop = $derived(hasLeftPanel && !!useLeftPanelBackdrop)
+  const resolvedLeftPanelWidth = $derived(Math.max(leftPanelWidth || 360, LEFT_PANEL_MIN_WIDTH))
+  // Both panels together never pass --page-width (zoom or a short screen): the left panel narrows
+  // first, down to its minimum, then the layer. Plain CSS, so it follows a resize without listeners.
+  const leftPanelCssWidth = $derived(
+    `clamp(${LEFT_PANEL_MIN_WIDTH}px, var(--page-width) - ${resolvedSideLayerWidth}px, ${resolvedLeftPanelWidth}px)`)
+
+  const layerCssWidth = $derived.by(() => {
+    if (!resolvedSideLayerWidth) { return '' }
+    return hasLeftPanel
+      ? `min(${resolvedSideLayerWidth}px, var(--page-width) - ${leftPanelCssWidth})`
+      : resolvedSideLayerWidth + 'px'
   })
 
   const contentWidth = $derived.by(() => {
-   	const layerWidth = ui.state.sideLayerSize ? ui.state.sideLayerSize + 'px' : ''
-
-    return ui.state.sideLayerId > 0 && ui.state.sideLayerSize > 0 && ui.state.deviceType !== 3
-      ? `calc(var(--page-width) - ${layerWidth || '0'} - 8px)`
-      : undefined
+    if (!(ui.state.sideLayerId > 0 && ui.state.sideLayerWidth > 0 && ui.state.deviceType !== 3)) { return undefined }
+    // With a left panel, both panels take their full widths or, when short of room, all of --page-width.
+    const occupiedWidth = ui.state.leftPanelWidth
+      ? `min(${ui.state.sideLayerWidth + ui.state.leftPanelWidth}px, var(--page-width))`
+      : `${ui.state.sideLayerWidth}px`
+    return `calc(var(--page-width) - ${occupiedWidth} - 8px)`
   })
 
   $effect(() => {
     // Publish the active side-layer width so sibling content layers can reduce their width.
+    // Under a backdrop it publishes 0: the page keeps its width, dimmed behind the panels.
     if (type !== 'side' || ui.state.sideLayerId !== id) { return }
 
-    const nextSideLayerWidth = resolvedSideLayerWidth
+    const nextSideLayerWidth = hasBackdrop ? 0 : resolvedSideLayerWidth
     untrack(() => {
-      if (ui.state.sideLayerSize !== nextSideLayerWidth) {
-        ui.state.sideLayerSize = nextSideLayerWidth
+      if (ui.state.sideLayerWidth !== nextSideLayerWidth) {
+        ui.state.sideLayerWidth = nextSideLayerWidth
       }
     })
 
     return () => {
       untrack(() => {
-        if (ui.state.sideLayerSize === nextSideLayerWidth) {
-          ui.state.sideLayerSize = 0
+        if (ui.state.sideLayerWidth === nextSideLayerWidth) {
+          ui.state.sideLayerWidth = 0
         }
       })
+    }
+  })
+
+  $effect(() => {
+    // Publish the left panel's width as well, so the content layer leaves room for both panels.
+    if (!hasLeftPanel || hasBackdrop || ui.state.sideLayerId !== id) { return }
+    const nextLeftPanelWidth = resolvedLeftPanelWidth
+    untrack(() => { ui.state.leftPanelWidth = nextLeftPanelWidth })
+    return () => {
+      untrack(() => { ui.state.leftPanelWidth = 0 })
     }
   })
 
@@ -141,6 +183,12 @@ import { ifcss } from '../utilities/css.js';
       closeBackStep()
     }
   })
+
+  // The Close button and the backdrop. With a back step they go back through the history like the
+  // browser's button, so no entry is left behind to swallow a later back press.
+  const closeFromScreen = () => {
+    if (hasBackStep && ui.goBackStep) { ui.goBackStep() } else { closeByUser() }
+  }
 
   // React to showSideLayer changes and handle transitions on mobile
   // ONLY handle opening transitions - closing is instant
@@ -222,6 +270,19 @@ import { ifcss } from '../utilities/css.js';
 </script>
 
 {#if ui.state.sideLayerId === id && (type === 'side' || type === 'bottom')}
+  {#if hasBackdrop}
+    <!-- Below the header, right of the menu bar, under both panels (same z-index, earlier in the DOM). -->
+    <button type="button" aria-label={ui.translate("Close|Cerrar")} onclick={closeFromScreen}
+      class="fixed top-[var(--header-height)] left-[var(--menu-min-width)] right-0 bottom-0 z-[var(--layer-zindex)] bg-black/35 backdrop-blur-[4px] cursor-default"
+    ></button>
+  {/if}
+  {#if hasLeftPanel}
+    <!-- The left panel, flush left of the layer, whose shadow falls over its edge. -->
+    <div class="_1 visible flex flex-col px-10 py-10" data-layer-left-panel-id={id}
+      style="width: {leftPanelCssWidth}; right: {layerCssWidth};">
+      {@render leftPanel?.()}
+    </div>
+  {/if}
   <div data-id="Layer:{componentID}"
     class={ifcss(css, "flex flex-col w-800 px-12 py-10")}
     bind:this={divLayer}
@@ -229,25 +290,31 @@ import { ifcss } from '../utilities/css.js';
     class:_8={contentOverflow}
     class:_1={type === 'side'}
     class:_2={type === 'bottom'}
+    class:beside-left-panel={hasLeftPanel}
     class:in-transition={isInTransition}
     class:visible={isVisible || ui.state.deviceType !== 3 || type !== 'side'}
-    style={layerWidth ? `width: ${layerWidth};` : ''}
+    style={layerCssWidth ? `width: ${layerCssWidth};` : ''}
   >
     <div class="flex items-center justify-between">
-      <div class="flex items-center gap-8 overflow-hidden mr-8">
-        {#if titleIcon}
-          <i class="{titleIcon} shrink-0"></i>
-        {/if}
-        <div class="overflow-hidden text-nowrap {titleCss}">{ui.translate(title)}</div>
-        {#if onDelete && buttonDeleteOnTitle}
-          <!-- The base .round is 38px; important sizes shrink it to sit within the title line. -->
-          <Button color="red" useCircle shadow="none" icon="icon-[mdi--delete] text-[14px]" label={ui.translate("Delete|Eliminar")}
-            css="shrink-0 w-28! h-28! min-w-28! -mt-8" role="delete" onClick={onDelete} />
-        {/if}
-        {#if titleSide}
-          <div class="shrink-0">
-            {@render titleSide()}
-          </div>
+      <div class="flex flex-col overflow-hidden mr-8">
+        <div class="flex items-center gap-8 overflow-hidden">
+          {#if titleIcon}
+            <i class="{titleIcon} shrink-0"></i>
+          {/if}
+          <div class="overflow-hidden text-nowrap {titleCss}">{ui.translate(title)}</div>
+          {#if onDelete && buttonDeleteOnTitle}
+            <!-- The base .round is 38px; important sizes shrink it to sit within the title line. -->
+            <Button color="red" useCircle shadow="none" icon="icon-[mdi--delete] text-[14px]" label={ui.translate("Delete|Eliminar")}
+              css="shrink-0 w-28! h-28! min-w-28! -mt-8" role="delete" onClick={onDelete} />
+          {/if}
+          {#if titleSide}
+            <div class="shrink-0">
+              {@render titleSide()}
+            </div>
+          {/if}
+        </div>
+        {#if subtitle}
+          {@render subtitle()}
         {/if}
       </div>
       <div class="shrink-0 flex items-center mb-2">
@@ -270,11 +337,7 @@ import { ifcss } from '../utilities/css.js';
             name={ui.translate(saveButtonName || 'Guardar')} css="mr-10 leading-none"
             label={ui.translate("Save|Guardar")} onClick={onSave} />
         {/if}
-        <!-- With a back step, Close goes back through the history like the browser's button, so no
-             entry is left behind to swallow a later back press. -->
-        <Button color="yellow" icon="icon-[mdi--close-thick] text-[22px]" label={ui.translate("Close|Cerrar")} onClick={() => {
-          if (hasBackStep && ui.goBackStep) { ui.goBackStep() } else { closeByUser() }
-        }} />
+        <Button color="yellow" icon="icon-[mdi--close-thick] text-[22px]" label={ui.translate("Close|Cerrar")} onClick={closeFromScreen} />
       </div>
     </div>
     {#if (options || []).length > 0}
@@ -293,6 +356,9 @@ import { ifcss } from '../utilities/css.js';
       </div>
     {/if}
     <div class="_4 grow-1 {contentCss}">{@render children()}</div>
+    {#if leftPanel && type === 'side' && ui.state.deviceType === 3}
+      <div class="h-[42vh] shrink-0 mt-8">{@render leftPanel()}</div>
+    {/if}
   </div>
 {/if}
 
@@ -342,6 +408,13 @@ import { ifcss } from '../utilities/css.js';
     /* Prevent flash */
     opacity: 0;
     visibility: hidden;
+  }
+  /* With a left panel the layer's shadow falls over that panel, not the page: a short one, just
+     enough to separate the two. */
+  ._1.beside-left-panel {
+    box-shadow:
+      -2px 0px 5px 0px #0000001a,
+      0 0 0 1px var(--layer-edge);
   }
   ._1.visible,
   ._2.visible {

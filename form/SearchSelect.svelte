@@ -204,6 +204,8 @@ import type { Snippet } from 'svelte';
 
     let valueChanged = false;
     if (clearOnSelect) {
+      // Clear-on-select is an "add item" picker: a blur with no matching option picked nothing, so there is no change to report.
+      if (!selectedItem) { return }
       valueChanged = true;
       if (onChange) {
         onChange(selectedItem as E);

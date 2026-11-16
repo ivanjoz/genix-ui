@@ -102,7 +102,10 @@ export interface UiState {
   pageOptions: UiPageOption[];
   pageOptionSelected: number;
   sideLayerId: number;
-  sideLayerSize: number;
+  /** Width of the open side layer, 0 when none is open. */
+  sideLayerWidth: number;
+  /** Width asked by the open side layer's left panel (its `leftPanel` snippet), 0 without one. */
+  leftPanelWidth: number;
   popoverId: number | string;
   mobileSearchLayer: UiSearchLayer | null;
   mobileDateLayer: UiDateLayer | null;

@@ -107,7 +107,7 @@
 
 <!-- Side layer: Save / Delete / Close buttons are rendered by the component itself, so
      the body never declares its own save button. -->
-<Layer type="side" id={SIDE_LAYER_ID} sideLayerSize={640}
+<Layer type="side" id={SIDE_LAYER_ID} width={640}
   title={form?.Name || 'New record|Nuevo registro'}
   titleCss="h2 mb-6"
   bind:selected={layerView}

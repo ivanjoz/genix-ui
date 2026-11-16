@@ -134,6 +134,7 @@ Pure-display, infrastructural, or trivially composed components don't register:
 |---|---|---|---|
 | `Input` | `Input` | root has `data-value="<current value>"` | `setValue` |
 | `SearchSelect` (Svelte file) | `Select` | root has `data-value="[id] text"` (id of the selected option followed by its display text; empty string when nothing is selected) and `data-options-count="<n>"` (total option count). When the full list is short (≤12) the backend renderer additionally injects `options="[id] label\|[id] label\|…"` on the `<Select>` tag from a frontend `getOptions(13)` probe — agents read the inline list directly and skip the round-trip. | `search`, `select`, `getOptions` (options not in DOM until opened) |
+| `SelectMultiple` | `MultiSelect` | root has `data-value="[id] text, [id] text, …"` (the selected options) and `data-options-count="<n>"` | `search`, `select(...ids)` (adds), `remove(id)` (plain option id), `getOptions` |
 | `SearchCard` | `SearchCard` | wraps a child `Select`; renders selected chips as `Option:<id>` | `select(...ids)`, `remove(id)` |
 | `SearchDualCard` | `SearchDualCard` | wraps two child `Select`s; chips as `Option:<id>` | `select(...ids)`, `remove(id)` |
 | `Card` | `Card` | bare `<div>` wrapper. Only registers a handle when an `onClick` prop is set; otherwise it is invisible to the agent | `click` (only when `onClick` is set) |

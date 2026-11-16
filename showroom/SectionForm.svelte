@@ -12,6 +12,7 @@
   import LoginForm from '../form/LoginForm.svelte';
   import NumericSlider from '../form/NumericSlider.svelte';
   import SearchSelect from '../form/SearchSelect.svelte';
+  import SelectMultiple from '../form/SelectMultiple.svelte';
   import TimeInput from '../form/TimeInput.svelte';
   import ShowroomBlock from './ShowroomBlock.svelte';
   import { languageOptions, statusOptions } from './showroom-data';
@@ -93,6 +94,17 @@
   </div>
   <div class="text-xs text-fg-muted mt-8">
     On mobile widths this delegates to the TopLayerSelector singleton mounted in the root layout.
+  </div>
+</ShowroomBlock>
+
+<ShowroomBlock name="SelectMultiple" note="one line (chips cut off) · useWrap (the field grows) · disabled — both write LanguageIDs">
+  <div class="grid grid-cols-24 gap-10">
+    <SelectMultiple saveOn={form} save="LanguageIDs" label="Languages|Idiomas"
+      options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
+    <SelectMultiple saveOn={form} save="LanguageIDs" label="Languages (wrap)|Idiomas (wrap)" useWrap
+      options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
+    <SelectMultiple saveOn={form} save="LanguageIDs" label="Disabled|Deshabilitado" disabled
+      options={languageOptions} keyId="ID" keyName="Name" css="col-span-24 md:col-span-8" />
   </div>
 </ShowroomBlock>
 

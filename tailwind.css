@@ -117,6 +117,10 @@ body {
 	--input-inline-label-bg: #f0f2ff;
 	/* The chip of a selected option (SelectMultiple, CellMultiSelect). */
 	--select-chip-bg: #eeecff;
+	/* CardsStrip: an unselected card's fill, and its hover when isGrayBackground makes it white. */
+	--cards-strip-card-bg: #eef0f6;
+	--cards-strip-hover-bg: #f3f5ff;
+	--cards-strip-hover-border: #bcc2e1;
 	--accent-border: #b9b5f0;
 	--accent-solid: #5f5fe3;
 	--accent-fg: #5243c2;
@@ -250,6 +254,10 @@ body.dark {
 	--accent-bg-strong: color-mix(in oklab, var(--accent-solid) 26%, var(--surface));
 	--input-inline-label-bg: var(--accent-bg);
 	--select-chip-bg: var(--accent-bg-strong);
+	/* The hover tints the raised card (isGrayBackground) toward the accent, as light mode does. */
+	--cards-strip-card-bg: var(--surface-strong);
+	--cards-strip-hover-bg: color-mix(in oklab, var(--accent-solid) 12%, var(--surface-raised));
+	--cards-strip-hover-border: color-mix(in oklab, var(--accent-solid) 40%, var(--surface-raised));
 	/* body.dark sits on the same element as body, so the light value would leak in: reset it. */
 	--input-label-color-disabled: var(--fg-subtle);
 	--accent-border: color-mix(in oklab, var(--accent-solid) 50%, var(--surface));

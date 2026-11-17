@@ -620,7 +620,7 @@
           <!-- Top spacer pushes the first rendered row to its real Y offset and
                preserves the 2px breathing room previously held by .vtable-edge-spacer. -->
           <tr class="vtable-virtual-spacer" aria-hidden="true"
-            style="height: {Math.max(2, virtualizer.range.offsetAtStart)}px;">
+            style="height: {Math.max(1, virtualizer.range.offsetAtStart)}px;">
             <td colspan={processedColumns.flatColumns.length}></td>
           </tr>
         {/if}
@@ -791,7 +791,7 @@
           <!-- Bottom spacer extends the table to totalSize so scrollHeight reflects
                the entire dataset, not just the rendered window. -->
           <tr class="vtable-virtual-spacer" aria-hidden="true"
-            style="height: {Math.max(2, virtualizer.totalSize - virtualizer.range.offsetAtEnd)}px;">
+            style="height: {Math.max(1, virtualizer.totalSize - virtualizer.range.offsetAtEnd)}px;">
             <td colspan={processedColumns.flatColumns.length}></td>
           </tr>
         {/if}

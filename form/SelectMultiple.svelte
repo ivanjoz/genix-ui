@@ -132,7 +132,8 @@
 </script>
 
 {#snippet arrow()}
-  <i class="icon-[mdi--unfold-more-horizontal] _arrow" class:_open={isOpen}></i>
+  <!-- -mr-4: the arrow sits 4px closer to the border than the shared suffix offset. -->
+  <i class="icon-[mdi--unfold-more-horizontal] _arrow -mr-4" class:_open={isOpen}></i>
 {/snippet}
 
 <div bind:this={fieldElement} class={css} role="button" tabindex={disabled ? -1 : 0}
@@ -160,11 +161,13 @@
     data-options-count={selectableOptions.length}
   >
     {#snippet children({ controlId, controlClass })}
-      <!-- With useWrap the row is auto-height with 8px + 6px of padding: the -3px/-2px margins
-           bring one line of 23px chips back to the 32px of a normal field row.
+      <!-- With useWrap the row is auto-height with 8px + 6px of padding, plus the -3px/-2px
+           margins: a min height of --input-height - 15px makes one line of chips exactly the
+           (--input-height - 6px) of a normal field row, so it keeps the same height and bottom
+           padding as its neighbours whatever the theme's input height.
            The chips sit in an inner box because overflow clips at the padding edge, and the
            control's right padding is the arrow's room. -->
-      <div id={controlId} class="{controlClass} flex items-center min-w-0 {useWrap ? '-mt-3 -mb-2' : ''}">
+      <div id={controlId} class="{controlClass} flex items-center min-w-0 {useWrap ? '-mt-3 -mb-2 min-h-[calc(var(--input-height,38px)-15px)]' : ''}">
         <div class="flex items-center gap-4 w-full min-w-0 {useWrap ? 'flex-wrap' : 'overflow-hidden'}">
           {#each selectedOptions as option (option[keyId])}
             <span class="_chip shrink-0 h-23 pb-1 px-6 rounded-[5px] flex items-center">{ui.translate(String(option[keyName] ?? ''))}</span>

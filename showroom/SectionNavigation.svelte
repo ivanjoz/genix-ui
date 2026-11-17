@@ -1,6 +1,7 @@
 <script lang="ts">
   import KeyValueStrip from '../misc/KeyValueStrip.svelte';
   import ArrowSteps from '../navigation/ArrowSteps.svelte';
+  import CardsStrip from '../navigation/CardsStrip.svelte';
   import ChevronStrip from '../navigation/ChevronStrip.svelte';
   import OptionsStrip from '../navigation/OptionsStrip.svelte';
   import ShowroomBlock from './ShowroomBlock.svelte';
@@ -11,6 +12,21 @@
   let twoLineSelected = $state(1);
   let stepSelected = $state(2);
   let chevronSelected = $state(1);
+  let cardSelected = $state(2);
+
+  const floorAreas = [
+    { id: 1, name: 'Terrace|Terraza' },
+    { id: 2, name: 'Main hall|Salón' },
+    { id: 3, name: 'Bar|Barra' },
+    { id: 4, name: 'Private room|Privado' },
+  ];
+
+  const longFloorAreas = [
+    { id: 1, name: 'Terrace|Terraza' },
+    { id: 2, name: 'Main reception|Recepción Principal' },
+    { id: 3, name: 'Bar|Barra' },
+    { id: 4, name: 'Private room for events and large groups|Salón privado para eventos y grupos grandes' },
+  ];
 
   // [id, label] tuples — the format used by most pages.
   const tupleOptions: [number, string][] = [
@@ -77,6 +93,16 @@
   <ChevronStrip options={chevronSteps} selected={chevronSelected} keyId="id" keyName="name" autocenter={true}
     onSelect={(step) => { chevronSelected = step.id; }} />
   <div class="text-xs text-fg-muted mt-8">selected = {chevronSelected}</div>
+</ShowroomBlock>
+
+<ShowroomBlock name="CardsStrip — isGrayBackground" note="white cards for a gray background: switch the surface to Gris">
+  <CardsStrip options={floorAreas} selected={cardSelected} keyId="id" keyName="name" isGrayBackground={true}
+    onSelect={(area) => { cardSelected = area.id; }} />
+</ShowroomBlock>
+
+<ShowroomBlock name="CardsStrip — cardMaxWidth" note="cards up to 140px: long labels wrap to 2 lines, then an ellipsis">
+  <CardsStrip options={longFloorAreas} selected={cardSelected} keyId="id" keyName="name" cardMaxWidth={140}
+    onSelect={(area) => { cardSelected = area.id; }} />
 </ShowroomBlock>
 
 <ShowroomBlock name="KeyValueStrip" note="up to 10 label/value pairs · getContent formats a value">

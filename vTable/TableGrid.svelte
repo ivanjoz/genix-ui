@@ -1050,6 +1050,11 @@
     outline: none;
   }
 
+  /* The last row of a plain (non-virtual) grid sits on the 2px edge spacer, not on a rule. */
+  .table-grid-row:has(+ .table-grid-edge-spacer) {
+    border-bottom: 0;
+  }
+
   .table-grid-row:hover {
     background-color: var(--surface-muted);
   }

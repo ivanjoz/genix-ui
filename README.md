@@ -516,6 +516,7 @@ extraction (`getValue`, `render`, `renderHTML`, `renderPrefix`), layout (`width`
 | `OptionsStrip` **(ui)** | Tab/section strip; the standard sub-view switcher | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `useMobileGrid`, `activeClass`, `inactiveClass` |
 | `ArrowSteps` **(ui)** | Chevron step/stage picker | `options`, `selected`, `onSelect`, `optionRender`, `columnsTemplate`, `pointedStart`, `pointedEnd` (keep the chevron at that end instead of a flat, rounded edge) |
 | `ChevronStrip` **(ui)** | Horizontally scrolling strip of arrow-shaped steps fitted into each other; options take 28% of the width so the 4th is cut, hinting the scroll (up to 3 options share the full width instead); a mouse scrolls it with the wheel or by dragging; `autocenter` scrolls the selected one to the 2nd place; the options fill the strip's height (set through `css`, `h-48` by default) minus its 4px scrollbar gutter | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `optionWidth`, `autocenter`, `css` |
+| `CardsStrip` **(ui)** | Row of card-shaped options glued side by side; the selected and the hovered card grow 4px on every side over their neighbours without moving them; scrolls sideways when it overflows | `options`, `keyId`, `keyName`, `selected`, `onSelect`, `css`, `cardCss` (card size, `h-48 px-12` by default), `cardMaxWidth` (px; longer labels wrap to 2 lines, then an ellipsis), `isGrayBackground` (white cards with an accent-tinted hover, for a gray background) |
 
 ### `menu/` — fully host-driven
 

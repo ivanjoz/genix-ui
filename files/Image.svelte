@@ -2,6 +2,7 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
   import s1 from '../components.module.css';
+  import { Agent } from '../agent/registry';
 
   interface ImageProps {
     src: string;
@@ -12,6 +13,11 @@
     css?: string;
     imageCss?: string;
     onRemove?: () => void;
+    /** Bilingual label of the remove button (aria-label and agent label). Name the image in it. */
+    removeLabel?: string;
+    /** Puts the remove button in a shaded bar along the image's bottom: revealed on hover on desktop,
+     *  always visible on touch screens (they have no hover). */
+    useRemoveBar?: boolean;
   }
 
   let {
@@ -23,7 +29,22 @@
     css = '',
     imageCss = '',
     onRemove,
+    removeLabel = 'Delete image|Eliminar imagen',
+    useRemoveBar = false,
   }: ImageProps = $props();
+
+  // The remove button is a command like any Button: the agent finds and clicks it by its label.
+  const removeButtonID = ui.nextComponentId();
+  const triggerRemove = () => { onRemove?.(); };
+  $effect(() => {
+    if (!onRemove) { return; }
+    return Agent.register({
+      id: removeButtonID,
+      type: 'Button',
+      label: removeLabel,
+      click: triggerRemove,
+    });
+  });
 
   // Optimistic images render from memory until their converted bytes reach the CDN.
   const liveBase64 = $derived(ui.images.getBase64(src));
@@ -71,14 +92,30 @@
     </div>
   {/if}
 
-  {#if onRemove}
+  {#if onRemove && useRemoveBar}
+    <div class={s1.image_remove_bar}>
+      <button
+        class={s1.image_remove_bar_button}
+        type="button"
+        data-id="Button:{removeButtonID}"
+        aria-label={ui.translate(removeLabel)}
+        onclick={(event) => {
+          event.stopPropagation();
+          triggerRemove();
+        }}
+      >
+        <i class="icon-[mdi--delete]"></i>
+      </button>
+    </div>
+  {:else if onRemove}
     <button
       class={s1.image_remove_button}
       type="button"
-      aria-label={ui.translate('Delete image|Eliminar imagen')}
+      data-id="Button:{removeButtonID}"
+      aria-label={ui.translate(removeLabel)}
       onclick={(event) => {
         event.stopPropagation();
-        onRemove?.();
+        triggerRemove();
       }}
     >
       <i class="icon-[fa--close]"></i>

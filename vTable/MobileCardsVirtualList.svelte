@@ -219,6 +219,12 @@
     cell.onCellClick(record, recordIndex, () => rerenderRow(sourceIndex));
   }
 
+  // Same inset as the desktop table's editable cells, so the shown value sits off the border and
+  // does not jump when the editor opens. A declared horizontal padding wins.
+  function getEditableInsetCss(declaredCss?: string): string {
+    return /px-|pr-|pl-/.test(declaredCss || '') ? '' : 'px-6';
+  }
+
   function logInteraction(eventName: string, payload: Record<string, unknown>) {
     console.debug(`[${debugName}] ${eventName}`, payload);
   }
@@ -430,11 +436,11 @@
                         data-cell-type={isAgentClickCell ? 'CellClick' : undefined}
                         onpointerup={(event) => handleCellClick(event, cell, resolvedRecord, recordIndex, sourceIndex)}
                       >
-                        {#if cell.onCellEdit}
+                        {#if cell.onCellEdit && !cellInteractionsDisabled}
                           <div class="mobile-cards-editable-border"><div></div></div>
                           <CellInput
-                            contentClass={cell.contentCss || cell.css}
-                            inputClass={cell.inputCss}
+                            contentClass={`${cell.contentCss || cell.css || ''} ${getEditableInsetCss(cell.contentCss || cell.css)}`}
+                            inputClass={`${getEditableInsetCss(cell.inputCss)} ${cell.inputCss || ''}`}
                             type={cell.type || 'text'}
                             cellID={buildCellID(sourceIndex, cellIndex)}
                             getValue={() => {
@@ -458,7 +464,7 @@
                               cell.onCellEdit?.(resolvedRecord, value, () => rerenderRow(sourceIndex));
                             }}
                           />
-                        {:else if cell.onCellSelect}
+                        {:else if cell.onCellSelect && !cellInteractionsDisabled}
                           <div class="mobile-cards-editable-border"><div></div></div>
                           <CellSelect
                             id={buildSelectorId(cell, recordIndex, cellIndex)}
@@ -535,11 +541,11 @@
                         data-cell-type={isAgentClickCell ? 'CellClick' : undefined}
                         onpointerup={(event) => handleCellClick(event, cell, resolvedRecord, recordIndex, sourceIndex)}
                       >
-                        {#if cell.onCellEdit}
+                        {#if cell.onCellEdit && !cellInteractionsDisabled}
                           <div class="mobile-cards-editable-border"><div></div></div>
                           <CellInput
-                            contentClass={cell.contentCss || cell.css}
-                            inputClass={cell.inputCss}
+                            contentClass={`${cell.contentCss || cell.css || ''} ${getEditableInsetCss(cell.contentCss || cell.css)}`}
+                            inputClass={`${getEditableInsetCss(cell.inputCss)} ${cell.inputCss || ''}`}
                             type={cell.type || 'text'}
                             cellID={buildCellID(sourceIndex, cellIndex)}
                             getValue={() => {
@@ -562,7 +568,7 @@
                               cell.onCellEdit?.(resolvedRecord, value, () => rerenderRow(sourceIndex));
                             }}
                           />
-                        {:else if cell.onCellSelect}
+                        {:else if cell.onCellSelect && !cellInteractionsDisabled}
                           <div class="mobile-cards-editable-border"><div></div></div>
                           <CellSelect
                             id={buildSelectorId(cell, recordIndex, cellIndex)}
@@ -655,11 +661,11 @@
                       class:mobile-cards-value-host-interactive={isInteractiveCell(cell, resolvedRecord, recordIndex)}
                       onpointerup={(event) => handleCellClick(event, cell, resolvedRecord, recordIndex, sourceIndex)}
                     >
-                      {#if cell.onCellEdit}
+                      {#if cell.onCellEdit && !cellInteractionsDisabled}
                         <div class="mobile-cards-editable-border"><div></div></div>
                         <CellInput
-                          contentClass={cell.contentCss || cell.css}
-                          inputClass={cell.inputCss}
+                          contentClass={`${cell.contentCss || cell.css || ''} ${getEditableInsetCss(cell.contentCss || cell.css)}`}
+                          inputClass={`${getEditableInsetCss(cell.inputCss)} ${cell.inputCss || ''}`}
                           type={cell.type || 'text'}
                           cellID={buildCellID(sourceIndex, cellIndex)}
                           getValue={() => {
@@ -682,7 +688,7 @@
                             cell.onCellEdit?.(resolvedRecord, value, () => rerenderRow(sourceIndex));
                           }}
                         />
-                      {:else if cell.onCellSelect}
+                      {:else if cell.onCellSelect && !cellInteractionsDisabled}
                         <div class="mobile-cards-editable-border"><div></div></div>
                         <CellSelect
                           id={buildSelectorId(cell, recordIndex, cellIndex)}

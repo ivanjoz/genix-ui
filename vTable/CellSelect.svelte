@@ -68,13 +68,12 @@ import { getVTableAgentContext } from '../vTable/agentContext';
     } else {
       target.value = ""
     }
-    if(saveOn && save){
-      if(selected){ saveOn[save] = selected[keyId] as unknown as NonNullable<T>[keyof T] }
-      else {
-        delete saveOn[save]
-      }
+    if(!selected){
+      clearSelected()
+      return
     }
-    onChange?.((selected?.[keyId] as string | number) || '')
+    if(saveOn && save){ saveOn[save] = selected[keyId] as unknown as NonNullable<T>[keyof T] }
+    onChange?.((selected[keyId] as string | number) || '')
   }
 
   const onSelect = (e: E) => {
@@ -91,7 +90,27 @@ import { getVTableAgentContext } from '../vTable/agentContext';
     render ? render(selected, show) : selected?.[keyName] || "" as string
   );
 
+  const clearSelected = () => {
+    selected = null as E
+    if(saveOn && save){ delete saveOn[save] }
+    onChange?.('')
+  }
+
+  // On mobile the options open in the full-screen picker, as SearchSelect does: an anchored popover
+  // does not fit a phone and covers the cards below.
+  const useLayerPicker = $derived(ui.state.deviceType === 3)
+
   const handlwShowClick = () => {
+    if (useLayerPicker) {
+      ui.state.mobileSearchLayer = {
+        options,
+        keyName: keyName as string,
+        keyID: keyId as string,
+        onSelect: (e) => { onSelect(e) },
+        onClear: required ? undefined : clearSelected,
+      }
+      return
+    }
     filterValue = ""
     // Ignore the first blur right after opening because the cell swaps from a div to an input.
     avoidBlur = true

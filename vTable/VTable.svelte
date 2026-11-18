@@ -109,19 +109,21 @@
   // table and on mobile cards, and the agent can click it like any other cell.
   const selectionColumn = $derived.by((): ITableColumn<T> | null => {
     if (!selectedIDs || !getRowID) { return null; }
+    const selectionIcon = (row: T, sizeCss: string) => selectedIDs.has(getRowID(row))
+      ? `<i class="icon-[fa--check-square-o] text-green-solid ${sizeCss}"></i>`
+      : `<i class="icon-[fa--square-o] text-fg-subtle ${sizeCss}"></i>`;
     return {
       id: '_selection',
       header: '',
       width: '36px',
       css: 'text-center',
-      render: (row) => selectedIDs.has(getRowID(row))
-        ? '<i class="icon-[fa--check-square-o] text-green-solid text-[16px]"></i>'
-        : '<i class="icon-[fa--square-o] text-fg-subtle text-[16px]"></i>',
+      render: (row) => selectionIcon(row, 'text-[16px]'),
       onCellClick: (row) => {
         const rowID = getRowID(row);
         if (selectedIDs.has(rowID)) { selectedIDs.delete(rowID); } else { selectedIDs.add(rowID); }
       },
-      mobile: { order: -1, css: 'col-span-2' },
+      // On a card the box is a finger target: bigger, and centered on the line of the field beside it.
+      mobile: { order: -1, css: 'col-span-2', contentCss: 'flex items-center', render: (row) => selectionIcon(row, 'text-[22px]') },
     };
   });
 

@@ -68,3 +68,48 @@
   background: color-mix(in srgb, var(--red-solid) 80%, var(--fg));
 }
 
+/* Image useRemoveBar: the remove button sits in a shade along the bottom. Desktop reveals it on hover;
+   touch screens have no hover, so there it is always shown. */
+.image_remove_bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  padding: 28px 8px 8px;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+:global(.group:hover) .image_remove_bar,
+.image_remove_bar:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .image_remove_bar {
+    opacity: 1;
+  }
+}
+
+/* Round like the corner remove button. */
+.image_remove_bar_button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--on-solid);
+  background: color-mix(in srgb, var(--red-solid) 90%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  transition: background 0.15s ease;
+}
+
+.image_remove_bar_button:hover {
+  background: color-mix(in srgb, var(--red-solid) 80%, var(--fg));
+}
+

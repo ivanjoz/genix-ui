@@ -538,7 +538,7 @@ Neither menu imports routing, security, or services; all policy arrives as props
 
 | Component | Purpose | Key props |
 | --- | --- | --- |
-| `Image` **(ui)** | CDN image with resolution suffixes and in-flight/queued state | `src`, `folder`, `size: 1..9`, `types`, `alt`, `onRemove` |
+| `Image` **(ui)** | CDN image with resolution suffixes and in-flight/queued state | `src`, `folder`, `size: 1..9`, `types`, `alt`, `onRemove`, `removeLabel` (agent-registered remove `Button`), `useRemoveBar` (remove in a bottom shade: on hover on desktop, always on touch) |
 | `Imagehash` | Image with a thumbhash placeholder | `src`, `hash`, `size`, `folder`, `alt` |
 | `ImageUploader` **(ui)** | Convert (AVIF/WebP), queue, and upload images | `src`, `saveAPI`, `refreshRoutes`, `convertResolutions`, `useConvertAvif`, `folder`, `onChange`, `onUploaded`, `setDataToSend`, `hideForm`, `processName` |
 | `FileUploadSelector` **(ui)** | File picker with extension filtering | `selectedFile` (bindable), `accept`, `extensions`, `buttonLabel`, `onChange` |

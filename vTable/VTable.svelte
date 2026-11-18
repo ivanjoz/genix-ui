@@ -75,6 +75,9 @@
     // "select all" button). getRowID is required with it.
     selectedIDs?: Set<string | number>;
     getRowID?: (row: T) => string | number;
+    // With selectedIDs, on mobile the whole card is the target: a tap selects or unselects it and
+    // a selected card is highlighted, with no checkbox on it.
+    selectCardOnMobile?: boolean;
   }
 
   let {
@@ -103,7 +106,15 @@
     onRowHover,
     selectedIDs,
     getRowID,
+    selectCardOnMobile = false,
   }: VTableProps<T> = $props();
+
+  const toggleRowSelection = (row: T) => {
+    if (!selectedIDs || !getRowID) { return; }
+    const rowID = getRowID(row);
+    if (selectedIDs.has(rowID)) { selectedIDs.delete(rowID); } else { selectedIDs.add(rowID); }
+  };
+  const isCardSelectable = $derived(selectCardOnMobile && !!selectedIDs && !!getRowID);
 
   // The selection checkbox is an ordinary click cell, so it renders on desktop, in the plain
   // table and on mobile cards, and the agent can click it like any other cell.
@@ -118,12 +129,11 @@
       width: '36px',
       css: 'text-center',
       render: (row) => selectionIcon(row, 'text-[16px]'),
-      onCellClick: (row) => {
-        const rowID = getRowID(row);
-        if (selectedIDs.has(rowID)) { selectedIDs.delete(rowID); } else { selectedIDs.add(rowID); }
-      },
+      onCellClick: toggleRowSelection,
       // On a card the box is a finger target: bigger, and centered on the line of the field beside it.
-      mobile: { order: -1, css: 'col-span-2', contentCss: 'flex items-center', render: (row) => selectionIcon(row, 'text-[22px]') },
+      // Selectable cards drop it: the card itself is the target.
+      mobile: selectCardOnMobile ? undefined
+        : { order: -1, css: 'col-span-2', contentCss: 'flex items-center', render: (row) => selectionIcon(row, 'text-[22px]') },
     };
   });
 
@@ -553,7 +563,9 @@
         overscan={overscan}
         emptyMessage={emptyMessage}
         loadingMessage="Loading..."
-        onRowClick={onRowClick ? handleRowClick : undefined}
+        onRowClick={isCardSelectable ? toggleRowSelection : onRowClick ? handleRowClick : undefined}
+        showSelectedCard={isCardSelectable}
+        isCardSelected={isCardSelectable ? (row) => selectedIDs!.has(getRowID!(row)) : undefined}
         resolveRecord={getRowObject ? getResolvedRow : undefined}
         debugName="VTable"
         tableCellRenderer={cellRenderer}

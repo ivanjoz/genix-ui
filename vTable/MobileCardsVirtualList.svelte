@@ -57,6 +57,8 @@
     onRowClick?: (row: TRecord, index: number, rerender: () => void) => void;
     selected?: TRecord | string | number;
     isSelected?: (row: TRecord, selected: TRecord | string | number) => boolean;
+    // Many cards selected at once (a set of ids): wins over selected / isSelected.
+    isCardSelected?: (row: TRecord) => boolean;
     getRecordIndex?: (record: TRecord, fallbackIndex: number) => number;
     resolveRecord?: (record: TRecord, index: number) => TRecord | null;
     buttonDeleteHandler?: ICardButtonDeleteHandler<TRecord>;
@@ -90,6 +92,7 @@
     onRowClick,
     selected,
     isSelected,
+    isCardSelected,
     getRecordIndex,
     resolveRecord,
     buttonDeleteHandler,
@@ -172,6 +175,7 @@
   }
 
   function isRowSelected(record: TRecord): boolean {
+    if (isCardSelected) return isCardSelected(record);
     if (!selected || !isSelected) return false;
     return isSelected(record, selected);
   }

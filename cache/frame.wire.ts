@@ -1,44 +1,50 @@
+import { Decoder } from 'colbin/decode'
+
 /**
  * DataFrame files as the browser reads them. Pure: no fetch, no Svelte, no IndexedDB.
  *
  * A DataFrame is a group-by report the backend keeps as small columnar files, one per Keys value
  * (genix-orm/dataframe/DATAFRAMES.md). A frame route answers only the files the browser must
- * replace, given the ones it holds (`h=`, formatHeldFrameFiles), in this body:
+ * replace, given the ones it holds (`h=`, formatHeldFrameFiles), as a self-describing colbin message
+ * (genix-orm db.EncodeChangedFiles) of:
  *
- *   u8       wire version (1)
- *   uvarint  generation length, generation bytes (a rebuild changes it: drop every held file)
- *   u8       Rows columns, u8 summed columns (Sums, then the count)
- *   uvarint  w: the frame's snapshot (SUnixTime), "data as of"
- *   uvarint  file count
- *   file*    uvarint key count, uvarint × keys, uvarint snapshot, u8 slot,
- *            uvarint content length (0 = no rows), the file's bytes
+ *   Generation      a rebuild (S3 frames) or a new shape (table frames) changes it: drop every held file
+ *   RowColumnCount  Rows columns, what each file decodes with
+ *   SumsCount       summed columns (Sums, then the count)
+ *   Snapshot        w: the frame's snapshot (SUnixTime), "data as of"
+ *   Files           { Keys, Snapshot, Slot, Content }: Content null for a file without rows, Slot 0
+ *                   (absent) on a table frame, which has no versions file
  *
- * and each file (format v4):
+ * and each file's Content (format v5):
  *
- *   u8 version (4, bit 7 set with the zero sums mask), u8 slot, uvarint snapshot, uvarint row
- *   count n (nothing follows when 0), the Rows columns nested like folders, [u8 zero sums mask: bit s
- *   set when summed column s holds a non-zero value], then each summed column (with the mask, only
- *   those whose bit is set; the others are all 0): varint minimum, residuals.
+ *   u8 version (5, bit 7 set with the zero sums mask, bit 6 with a slot), [u8 slot: S3 frames only],
+ *   uvarint snapshot, uvarint row count n (nothing follows when 0), the Rows columns nested like
+ *   folders, [u8 zero sums mask: bit s set when summed column s holds a non-zero value], then each
+ *   summed column (with the mask, only those whose bit is set; the others are all 0): varint minimum,
+ *   residuals.
  *
  * Residuals: uvarint divisor (0: every residual is 0 and no blocks follow, a constant column), then
  * blocks of 128, each a head byte (bits 0–6 width, bit 7 patched),
  * [u8 patch count], the low `width` bits of each residual packed LSB first, then per patch
- * u8 position + uvarint high bits. The Go side is genix-orm/dataframe/codec.go and changed.go; both
- * are pinned by genix-orm/dataframe/testdata/frame_wire_vectors.json.
+ * u8 position + uvarint high bits. The Go side is genix-orm/dataframe/codec.go and db/dataframe.go;
+ * both are pinned by genix-orm/dataframe/testdata/frame_wire_vectors.json.
  *
  * Values are JS numbers: a value past 2^53 fails the decode instead of reading back rounded.
  */
 
-const FORMAT_VERSION = 4
+const FORMAT_VERSION = 5
 const ZERO_SUMS_MASK_FLAG = 0x80
+const SLOT_FLAG = 0x40
 const MAX_MASKED_SUMS = 8
 const CONSTANT_COLUMN_DIVISOR = 0
-const WIRE_VERSION = 1
 const BLOCK_SIZE = 128
 const BLOCK_PATCHED_FLAG = 0x80
 const BLOCK_WIDTH_MASK = 0x7f
 
-/** A decoded frame file: rows[c][i] is Rows column c of row i, sums[s][i] summed column s of it. */
+/**
+ * A decoded frame file: rows[c][i] is Rows column c of row i, sums[s][i] summed column s of it. slot
+ * is 0 on a table frame's file (no versions file).
+ */
 export interface FrameFile {
 	snapshot: number
 	slot: number
@@ -234,9 +240,11 @@ export const decodeFrameFile = (content: Uint8Array, rowColumnCount: number, sum
 	const reader: ByteReader = { bytes: content, position: 0 }
 	const formatByte = readByte(reader)
 	const usesZeroSumsMask = (formatByte & ZERO_SUMS_MASK_FLAG) !== 0
-	if ((formatByte & ~ZERO_SUMS_MASK_FLAG) !== FORMAT_VERSION) throw corrupt('the file version')
+	if ((formatByte & ~(ZERO_SUMS_MASK_FLAG | SLOT_FLAG)) !== FORMAT_VERSION) throw corrupt('the file version')
 	if (usesZeroSumsMask && sumsCount > MAX_MASKED_SUMS) throw corrupt('the zero sums mask')
-	const slot = readByte(reader)
+	// Only an S3 frame's file carries its slot (1..255); without the byte it is 0.
+	const slot = formatByte & SLOT_FLAG ? readByte(reader) : 0
+	if (formatByte & SLOT_FLAG && slot === 0) throw corrupt('the slot')
 	const snapshot = readUvarint(reader)
 	const rowCount = readUvarint(reader)
 	// Every 128 rows take at least one block head per column: a larger count is corrupt.
@@ -259,36 +267,47 @@ export const decodeFrameFile = (content: Uint8Array, rowColumnCount: number, sum
 	return file
 }
 
-/** decodeFrameAnswer reads a frame route's body. */
-export const decodeFrameAnswer = (body: Uint8Array): FrameAnswer => {
-	const reader: ByteReader = { bytes: body, position: 0 }
-	const readBytes = (): Uint8Array => {
-		const length = readUvarint(reader)
-		if (length > body.length - reader.position) throw corrupt('a length')
-		reader.position += length
-		return body.subarray(reader.position - length, reader.position)
-	}
-	if (readByte(reader) !== WIRE_VERSION) throw corrupt('the wire version')
-	const generation = new TextDecoder().decode(readBytes())
-	const rowColumnCount = readByte(reader)
-	const sumsCount = readByte(reader)
-	const snapshot = readUvarint(reader)
-	const fileCount = readUvarint(reader)
-	if (fileCount > body.length) throw corrupt('the file count')
-	const files: FrameAnswerFile[] = []
-	for (let f = 0; f < fileCount; f++) {
-		const keyCount = readUvarint(reader)
-		if (keyCount > 3) throw corrupt('a key count')
-		const keys = Array.from({ length: keyCount }, () => readUvarint(reader))
-		const fileSnapshot = readUvarint(reader)
-		const slot = readByte(reader)
-		files.push({ keys, snapshot: fileSnapshot, slot, content: readBytes().slice() })
-	}
-	if (reader.position !== body.length) throw corrupt('the body end')
-	return { generation, rowColumnCount, sumsCount, snapshot, files }
+/** The colbin message of a frame route (genix-orm dataframe.ChangedFiles), as colbin/decode reads it. */
+interface ChangedFilesMessage {
+	Generation: string
+	RowColumnCount: number
+	SumsCount: number
+	Snapshot: number
+	// null when no file changed (Go's nil slice).
+	Files: { Keys: number[]; Snapshot: number; Slot: number; Content: Uint8Array | null }[] | null
 }
 
-/** formatHeldFrameFiles writes `h=`: `<keys '_'-joined>.<snapshot>.<slot>`, comma-separated. */
+// colbin/decode is plain JavaScript and returns a []byte as a Uint8Array (a copy, safe to store). One
+// decoder for every answer: each message carries its own schema section.
+const changedFilesDecoder = new Decoder()
+
+/**
+ * decodeFrameAnswer reads a frame route's body. colbin writes no zero field, so a body cut between two
+ * fields still decodes: every answer has a generation, Rows columns and a snapshot, and one without is
+ * refused. A body cut right before Files reads as "nothing changed": the held copies stay, and the next
+ * read asks for the files again.
+ */
+export const decodeFrameAnswer = (body: Uint8Array): FrameAnswer => {
+	const message = changedFilesDecoder.decode(body) as ChangedFilesMessage
+	if (!message.Generation || !message.RowColumnCount || !message.Snapshot) throw corrupt('the answer')
+	return {
+		generation: message.Generation,
+		rowColumnCount: message.RowColumnCount,
+		sumsCount: message.SumsCount,
+		snapshot: message.Snapshot,
+		files: (message.Files || []).map((file) => ({
+			keys: file.Keys,
+			snapshot: file.Snapshot,
+			slot: file.Slot,
+			content: file.Content || new Uint8Array(),
+		})),
+	}
+}
+
+/**
+ * formatHeldFrameFiles writes `h=`: `<keys '_'-joined>.<snapshot>[.<slot>]`, comma-separated; a copy
+ * without a slot (a table frame's, or an S3 frame's no run created yet) sends none.
+ */
 export const formatHeldFrameFiles = (held: HeldFrameFile[]): string => {
-	return held.map((file) => `${file.keys.join('_')}.${file.snapshot}.${file.slot}`).join(',')
+	return held.map((file) => `${file.keys.join('_')}.${file.snapshot}${file.slot ? `.${file.slot}` : ''}`).join(',')
 }

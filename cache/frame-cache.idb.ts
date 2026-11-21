@@ -12,9 +12,11 @@ export interface IFrameFileRow {
 	// keys '_'-joined: the file's identity inside route + frame.
 	fileKey: string
 	keys: number[]
-	// The frame build the file belongs to; a rebuild drops every file of the older one.
+	// The frame build (S3 frames) or shape (table frames) the file belongs to; a new one drops every
+	// file of the older one.
 	generation: string
 	snapshot: number
+	// The file's versions slot, sent back in `h=`; 0 on a table frame, which has none.
 	slot: number
 	content: Uint8Array
 }

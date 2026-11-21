@@ -7,7 +7,7 @@ report from the decoded rows.
 
 ```text
 cache/
-  frame.wire.ts           decode a file (format v4: zero sums mask, constant columns) and a route's answer; format the held files. Pure
+  frame.wire.ts           decode a file (format v5: zero sums mask, constant columns, optional slot) and a route's answer (colbin/decode); format the held files. Pure
   frame-cache.idb.ts      Dexie: one row per file, database <companyID>_frames_<env>
   frame-cache.fetch.ts    createFrameFilesGetter (ui.http.GETFrameFiles), mergeFrameAnswer
 ```
@@ -30,16 +30,21 @@ records touched since are moved to the moment of the read.
 
 ```text
 GET <route>?f=<frame>&from=<Keys[0]>&to=<Keys[0]>[&k=<later Keys, '_'-joined>]
-           &g=<generation of the held files>&h=<keys '_'-joined>.<snapshot>.<slot>,…
+           &g=<generation of the held files>&h=<keys '_'-joined>.<snapshot>[.<slot>],…
 ```
 
-The route (backend `QueryFrame(f)…ExecChanged(g, h)`) answers `application/octet-stream` with the
-files to replace (the layout is at the top of `frame.wire.ts`):
+The route (backend `QueryFrame(f)…ExecChanged(g, h)`) answers `application/octet-stream`: a
+self-describing colbin message with the files to replace (its fields are at the top of
+`frame.wire.ts`), read with `colbin/decode`, which gives each file's bytes as a `Uint8Array`. Which
+files depend on where the backend keeps the frame (genix-orm `db.FrameStorage`):
 
-- a file the client doesn't hold, or every file when the generation changed (a rebuild);
-- a held copy whose versions slot was raised past its snapshot: a run rewrote the file, or another
-  file sharing its slot (one of 255, `dtf/versions`);
-- a held copy that a record written since the last run touches: sent moved to now.
+- a file the client doesn't hold, or every file when the generation changed (a rebuild of an S3
+  frame, a new declaration of a table frame);
+- on an S3 frame (dynamo, scylla, oceanbase): a held copy whose versions slot was raised past its
+  snapshot (a run rewrote the file, or another file sharing its slot, one of 255), or that a record
+  written since the last run touches, sent moved to now;
+- on a table frame (mariadb, postgres): a held copy older than the moment its file last changed.
+  These files have no slot (0), and `h=` sends none.
 
 A non-200 answer rejects and notifies, as any `GET` (a frame not built yet answers its message).
 
@@ -48,8 +53,8 @@ A non-200 answer rejects and notifies, as any `GET` (a frame not built yet answe
 | Field | |
 |---|---|
 | `route`, `frame`, `fileKey` | the key; `fileKey` is the keys `_`-joined |
-| `generation` | the build the file belongs to. An answer of another generation deletes every file of the frame before storing |
-| `snapshot`, `slot` | sent back in `h=` |
+| `generation` | the build (S3 frames) or shape (table frames) the file belongs to. An answer of another generation deletes every file of the frame before storing |
+| `snapshot`, `slot` | sent back in `h=`; `slot` is 0 on a table frame and not sent |
 | `content` | the file's bytes, decoded on each read (1.6 ms for 20,000 rows × 9 columns) |
 
 A file answered without rows is kept (empty content) so it is sent back as held, and left out of the
@@ -58,5 +63,7 @@ result. `clearFrameCache()` deletes the database.
 ## Tests
 
 `frame.wire.test.ts` decodes the shared vectors of `genix-orm/dataframe/testdata/frame_wire_vectors.json`
-(inlined; the Go `TestFrameWireVectors` pins the same bytes) and refuses every truncated prefix.
+(inlined; genix-orm db's `TestFrameWireVectors` pins the same bytes) and refuses every truncated file.
+An answer cut between two colbin fields still decodes, so it refuses an answer without a generation,
+Rows columns or a snapshot; one cut right before the files reads as "nothing changed".
 `frame-cache.fetch.test.ts` covers the selection, the request and the merge.

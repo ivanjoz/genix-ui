@@ -262,11 +262,12 @@ const confirmImage = async () => {
     progress = -1
   }
 
-  // 6) If the parent record already exists (editing: ProductID known), upload now in the background
-  // so the process finishes on its own. For a NEW record (id = 0) it stays pending until the parent
-  // saves its record and flushes it with the real id via upload({ ProductID }).
-  const parentRecordId = Number(parentData.ProductID || parentData.id || 0)
-  if (!setDataToSend || parentRecordId > 0) { entry.upload?.().catch(() => {}) }
+  // 6) If the parent record already exists (every id it sent — ProductID, ProgramID, LevelID... — is
+  // set), upload now in the background so the process finishes on its own. For a NEW record (id = 0)
+  // it stays pending until the parent saves its record and flushes it with the real id via
+  // upload({ ProductID }).
+  const parentRecordIds = Object.entries(parentData).filter(([key]) => /id$/i.test(key)).map(([, value]) => Number(value || 0))
+  if (parentRecordIds.every(recordId => recordId > 0)) { entry.upload?.().catch(() => {}) }
 }
 
 const onFileChange = async (ev: Event) => {

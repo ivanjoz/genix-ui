@@ -4,6 +4,8 @@
 		labels?: string[];
 		// Y base axis: bars are measured up from this value instead of 0.
 		minValue?: number;
+		// Top of the scale; set it to share one scale across several charts (defaults to the tallest value).
+		maxValue?: number;
 		// Bar thickness in px; small by design since this lives in a table cell.
 		barWidth?: number;
 		// Gap between adjacent bars in px.
@@ -23,6 +25,7 @@
 		values,
 		labels = [],
 		minValue = 0,
+		maxValue: sharedMaxValue,
 		barWidth = 10,
 		barGap = 3,
 		barColor = 'var(--blue-solid)',
@@ -47,8 +50,8 @@
 	// Bars start after the leading pad; total width is the bar track plus both edge pads.
 	const chartWidth = $derived(edgePadding + Math.max(0, values.length * (barWidth + barGap) - barGap) + edgePadding);
 
-	// Tallest bar defines the top reference; minValue is the bottom (y base axis).
-	const maxValue = $derived(Math.max(minValue, ...values));
+	// The shared maxValue, else the tallest bar, defines the top reference; minValue is the bottom (y base axis).
+	const maxValue = $derived(Math.max(minValue, sharedMaxValue ?? Math.max(...values)));
 	// Span only guards against a flat dataset dividing by zero; a tiny epsilon keeps
 	// the tallest bar at a full 100% even when the real range is well below 1.
 	const valueSpan = $derived(Math.max(maxValue - minValue, 1e-9));

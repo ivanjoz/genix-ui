@@ -42,6 +42,7 @@ import { ifcss } from '../utilities/css.js';
     leftPanel,
     leftPanelWidth,
     useLeftPanelBackdrop,
+    floatOverContent,
     actionsButton,
     actions,
   }: {
@@ -78,6 +79,8 @@ import { ifcss } from '../utilities/css.js';
     /** While the left panel shows, dims and blurs the page behind both panels (4px) instead of
      *  shrinking it beside them; a click on it closes the layer. */
     useLeftPanelBackdrop?: boolean
+    /** The side layer floats over the page instead of narrowing it beside the layer. */
+    floatOverContent?: boolean
     type: 'side' | 'bottom' | 'content'
     id?: number
     actionsButton?: { name: string; icon: string; css?: string }
@@ -124,10 +127,10 @@ import { ifcss } from '../utilities/css.js';
 
   $effect(() => {
     // Publish the active side-layer width so sibling content layers can reduce their width.
-    // Under a backdrop it publishes 0: the page keeps its width, dimmed behind the panels.
+    // Under a backdrop, or floating over the content, it publishes 0: the page keeps its width behind the layer.
     if (type !== 'side' || ui.state.sideLayerId !== id) { return }
 
-    const nextSideLayerWidth = hasBackdrop ? 0 : resolvedSideLayerWidth
+    const nextSideLayerWidth = hasBackdrop || floatOverContent ? 0 : resolvedSideLayerWidth
     untrack(() => {
       if (ui.state.sideLayerWidth !== nextSideLayerWidth) {
         ui.state.sideLayerWidth = nextSideLayerWidth

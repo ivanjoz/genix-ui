@@ -46,6 +46,10 @@
     });
   });
 
+  // A caller placing the image as a background passes `absolute`/`fixed` in css: the default `relative`
+  // must then be left out, since Tailwind orders `relative` after them and it would win, collapsing the image.
+  const positionCss = $derived(/(^|\s)(absolute|fixed)(\s|$)/.test(css) ? '' : 'relative');
+
   // Optimistic images render from memory until their converted bytes reach the CDN.
   const liveBase64 = $derived(ui.images.getBase64(src));
   const isInFlight = $derived(ui.images.isInFlight(src));
@@ -64,7 +68,7 @@
 </script>
 
 <div
-  class="group relative overflow-hidden rounded-[10px] border border-line-strong bg-surface cursor-default {css}"
+  class="group {positionCss} overflow-hidden rounded-[10px] border border-line-strong bg-surface cursor-default {css}"
 >
   {#if src}
     <picture class="contents">

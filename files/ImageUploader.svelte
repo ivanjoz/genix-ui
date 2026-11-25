@@ -6,6 +6,9 @@ import { untrack } from 'svelte';
 import type { UiInMemoryImage } from '../runtime/index.js';
 import { Agent } from '../agent/registry';
 import s1 from '../components.module.css';
+import ImageCropper from './ImageCropper.svelte';
+import Modal from '../layers/Modal.svelte';
+import { INITIAL_CROP, cropImageToBlob, type ImageCrop } from './image-crop';
 
 export interface ImageSource {
   src: string, base64: string, description?: string, types?: string[], name?: string,
@@ -40,6 +43,11 @@ export interface IImageUploaderProps {
   imageCounterConfig?: number
   // Where the picture comes from: the gallery (file picker), the camera, or both side by side.
   pickFrom?: 'gallery' | 'camera' | 'both'
+  // Width / height of a frame the picked image is cropped to before it is uploaded (1 = square): the
+  // user moves and zooms it inside the frame. Unset uploads the image as picked.
+  cropAspectRatio?: number
+  // Largest file accepted, in MB. Unset accepts any size.
+  maxFileSizeMB?: number
 }
 
 let {
@@ -62,8 +70,12 @@ let {
   imageSource,
   processName = undefined,
   imageCounterConfig = 0,
-  pickFrom = 'gallery'
+  pickFrom = 'gallery',
+  cropAspectRatio,
+  maxFileSizeMB,
 }: IImageUploaderProps = $props();
+
+const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 // One tap area per source. The camera's input asks the device to open the back camera directly.
 const GALLERY_PICK = { useCamera: false, icon: 'icon-[fa--upload]', label: 'Upload Image|Subir Imagen' }
@@ -270,12 +282,54 @@ const confirmImage = async () => {
   if (parentRecordIds.every(recordId => recordId > 0)) { entry.upload?.().catch(() => {}) }
 }
 
+// With cropAspectRatio, the picked file is kept as the source of every crop: the card shows (and
+// uploads) its framing, which starts whole and centered and is edited in the crop modal.
+const CROP_OUTPUT_WIDTH = 1200
+let originalFile = $state<Blob>()
+let appliedCrop = INITIAL_CROP
+let draftCrop = $state<ImageCrop>(INITIAL_CROP)
+
+const setCroppedImage = async (crop: ImageCrop) => {
+  if (!originalFile || !cropAspectRatio) { return }
+  try {
+    const sourceBitmap = await createImageBitmap(originalFile)
+    const outputFrame = { width: CROP_OUTPUT_WIDTH, height: Math.round(CROP_OUTPUT_WIDTH / cropAspectRatio) }
+    const croppedImage = await cropImageToBlob(sourceBitmap, outputFrame, crop)
+    sourceBitmap.close()
+    appliedCrop = crop
+    await setPickedImage(croppedImage)
+  } catch (error) {
+    notifyFailure('Error procesando la imagen: ' + String(error))
+  }
+}
+
 const onFileChange = async (ev: Event) => {
   const target = ev.target as HTMLInputElement
-  const files: FileList | null = target.files
-  if (!files || files.length === 0){ return }
+  const pickedFile = target.files?.[0]
+  // Cleared so picking the same file again (after cancelling its crop) fires a new change.
+  target.value = ''
+  if (!pickedFile){ return }
 
-  imageFile = files[0] as Blob
+  // A dropped file skips the input's `accept`: check the format here too.
+  if (!ACCEPTED_IMAGE_TYPES.includes(pickedFile.type)) {
+    notifyFailure(ui.translate('The image must be PNG, JPG or WebP.|La imagen debe ser PNG, JPG o WebP.'))
+    return
+  }
+  if (maxFileSizeMB && pickedFile.size > maxFileSizeMB * 1024 * 1024) {
+    notifyFailure(ui.translate(`The image weighs more than ${maxFileSizeMB} MB.|La imagen pesa más de ${maxFileSizeMB} MB.`))
+    return
+  }
+  if (cropAspectRatio) {
+    originalFile = pickedFile
+    await setCroppedImage(INITIAL_CROP)
+    return
+  }
+  await setPickedImage(pickedFile)
+}
+
+// The image to upload: as picked, or as cropped.
+const setPickedImage = async (pickedImage: Blob) => {
+  imageFile = pickedImage
   console.log('imagefile::', imageFile)
 
   try {
@@ -299,6 +353,13 @@ $effect(() => {
 })
 
 const componentID = ui.nextComponentId()
+// Offset so the crop modal's id never collides with the modal ids pages declare.
+const cropModalID = 1_000_000 + componentID
+// The modal edits a draft: closing it without "Apply" keeps the framing the card shows.
+const openCropModal = () => {
+  draftCrop = { ...appliedCrop }
+  ui.openModal(cropModalID)
+}
 let fileInputElements = $state<HTMLInputElement[]>([])
 
 // A file dragged over the empty card shows where to drop it. The drop itself lands on the file input
@@ -313,6 +374,7 @@ const isDropTarget = $derived(fileDragDepth > 0 && !imageSrc?.src && !imageSrc?.
 const removeImage = () => {
   if (onDelete) { onDelete(src); return }
   imageSrc = { src: '', base64: '', types: [], description: '' }
+  originalFile = undefined
   onChange?.(imageSrc)
   progress = 0
 }
@@ -347,6 +409,15 @@ $effect(() => {
       <i class="icon-[fa--download] text-[1.8rem]"></i>
       <div class="ff-bold">{ui.translate('Drop the image here|Suelta aquí la imagen')}</div>
     </div>
+  {/if}
+  {#if originalFile && cropAspectRatio}
+    <Modal id={cropModalID} size={1} title="Frame the image|Encuadrar la imagen" saveButtonLabel="Apply|Aplicar" saveIcon="icon-[fa--crop]"
+      onSave={() => { ui.closeModal(cropModalID); void setCroppedImage(draftCrop) }}>
+      <ImageCropper file={originalFile} aspectRatio={cropAspectRatio} bind:crop={draftCrop} />
+      <div class="mt-8 text-[14px] text-fg-muted text-center">
+        {ui.translate('Drag the image to move it; the bar or the mouse wheel zooms it.|Arrastra la imagen para moverla; la barra o la rueda del mouse le hacen zoom.')}
+      </div>
+    </Modal>
   {/if}
   {#if (imageSrc?.src || '').length === 0}
     <div class="relative flex flex-col w-full h-full pointer-events-none">
@@ -433,9 +504,10 @@ $effect(() => {
         </div>
       {/if}
       <div class="absolute bottom-0 flex items-center justify-center w-full p-6">
-        <button class="w-32 h-32 rounded-full _4 mr-12 {imageSrc.base64
-            ? ''
-            : 'hidden group-hover:block'} outline-2 outline-white/50 hover:outline-black/70"
+        <!-- Flex centers each icon: inline, it sits on the text baseline, above the circle's middle. -->
+        <button class="w-32 h-32 rounded-full _4 mr-12 items-center justify-center {imageSrc.base64
+            ? 'inline-flex'
+            : 'hidden group-hover:inline-flex'} outline-2 outline-white/50 hover:outline-black/70"
           aria-label={ui.translate("Delete image|Eliminar imagen")}
           onclick={(ev) => {
             ev.stopPropagation();
@@ -444,14 +516,26 @@ $effect(() => {
               return;
             }
             imageSrc = { src: '', base64: '', types: [], description: '' };
+            originalFile = undefined;
             onChange?.(imageSrc);
             progress = 0;
           }}
         >
           <i class="icon-[fa--close]"></i>
         </button>
+        {#if imageSrc.base64 && originalFile && cropAspectRatio}
+          <button class="w-32 h-32 rounded-full _6 mr-12 inline-flex items-center justify-center outline-2 outline-white/50 hover:outline-black/70"
+            aria-label={ui.translate("Frame the image|Encuadrar la imagen")} title={ui.translate("Frame the image|Encuadrar la imagen")}
+            onclick={(ev) => {
+              ev.stopPropagation();
+              openCropModal();
+            }}
+          >
+            <i class="icon-[fa--crop]"></i>
+          </button>
+        {/if}
         {#if imageSrc.base64 && !hideUploadButton}
-          <button class="w-32 h-32 rounded-full _5 outline-2 outline-white/50 hover:outline-black/70"
+          <button class="w-32 h-32 rounded-full _5 inline-flex items-center justify-center outline-2 outline-white/50 hover:outline-black/70"
             aria-label={ui.translate("Upload image|Subir imagen")}
             onclick={(ev) => {
               ev.stopPropagation();
@@ -498,6 +582,13 @@ $effect(() => {
   }
   ._5:hover {
     background-color: color-mix(in srgb, var(--blue-solid) 75%, var(--on-solid));
+  }
+  ._6 {
+    background-color: var(--purple-solid);
+    color: var(--on-solid);
+  }
+  ._6:hover {
+    background-color: color-mix(in srgb, var(--purple-solid) 75%, var(--on-solid));
   }
 
 </style>

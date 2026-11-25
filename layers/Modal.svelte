@@ -41,6 +41,7 @@
 	import OptionsStrip from "../navigation/OptionsStrip.svelte";
 	import FileUploadSelector from "../files/FileUploadSelector.svelte";
 	import { Agent } from "../agent/registry";
+	import Button from "../buttons/Button.svelte";
 	import "../buttons/buttons.css";
 
 	interface Props {
@@ -305,14 +306,8 @@
 		</button>
 	{/if}
 	{#if onSave}
-		<button
-			class="bx-blue mr-10 leading-none"
-			onclick={handleSave}
-			aria-label={ui.translate(saveLabel)}
-		>
-			<i class={saveIcon || "icon-[fa--floppy-o]"}></i>
-			<span class="_5">{ui.translate(saveLabel)}</span>
-		</button>
+		<Button color="blue" icon={saveIcon || "icon-[fa--floppy-o]"} name={saveLabel} label={saveLabel}
+			css="mr-10 leading-none" hideNameOnMobile onClick={handleSave} />
 	{/if}
 	<button
 		class="bx-yellow h3 leading-none -mr-2"
@@ -478,10 +473,6 @@
 			width: calc(100vw - 16px);
 			padding-left: 8px;
 			padding-right: 8px;
-		}
-
-		._5 {
-			display: none;
 		}
 
 		:global(.modal-title .name) {

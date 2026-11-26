@@ -204,18 +204,13 @@
 		}
 	}
 
-	function handleDelete(ev: MouseEvent) {
-		if (onDelete) {
-			onDelete();
-			ev.stopPropagation();
-		}
+	// Button stops the click's propagation itself; the agent's click has no event.
+	function handleDelete() {
+		onDelete?.();
 	}
 
-	function handleSave(ev: MouseEvent) {
-		if (onSave) {
-			onSave();
-			ev.stopPropagation();
-		}
+	function handleSave() {
+		onSave?.();
 	}
 
 	// Helper to check if title is a snippet
@@ -297,13 +292,7 @@
 
 {#snippet modalActions()}
 	{#if onDelete}
-		<button
-			class="bx-red mr-10 leading-none"
-			onclick={handleDelete}
-			aria-label={ui.translate("Delete|Eliminar")}
-		>
-			<i class="icon-[mdi--delete]"></i>
-		</button>
+		<Button color="red" icon="icon-[mdi--delete]" label="Delete|Eliminar" css="mr-10 leading-none" onClick={handleDelete} />
 	{/if}
 	{#if onSave}
 		<Button color="blue" icon={saveIcon || "icon-[fa--floppy-o]"} name={saveLabel} label={saveLabel}

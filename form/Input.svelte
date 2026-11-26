@@ -6,6 +6,8 @@
     import { notifyFailure } from "../notify/notify.svelte.js";
     import type { ElementAST } from '../misc/Renderer.svelte';
     import { Agent } from "../agent/registry";
+    import { pushAppLog } from "../logs/app-logs.js";
+    import { optionLogValue } from "../logs/app-log-text.js";
     import angleSvg from '../assets/angle.svg?raw';
 
     // All chrome (label, box, notch, focus ring) lives in FieldShell. This file owns only
@@ -187,6 +189,8 @@
         hasPickedLeftOption = true;
         isLeftOpen = false;
         saveLeftOption(optionID);
+        pushAppLog("input", [label || placeholder, saveLeft && `[${String(saveLeft)}]`].filter(Boolean).join(" "),
+            optionLogValue(optionID, selectedLeftOption?.name));
         if (onChange) { onChange(); }
     };
     // The red state only appears once the user has left the field, so a pristine form does
@@ -333,10 +337,17 @@
     const hasSuffix = $derived(!showIncrementButtons
         && (!!postValue || isPassword || (!showValidityInLabel && (showInvalid || showValid))));
 
+    // The app log gets the committed value, never the keystrokes; a password never leaves the field.
+    const logCommittedValue = () => {
+        pushAppLog("input", [label || placeholder, save && `[${String(save)}]`].filter(Boolean).join(" "),
+            isPassword ? "***" : inputValue);
+    };
+
     // Shared blur handling for both the input and the textarea.
     const onBlurControl = (ev: FocusEvent) => {
         const hadChange = isChange === 1;
         onKeyUp(ev, true);
+        if (hadChange) logCommittedValue();
         hasBeenBlurred = true;
         if (onChange && isChange) {
             onChange();
@@ -353,6 +364,7 @@
     const commitValue = (value: string | number) => {
         const fakeEvent = { stopPropagation: () => {}, target: { value: String(value) } } as unknown as KeyboardEvent;
         onKeyUp(fakeEvent, true);
+        logCommittedValue();
         if (onChange) { onChange(); }
         if (typeof id === "number" && id > 0) {
             ui.persistFieldValue(id, (saveOn?.[save] ?? null) as number | string | null);

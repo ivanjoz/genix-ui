@@ -25,6 +25,7 @@
   import NumericSlider from "./NumericSlider.svelte"
   import Popover from "../misc/Popover.svelte"
   import { Agent } from "../agent/registry"
+  import { pushAppLog } from "../logs/app-logs.js"
   import { useUI } from "../runtime/index.js"
   import { formatMinutesOfDay, parseTimeText } from "./time-input.helpers"
   const ui = useUI()
@@ -69,6 +70,8 @@
     } else {
       saveOn[save] = minutesOfDay as NonNullable<T>[keyof T]
     }
+    pushAppLog("input", [label || placeholder, `[${String(save)}]`].join(" "),
+      minutesOfDay === undefined ? "" : formatMinutesOfDay(minutesOfDay))
     onChange?.()
   }
 

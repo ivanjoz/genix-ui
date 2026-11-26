@@ -4,6 +4,7 @@
   import { Editor, Node } from "@tiptap/core"
   import FieldShell from "../form/FieldShell.svelte"
   import { useUI } from "../runtime/index.js"
+  import { pushAppLog } from "../logs/app-logs.js"
   import EditorVariablePicker from "./EditorVariablePicker.svelte"
   import {
     createEditorVariableNode, editorVariableLabel, plainTextToVariableHTML, type EditorVariableOption,
@@ -39,6 +40,7 @@
   let editor = $state.raw<Editor | null>(null)
   // Last value exchanged with saveOn[save], to tell our own writes from external changes.
   let lastSyncedValue = readBoundValue()
+  let hasUnloggedEdit = false
   let isPickerOpen = $state(false)
   let pickerElement = $state<HTMLDivElement>()
   let pickerButton = $state<HTMLButtonElement>()
@@ -61,7 +63,14 @@
         const nextValue = updatedEditor.getText()
         if (nextValue === lastSyncedValue) return
         lastSyncedValue = nextValue
+        hasUnloggedEdit = true
         if (saveOn && save) saveOn[save] = nextValue as NonNullable<T>[keyof T]
+      },
+      // One app log entry per edit session, and only the size, never the text.
+      onBlur: () => {
+        if (!hasUnloggedEdit) return
+        hasUnloggedEdit = false
+        pushAppLog("input", [label, `[${String(save)}]`].filter(Boolean).join(" "), `${lastSyncedValue.length} chars`)
       },
     })
     editor = instance

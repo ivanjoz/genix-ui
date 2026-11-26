@@ -2,6 +2,7 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
   import { Agent } from '../agent/registry';
+  import { pushAppLog } from '../logs/app-logs.js';
   import T from '../misc/T.svelte';
   import './buttons.css';
 
@@ -54,6 +55,7 @@
   // Single source for the click action so the Agent and the DOM trigger the same handler.
   const triggerClick = (ev?: MouseEvent) => {
     if (ev) ev.stopPropagation();
+    pushAppLog('click', ui.translate(name || label || role || icon || 'Button'));
     return onClick?.(ev as MouseEvent);
   };
 

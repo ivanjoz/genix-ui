@@ -1,7 +1,9 @@
 <script lang="ts">
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
+  import { untrack } from 'svelte'
   import { Agent } from '../agent/registry'
+  import { pushAppLog } from '../logs/app-logs.js'
 
   interface Props {
     title?: string
@@ -71,6 +73,13 @@
     const baseOffsetPx = show ? 0 : panelTravelPx
     const translateYPx = Math.min(panelTravelPx, Math.max(0, baseOffsetPx + dragOffsetPx))
     return `transform:translateY(${translateYPx}px);transition:none;`
+  })
+
+  let wasPanelOpen = false
+  $effect(() => {
+    if (show === wasPanelOpen) { return }
+    wasPanelOpen = show
+    pushAppLog('layer', show ? 'Layer opened' : 'Layer closed', untrack(() => ui.translate(title)))
   })
 
   const componentID = ui.nextComponentId()

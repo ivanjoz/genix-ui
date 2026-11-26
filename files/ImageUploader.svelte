@@ -5,6 +5,7 @@
 import { untrack } from 'svelte';
 import type { UiInMemoryImage } from '../runtime/index.js';
 import { Agent } from '../agent/registry';
+import { pushAppLog } from '../logs/app-logs.js';
 import s1 from '../components.module.css';
 import ImageCropper from './ImageCropper.svelte';
 import Modal from '../layers/Modal.svelte';
@@ -319,6 +320,7 @@ const onFileChange = async (ev: Event) => {
     notifyFailure(ui.translate(`The image weighs more than ${maxFileSizeMB} MB.|La imagen pesa más de ${maxFileSizeMB} MB.`))
     return
   }
+  pushAppLog('input', description || 'File selected', pickedFile.name)
   if (cropAspectRatio) {
     originalFile = pickedFile
     await setCroppedImage(INITIAL_CROP)
@@ -372,6 +374,7 @@ const onCardDragLeave = (event: DragEvent) => { if (isDraggedFile(event)) { file
 const isDropTarget = $derived(fileDragDepth > 0 && !imageSrc?.src && !imageSrc?.base64)
 
 const removeImage = () => {
+  pushAppLog('input', 'Image removed', description || src)
   if (onDelete) { onDelete(src); return }
   imageSrc = { src: '', base64: '', types: [], description: '' }
   originalFile = undefined
@@ -511,14 +514,7 @@ $effect(() => {
           aria-label={ui.translate("Delete image|Eliminar imagen")}
           onclick={(ev) => {
             ev.stopPropagation();
-            if (onDelete) {
-              onDelete(src);
-              return;
-            }
-            imageSrc = { src: '', base64: '', types: [], description: '' };
-            originalFile = undefined;
-            onChange?.(imageSrc);
-            progress = 0;
+            removeImage();
           }}
         >
           <i class="icon-[fa--close]"></i>

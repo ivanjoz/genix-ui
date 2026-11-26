@@ -6,6 +6,7 @@
   // one back while the pointer stays there. The strip's 4px padding leaves room for that growth inside its scroll box.
   import T from '../misc/T.svelte';
   import { Agent } from '../agent/registry';
+  import { pushAppLog } from '../logs/app-logs.js';
   import { useUI } from '../runtime/index.js';
   import { ifcss } from '../utilities/css.js';
 
@@ -32,6 +33,11 @@
     ? 'bg-surface-raised group-hover:bg-(--cards-strip-hover-bg) group-hover:border-(--cards-strip-hover-border)'
     : 'bg-(--cards-strip-card-bg) group-hover:bg-surface-raised')
 
+  const selectOption = (option: TOption) => {
+    pushAppLog('tab', 'Tab', ui.translate(String(option[keyName] ?? '')))
+    onSelect(option)
+  }
+
   const componentID = ui.nextComponentId()
 
   $effect(() => {
@@ -43,7 +49,7 @@
         if (ids.length === 0) { return }
         const targetId = String(ids[0])
         const matched = options.find((option) => String(option[keyId]) === targetId)
-        if (matched) { onSelect(matched) }
+        if (matched) { selectOption(matched) }
       },
     })
   })
@@ -58,7 +64,7 @@
       aria-pressed={isSelected}
       class={ifcss(cardCss, "h-48 px-12 group relative shrink-0 not-first:-ml-2 cursor-pointer select-none hover:z-20")}
       class:z-10={isSelected} style:max-width={cardMaxWidth ? `${cardMaxWidth}px` : undefined}
-      onclick={() => onSelect(option)}>
+      onclick={() => selectOption(option)}>
       <!-- The card's face. inset-0 and -inset-4 never meet on one element: Tailwind would pick by name. -->
       <span class="absolute rounded-[6px] border-2 transition-[inset,background-color,border-color] duration-150
         group-hover:-inset-4 {isSelected ? 'selected-card-face -inset-4 border-accent-solid bg-accent-bg-strong'

@@ -5,6 +5,7 @@
   // Chrome comes from FieldShell's `pill` variant: the same white fill, hairline and
   // purple focus ring as a labelled field, only rounder and without a label.
   import { Agent } from '../agent/registry'
+  import { pushAppLog } from '../logs/app-logs.js'
   import FieldShell from './FieldShell.svelte'
 
   let {
@@ -34,7 +35,9 @@
 
   // Normalise the way the consumer expects: lowercase + trim.
   const commitValue = (raw: string) => {
-    value = raw.toLowerCase().trim()
+    const filterText = raw.toLowerCase().trim()
+    if (filterText !== value) { pushAppLog('input', label || placeholder || 'Filter', filterText) }
+    value = filterText
   }
 
   const handleKeyUp = (ev: KeyboardEvent) => {

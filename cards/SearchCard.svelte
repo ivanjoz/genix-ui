@@ -4,6 +4,7 @@
     import { untrack } from "svelte";
 import SearchSelect from '../form/SearchSelect.svelte';
 import { Agent } from '../agent/registry';
+import { pushAppLog } from '../logs/app-logs.js';
 
   interface SearchSelectProps<T> {
     saveOn?: T;
@@ -58,6 +59,7 @@ import { Agent } from '../agent/registry';
     if(saveOn && save){
       saveOn[save] = selectedIDs as NonNullable<T>[keyof T]
     }
+    pushAppLog('input', [label, save && `[${String(save)}]`].filter(Boolean).join(' '), selectedIDs)
     if(onChange){ onChange(selectedIDs) }
     //console.log("Change selectedIDs:", $state.snapshot(selectedIDs), $state.snapshot(saveOn), saveOn, save)
   }

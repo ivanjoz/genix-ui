@@ -1,5 +1,6 @@
 <script lang="ts" generics="T, E">
   import { Agent } from '../agent/registry';
+  import { pushAppLog } from '../logs/app-logs.js';
   import T from '../misc/T.svelte';
   import { useUI } from '../runtime/index.js';
   import FieldShell from './FieldShell.svelte';
@@ -88,6 +89,7 @@
     selectedIDs = nextSelectedIDs;
     const savedValue = useBitmask ? idsToBitmask(nextSelectedIDs) : nextSelectedIDs;
     if (saveOn && save) { saveOn[save] = savedValue as NonNullable<T>[keyof T]; }
+    pushAppLog('input', [label || placeholder, save && `[${String(save)}]`].filter(Boolean).join(' '), nextSelectedIDs);
     onChange?.(savedValue);
   };
 

@@ -1,6 +1,8 @@
 <script lang="ts" generics="T, E">
   import { Agent, type AgentOption } from '../agent/registry';
   import ButtonLayer from '../buttons/ButtonLayer.svelte';
+  import { pushAppLog } from '../logs/app-logs.js';
+  import { optionLogValue } from '../logs/app-log-text.js';
   import { useUI } from '../runtime/index.js';
   const ui = useUI()
 
@@ -44,6 +46,7 @@
     isOpen = false;
     if (String(option[keyId]) === String(selectedID ?? "")) { return; }
     if (saveOn && save) { saveOn[save] = option[keyId] as unknown as NonNullable<T>[keyof T]; }
+    pushAppLog('input', [label, save && `[${String(save)}]`].filter(Boolean).join(' '), optionLogValue(option[keyId], colorName(option)));
     onChange?.(option);
   }
 

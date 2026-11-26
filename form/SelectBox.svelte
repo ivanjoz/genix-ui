@@ -2,6 +2,8 @@
   import type { Snippet } from 'svelte';
   import { Agent, type AgentOption } from '../agent/registry';
   import ButtonLayer from '../buttons/ButtonLayer.svelte';
+  import { pushAppLog } from '../logs/app-logs.js';
+  import { optionLogValue } from '../logs/app-log-text.js';
   import T from '../misc/T.svelte';
   import { useUI } from '../runtime/index.js';
   import FieldShell from './FieldShell.svelte';
@@ -69,6 +71,8 @@
     const newID = option ? option[keyId] : null;
     if (String(newID ?? "") === String(selectedID ?? "")) { return; }
     if (saveOn && save) { saveOn[save] = newID as unknown as NonNullable<T>[keyof T]; }
+    pushAppLog('input', [label || placeholder, save && `[${String(save)}]`].filter(Boolean).join(' '),
+      optionLogValue(newID, option && optionName(option)));
     onChange?.(option);
   }
 

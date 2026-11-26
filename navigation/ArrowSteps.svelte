@@ -9,6 +9,7 @@
 
 import { cn } from '../utilities/ui.js';
 import { Agent } from '../agent/registry';
+import { pushAppLog } from '../logs/app-logs.js';
 
   let {
     options,
@@ -31,6 +32,7 @@ import { Agent } from '../agent/registry';
   } = $props();
 
   function handleSelect(option: IICardArrowStepsOption) {
+    pushAppLog('tab', 'Step', ui.translate(option.name));
     onSelect(option);
   }
 

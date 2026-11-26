@@ -5,6 +5,7 @@
 import pdfFileIconRaw from '../assets/pdf-icon.svg?raw';
 import excelFileIconRaw from '../assets/excel-icon.svg?raw';
 import { parseSVG } from '../utilities/ui.js';
+import { pushAppLog } from '../logs/app-logs.js';
 
 interface IFileUploadSelectorProps {
   onChange?: (file?: File, isRemoved?: boolean) => void;
@@ -100,10 +101,12 @@ const handleFileSelection = (event: Event) => {
   }
 
   selectedFile = newSelectedFile;
+  pushAppLog('input', 'File selected', newSelectedFile.name);
   onChange?.(newSelectedFile, false);
 };
 
 const clearSelectedFile = () => {
+  pushAppLog('input', 'File removed', selectedFile?.name);
   selectedFile = undefined;
 
   if (hiddenFileInputElement) {

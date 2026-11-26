@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { flushSync, untrack, type Snippet } from 'svelte';
 	import type { MenuGroup, MenuItem } from './types.js';
+	import { pushAppLog } from '../logs/app-logs.js';
 
 	let {
 		model,
@@ -99,11 +100,13 @@
 		button.classList.add('is-active');
 	}
 
-	async function navigateTo(clickEvent: MouseEvent, route: string, menuId: number, optionElement?: HTMLElement) {
+	async function navigateTo(clickEvent: MouseEvent, option: MenuItem, menuId: number, optionElement?: HTMLElement) {
 		// Options are real <a href> links so the router can preload them on hover/touch. Modified
 		// clicks (new tab/window) belong to the browser, so bail before preventing the default.
 		if (clickEvent.metaKey || clickEvent.ctrlKey || clickEvent.shiftKey || clickEvent.altKey) { return }
 		clickEvent.preventDefault();
+		const route = option.route || '/';
+		pushAppLog('click', 'Menu', `${translate(option.name)} ${route}`);
 
 		if (open && optionElement) {
 			applyActiveStylesInstant(optionElement);
@@ -162,7 +165,7 @@
 		{isActive ? 'is-selected bg-indigo-600/30 border-indigo-400 text-white' : 'text-gray-300'}"
 		href={option.disabled ? undefined : option.route || '/'}
 		aria-disabled={option.disabled}
-		onclick={(clickEvent) => { if (!option.disabled) { navigateTo(clickEvent, option.route || '/', menuId) } }}
+		onclick={(clickEvent) => { if (!option.disabled) { navigateTo(clickEvent, option, menuId) } }}
 	>
 		<div class="option-content flex w-full">
 			<!-- Keep one stable icon node during menu expansion to avoid mask repaint flicker. -->
@@ -193,7 +196,7 @@
 		class="mobile-menu-option {isActive ? 'is-active' : ''} {option.disabled ? 'opacity-45 cursor-not-allowed' : ''}"
 		href={option.disabled ? undefined : option.route || '/'}
 		aria-disabled={option.disabled}
-		onclick={(e) => { if (!option.disabled) { navigateTo(e, option.route || '/', menuId, e.currentTarget) } }}
+		onclick={(e) => { if (!option.disabled) { navigateTo(e, option, menuId, e.currentTarget) } }}
 		onmousedown={(e) => e.currentTarget.classList.add('is-pressed')}
 		onmouseup={(e) => e.currentTarget.classList.remove('is-pressed')}
 		onmouseleave={(e) => e.currentTarget.classList.remove('is-pressed')}

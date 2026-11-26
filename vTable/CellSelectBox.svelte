@@ -3,6 +3,8 @@
   import Popover from '../misc/Popover.svelte';
   import { type AgentOption } from '../agent/registry';
   import { getVTableAgentContext } from '../vTable/agentContext';
+  import { pushAppLog } from '../logs/app-logs.js';
+  import { optionLogValue } from '../logs/app-log-text.js';
   const ui = useUI();
 
   // The pick-only twin of CellSelect, for short fixed lists: clicking the cell opens one button per
@@ -40,6 +42,9 @@
     if (String(option[keyId]) === String(selectedID ?? '')) return;
     selectedID = option[keyId];
     if (saveOn && save) { saveOn[save] = option[keyId] as unknown as NonNullable<T>[keyof T] }
+    // cellID is (rowIndex+1)*100 + column: the app log names the row by its 1-based position.
+    pushAppLog('input', String(save || 'Cell'),
+      `${cellID ? `row ${Math.floor(cellID / 100)}: ` : ''}${optionLogValue(option[keyId], optionName(option))}`);
     onChange?.(option[keyId] as string | number);
   };
 

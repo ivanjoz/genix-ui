@@ -6,6 +6,7 @@ import FieldShell from './FieldShell.svelte';
 
     import { untrack } from 'svelte';
     import { Agent } from '../agent/registry';
+    import { pushAppLog } from '../logs/app-logs.js';
 
 	let {
 		saveOn = $bindable(),
@@ -44,6 +45,21 @@ import FieldShell from './FieldShell.svelte';
     }
   })
 
+  // The picker reports every drag step: the app log gets only the color the popup closes with.
+  let isPickerOpen = $state(false)
+  let colorWhenPickerOpened = ''
+  const logColor = (hexColor: string) => pushAppLog('input', [label, save && `[${String(save)}]`].filter(Boolean).join(' '), hexColor)
+  $effect(() => {
+    if (isPickerOpen) {
+      colorWhenPickerOpened = untrack(() => currentColor)
+      return
+    }
+    untrack(() => {
+      if (colorWhenPickerOpened && currentColor !== colorWhenPickerOpened) { logColor(currentColor) }
+      colorWhenPickerOpened = ''
+    })
+  })
+
   const componentID = ui.nextComponentId()
 
   $effect(() => {
@@ -55,6 +71,7 @@ import FieldShell from './FieldShell.svelte';
         const hex = String(value || "")
         if (!hex) { return }
         setColor(hex)
+        logColor(hex)
         if (onChange) { onChange(hex) }
       },
     })
@@ -74,6 +91,7 @@ import FieldShell from './FieldShell.svelte';
     <div class="_1 {controlClass} flex items-center justify-center">
       <ColorPicker isAlpha={false} textInputModes={[]}
         position="responsive"
+        bind:isOpen={isPickerOpen}
         hex={currentColor}
         onInput={color => {
           if(!hasInit){ return }

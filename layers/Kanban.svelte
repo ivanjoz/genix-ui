@@ -9,6 +9,8 @@
 <script lang="ts" generics="Card">
   import type { Snippet } from 'svelte'
   import { useUI } from '../runtime/index.js'
+  import { pushAppLog } from '../logs/app-logs.js'
+  import { optionLogValue } from '../logs/app-log-text.js'
   const ui = useUI()
 
   // A board: columns side by side, cards dragged between them. Generic: columns and cards come in
@@ -68,13 +70,20 @@
     hoveredColumnID = columnIDUnderPointer(event)
   }
 
+  // Both the drag and the touch "move to" menu end here, so each move reaches the app log once.
+  const moveCard = (cardID: number, toColumnID: number) => {
+    const targetColumn = columns.find((column) => column.id === toColumnID)
+    pushAppLog('input', 'Kanban move', `card ${cardID} → ${optionLogValue(toColumnID, targetColumn?.name)}`)
+    onmove(cardID, toColumnID)
+  }
+
   const onPointerUp = () => {
     const finishedCardID = draggedCardID, targetColumnID = hoveredColumnID
     const movedCard = cards.find((cardRecord) => getCardID(cardRecord) === finishedCardID)
     pendingDrag = null
     draggedCardID = 0
     hoveredColumnID = 0
-    if (movedCard && targetColumnID && targetColumnID !== getColumnID(movedCard)) onmove(finishedCardID, targetColumnID)
+    if (movedCard && targetColumnID && targetColumnID !== getColumnID(movedCard)) moveCard(finishedCardID, targetColumnID)
   }
 </script>
 
@@ -111,7 +120,7 @@
           {@render card(cardRecord)}
           {#if !useDragging && isDraggable(cardRecord)}
             <select class="w-full border-t border-line px-8 py-6 bg-transparent" aria-label="Move card to column"
-              value={column.id} onchange={(event) => onmove(cardID, Number(event.currentTarget.value))}>
+              value={column.id} onchange={(event) => moveCard(cardID, Number(event.currentTarget.value))}>
               {#each columns as targetColumn}
                 <option value={targetColumn.id}>{targetColumn.name}</option>
               {/each}

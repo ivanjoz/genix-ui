@@ -1,6 +1,10 @@
 /// <reference lib="WebWorker" />
 "use-strict"
 import { parseObject } from '../cache/index.js'
+import { pushAppLog } from '../logs/app-logs.js'
+import { startServiceWorkerLogCapture } from '../logs/app-log-capture.js'
+
+startServiceWorkerLogCapture()
 // Names of the two caches used in this version of the service worker.
 // Change to v2, etc. when you update any of the local resources, which will
 // in turn trigger the install event again.
@@ -43,6 +47,8 @@ self.addEventListener('install', (event) => {
 
 // The activate handler takes care of cleaning up old caches.
 self.addEventListener('activate', event => {
+	// A new worker version took over: its cache logic may differ from the one before.
+	pushAppLog('app', 'Service worker activated', self.location.href)
 	const currentCaches = [PRECACHE, CACHE_ASSETS, CACHE_STATIC];
 	event.waitUntil(
 		caches.keys().then(cacheNames => {

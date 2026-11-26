@@ -4,6 +4,7 @@
   import { tick, type Snippet } from 'svelte';
 import angleSvg from '../assets/angle.svg?raw';
 import { Agent } from '../agent/registry';
+import { pushAppLog } from '../logs/app-logs.js';
 import './buttons.css';
 
   interface Props {
@@ -113,10 +114,14 @@ import './buttons.css';
     return { top: 0, left: 0 };
   }
 
+  const logTriggerClick = (layerState: 'opened' | 'closed') =>
+    pushAppLog('click', ui.translate(buttonText || label || icon || 'Button layer'), layerState);
+
   // Toggle the layer open/closed
   function toggleLayer() {
     if (disableTriggerToggle) return;
     isOpen = !isOpen;
+    logTriggerClick(isOpen ? 'opened' : 'closed');
     if (isOpen) {
       onOpen?.();
     } else {
@@ -260,6 +265,7 @@ import './buttons.css';
       open: () => {
         if (!isOpen) {
           isOpen = true;
+          logTriggerClick('opened');
           onOpen?.();
         }
       },

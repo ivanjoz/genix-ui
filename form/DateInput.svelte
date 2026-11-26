@@ -36,6 +36,7 @@
   } from "./date-input.helpers";
   import FieldShell from "./FieldShell.svelte";
   import { Agent } from "../agent/registry";
+  import { pushAppLog } from "../logs/app-logs.js";
   import { useUI } from '../runtime/index.js';
   const ui = useUI()
 
@@ -106,6 +107,8 @@
     })
     dateSelected = dateUnix || 0
     inputValue = formatUnixDay(dateUnix, timezoneOffsetSeconds)
+    // Every caller is a user (or agent) pick: the external-value sync below writes the fields itself.
+    pushAppLog("input", [label || placeholder, save && `[${String(save)}]`].filter(Boolean).join(" "), inputValue)
 
     if (inputElement) {
       inputElement.value = inputValue

@@ -3,6 +3,7 @@
   const ui = useUI();
     import { untrack } from 'svelte';
     import { Agent } from "../agent/registry";
+    import { pushAppLog } from "../logs/app-logs.js";
     import T from "../misc/T.svelte";
 
   const {
@@ -32,6 +33,7 @@
 
   const onSelect = () => {
     const nextIsSelected = !isSelected
+    pushAppLog('input', [label, save && `[${String(save)}]`].filter(Boolean).join(' '), nextIsSelected ? 'checked' : 'unchecked')
     if(isControlled){
       onToggle?.(nextIsSelected)
       return

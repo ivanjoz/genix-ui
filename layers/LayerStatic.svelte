@@ -1,6 +1,8 @@
 <script lang="ts">
   import MobileLayerVertical from '../layers/MobileLayerVertical.svelte'
+  import { untrack } from 'svelte'
   import { Agent } from '../agent/registry'
+  import { pushAppLog } from '../logs/app-logs.js'
   import { useUI } from '../runtime/index.js'
   const ui = useUI()
 
@@ -34,6 +36,16 @@
 
   // Mobile keeps the drawer collapsed until the user expands it from the title bar.
   let mobileLayerIsOpen = $state(false)
+
+  // Only the mobile off-canvas panel opens and closes: on desktop the column is always shown, and
+  // the vertical drawer logs itself (MobileLayerVertical).
+  let wasPanelOpen = false
+  $effect(() => {
+    const isPanelOpen = ui.state.deviceType === 3 && !useVerticalMobileLayer && !dockLeft && show
+    if (isPanelOpen === wasPanelOpen) { return }
+    wasPanelOpen = isPanelOpen
+    pushAppLog('layer', isPanelOpen ? 'Layer opened' : 'Layer closed', untrack(() => ui.translate(mobileLayerTitle)))
+  })
 
   const componentID = ui.nextComponentId()
 

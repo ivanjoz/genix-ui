@@ -1,4 +1,5 @@
 import { MAX_VISIBLE_TOASTS, messageFromUnknown, type ToastType } from './notify.js';
+import { pushAppLog } from '../logs/app-logs.js';
 
 export interface NotifyToast {
   id: number;
@@ -28,6 +29,8 @@ export const notifyState = $state({
 let lastToastID = 0;
 
 const pushToast = (type: ToastType, message: string) => {
+  // Every message the user saw goes to the app log, untranslated: both languages stay readable.
+  pushAppLog('message', `Toast ${type}`, message);
   notifyState.toasts.push({ id: ++lastToastID, type, message });
   if (notifyState.toasts.length > MAX_VISIBLE_TOASTS) { notifyState.toasts.shift(); }
 };
@@ -45,6 +48,8 @@ export const dismissToast = (toastID: number) => {
 
 // Blocks the screen. Calling it again while shown only replaces the message (batch progress).
 export const showLoading = (message = '') => {
+  // Only when the overlay appears: batch progress replaces the message many times while shown.
+  if (!notifyState.loading) { pushAppLog('message', 'Loading overlay', message); }
   notifyState.loading = { message, detail: notifyState.loading?.detail ?? '' };
 };
 
@@ -62,6 +67,7 @@ export const hideLoading = () => {
 export const confirmWarn = (options: ConfirmWarnOptions): Promise<boolean> => {
   // Only one dialog at a time: a newer request cancels the one still waiting.
   notifyState.confirm?.resolve(false);
+  pushAppLog('message', 'Confirm dialog', `${options.title}: ${options.message}`);
   return new Promise((resolve) => {
     notifyState.confirm = { okLabel: 'Yes|Sí', cancelLabel: 'No', ...options, resolve };
   });
@@ -70,5 +76,6 @@ export const confirmWarn = (options: ConfirmWarnOptions): Promise<boolean> => {
 export const answerConfirm = (confirmed: boolean) => {
   const pendingConfirm = notifyState.confirm;
   notifyState.confirm = null;
+  if (pendingConfirm) { pushAppLog('click', 'Confirm dialog answer', `${pendingConfirm.title}: ${confirmed ? 'OK' : 'Cancel'}`); }
   pendingConfirm?.resolve(confirmed);
 };

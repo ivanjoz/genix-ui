@@ -14,6 +14,7 @@
   import Renderer, { type ElementAST } from '../misc/Renderer.svelte';
   import T from '../misc/T.svelte'
   import { Agent } from '../agent/registry'
+  import { pushAppLog } from '../logs/app-logs.js'
   import {
     setVTableAgentContext,
     buildCellID,
@@ -89,7 +90,15 @@
     node.isOpen = !node.isOpen
     data = [...data]
     console.debug('[table-tree] toggle node', { id: node.id, isOpen: node.isOpen, childCount: node.children.length })
+    pushAppLog('click', node.isOpen ? 'Row expanded' : 'Row collapsed', node.id)
     onNodeClick?.(node, nodeIndex)
+  }
+
+  // Every child row pick (click, Enter, mobile tap, agent) goes through here, so it is logged once.
+  function selectChild(record: TRecord, childIndex: number, parent: TableTreeNode<TRecord>) {
+    if (!onChildClick) { return }
+    pushAppLog('click', 'Row selected', resolveChildId(record, childIndex, parent))
+    onChildClick(record, childIndex, parent)
   }
 
   function resolveChildId(record: TRecord, childIndex: number, parent: TableTreeNode<TRecord>) {
@@ -190,7 +199,7 @@
       return
     }
     console.debug('[table-tree] mobile child click', { parentId: cardRow.node.id, rowKey: cardRow.rowKey })
-    onChildClick?.(cardRow.record, cardRow.childIndex, cardRow.node)
+    selectChild(cardRow.record, cardRow.childIndex, cardRow.node)
   }
 
   function isMobileCardSelected(cardRow: ITableTreeCardRow): boolean {
@@ -265,7 +274,7 @@
       toggleNode(node, target.nodeIndex)
       return
     }
-    onChildClick?.(node.children[target.childIndex], target.childIndex, node)
+    selectChild(node.children[target.childIndex], target.childIndex, node)
   }
 
   $effect(() => {
@@ -405,13 +414,13 @@
                   style:grid-template-columns={gridTemplateColumns}
                   onclick={() => {
                     console.debug('[table-tree] child click', { parentId: node.id, childId })
-                    onChildClick?.(childRecord, childIndex, node)
+                    selectChild(childRecord, childIndex, node)
                   }}
                   onkeydown={(ev) => {
                     if (ev.key === 'Enter' || ev.key === ' ') {
                       ev.preventDefault()
                       console.debug('[table-tree] child keydown', { parentId: node.id, childId })
-                      onChildClick?.(childRecord, childIndex, node)
+                      selectChild(childRecord, childIndex, node)
                     }
                   }}
                 >

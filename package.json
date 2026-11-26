@@ -24,6 +24,7 @@
     "gantt",
     "http",
     "layers",
+    "logs",
     "menu",
     "misc",
     "navigation",
@@ -53,6 +54,11 @@
       "types": "./http/index.ts",
       "svelte": "./http/index.ts",
       "default": "./http/index.ts"
+    },
+    "./logs": {
+      "types": "./logs/index.ts",
+      "svelte": "./logs/index.ts",
+      "default": "./logs/index.ts"
     },
     "./menu": {
       "types": "./menu/index.ts",

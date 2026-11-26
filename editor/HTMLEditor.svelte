@@ -13,6 +13,7 @@
   // Aliased: the generic record parameter of this component is already named T.
   import TranslatedText from "../misc/T.svelte";
   import { useUI } from "../runtime/index.js";
+  import { pushAppLog } from "../logs/app-logs.js";
   import { editorBackgroundColors, editorTextColors, editorTextSizes } from "./HTMLEditor"
   import { createEditorVariableNode, editorVariableLabel, type EditorVariableOption } from "./EditorVariable"
   import {
@@ -77,6 +78,7 @@
   let transactionTick = $state(0)
   // Last value exchanged with saveOn[save], to tell our own writes from external changes.
   let lastSyncedValue = readBoundValue()
+  let hasUnloggedEdit = false
 
   // Popovers opened from a toolbar button: centered under it, with an arrow pointing at it
   type ToolbarPopover = "variables" | "textSize" | "heading" | "table" | "textColor" | "backgroundColor" | "align"
@@ -228,7 +230,14 @@
         const nextValue = getEditorValue(updatedEditor)
         if (nextValue === lastSyncedValue) return
         lastSyncedValue = nextValue
+        hasUnloggedEdit = true
         if (saveOn && save) saveOn[save] = nextValue as NonNullable<T>[keyof T]
+      },
+      // One app log entry per edit session, and only the size: the document itself may be private.
+      onBlur: () => {
+        if (!hasUnloggedEdit) return
+        hasUnloggedEdit = false
+        pushAppLog("input", String(save), `${lastSyncedValue.length} chars`)
       },
     })
     editor = instance

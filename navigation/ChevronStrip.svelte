@@ -8,6 +8,7 @@
   // by default, 44px options).
   import T from '../misc/T.svelte';
   import { Agent } from '../agent/registry';
+  import { pushAppLog } from '../logs/app-logs.js';
   import { useUI } from '../runtime/index.js';
   import { ifcss } from '../utilities/css.js';
 
@@ -33,6 +34,7 @@
   let stripElement: HTMLDivElement
 
   const selectOption = (option: TOption) => {
+    pushAppLog('tab', 'Tab', ui.translate(String(option[keyName] ?? '')))
     onSelect(option)
     const optionElement = stripElement.children[options.indexOf(option)] as HTMLElement
     if (!autocenter) {

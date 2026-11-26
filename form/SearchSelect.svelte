@@ -5,6 +5,8 @@ import type { Snippet } from 'svelte';
   import FieldShell from "./FieldShell.svelte";
   import SvelteVirtualList from "@humanspeak/svelte-virtual-list";
     import { Agent, type AgentOption } from "../agent/registry";
+    import { pushAppLog } from "../logs/app-logs.js";
+    import { optionLogValue } from "../logs/app-log-text.js";
     import { useUI } from '../runtime/index.js';
   const ui = useUI()
 
@@ -180,7 +182,7 @@ import type { Snippet } from 'svelte';
 
   let prevSetValueTime = Date.now();
 
-  const setValueSaveOn = (selectedItem?: E, setOnInput?: boolean) => {
+  const setValueSaveOn = (selectedItem?: E, setOnInput?: boolean, isRestoredFromCache = false) => {
     const nowTime = Date.now()
     if (nowTime - prevSetValueTime < 80) { return }
     prevSetValueTime = nowTime
@@ -228,6 +230,11 @@ import type { Snippet } from 'svelte';
       }
     }
 
+    // A choice restored from the field cache is not a user action, so it stays out of the app log.
+    if (valueChanged && !isRestoredFromCache) {
+      pushAppLog("input", [label || placeholder, save && `[${String(save)}]`].filter(Boolean).join(" "),
+        optionLogValue(newValue, selectedItem?.[keyName]));
+    }
     if (valueChanged && typeof id === "number" && id > 0) {
       ui.persistFieldValue(id, newValue as number | string | null);
     }
@@ -378,7 +385,7 @@ import type { Snippet } from 'svelte';
         if (matchedOption) {
           // Bypass the 80ms throttle so the very-first hydration call is not swallowed.
           prevSetValueTime = 0;
-          setValueSaveOn(matchedOption, true);
+          setValueSaveOn(matchedOption, true, true);
         } else {
           // Cached id no longer matches any current option; drop the stale entry.
           ui.persistFieldValue(id, null);

@@ -392,6 +392,30 @@ await sendServiceMessage(26, {}); // e.g. clear the worker-side delta cache
 
 ---
 
+## App log (`logs/`)
+
+One timeline of what happened in this browser, for support and debugging, kept 48 hours in IndexedDB
+(`genix_app_logs`). Nothing leaves the browser on its own: the host shows it and may hand it to its
+chat agent.
+
+- **Logged by genix-ui itself:** clicks of every button, committed field values (passwords as
+  `***`), modals and layers opening/closing, tab switches, toasts / confirm dialogs / loading overlay,
+  every `GET`/`POST`/`PUT` (status, ms, records, the API's error message), the service worker's delta
+  syncs (cache read, cursor sent, records received), and from both contexts uncaught errors,
+  unhandled rejections and `console.error` / `console.warn`.
+- **The host:** calls `startAppLogCapture('<app name>')` once at boot (page errors, connectivity,
+  tab visibility), logs navigation (`pushAppLog('nav', ...)` from SvelteKit's `afterNavigate`), and
+  calls `clearAppLogs()` when a different user signs in.
+
+```ts
+import { pushAppLog, readAppLogs } from '@genix/ui/logs';
+
+pushAppLog('app', 'Signed in', `user ${userID}`);           // kind, label, value (any → text)
+const latestLogs = await readAppLogs({ limit: 200, sinceTime: Date.now() - 3_600_000 }); // oldest first
+```
+
+---
+
 ## Component catalog
 
 55 components. Import any of them through the wildcard export

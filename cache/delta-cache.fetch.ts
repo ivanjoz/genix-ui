@@ -33,6 +33,7 @@ import type { serviceHttpProps } from './service-http.types.js';
 import { parseObject } from './parse-object.js';
 import { parsePsvResponse } from './psv-parse';
 import { applyCacheConversions } from './delta-cache.conversion';
+import { pushAppLog } from '../logs/app-logs.js';
 
 type CacheContent = { __version__?: number } & { [key: string]: any[] }
 
@@ -867,6 +868,7 @@ const firstSyncFromSnapshotFile = async (
     const networkResponse = await fetchNetworkResponse(args, route)
     const { response, isArray } = await parseNetworkResponse(args, networkResponse.preResponse)
     const content = await handleFetchResponse(args, routeRow as ICacheRouteRow, response, Math.floor(Date.now()/1000), isArray)
+    pushAppLog('sync', `Snapshot file ${args.route}`, `seeded from ${args.fileRoute}, then received ${countResponseRecords(response)} records · cached ${countResponseRecords(content || {})}`)
     return { content }
   } catch (deltaError) {
     // The seed already persisted; serve it and let the next sync catch the delta.
@@ -928,6 +930,7 @@ const syncDeltaCache = async (args: serviceHttpProps) => {
     }
     console.log("Enviando fetch response (offline):", args.route)
     console.log(`${args.route}: Retornando registros "${args.cacheMode||"normal"}". ${makeStats(content).join(" | ")}`)
+    pushAppLog('sync', `Cache read ${args.route}`, content ? `${countResponseRecords(content)} records (${makeStats(content).join(", ")})` : 'empty: never synced')
     return { content: content?._default ? content._default : content }
   }
 
@@ -955,6 +958,7 @@ const syncDeltaCache = async (args: serviceHttpProps) => {
       const networkDecision = await shouldUseNetwork(args, routeKey, routeRow, lastSync, fetchTime)
       if(!networkDecision.doFetch){
         console.log(`Obviando sync fetch "${routeKey}". Quedan ${networkDecision.remaining}s`)
+        pushAppLog('sync', `Skipped ${args.route}`, `cache still fresh, next sync in ${networkDecision.remaining}s`)
         if(args.cacheMode === 'updateOnly'){
           console.log(args.route, "Retornando null por updateOnly")
           return { content: null }
@@ -1003,9 +1007,19 @@ const syncDeltaCache = async (args: serviceHttpProps) => {
     })
 
     console.log(`${args.route}: Retornando registros "${args.cacheMode||"normal"}". ${makeStats(content).join(" | ")}`)
+    // The cursor params tell a delta (only the records changed after them) from a full download.
+    pushAppLog('sync', `${hasCache ? 'Delta' : 'Full'} ${requestRouteInfo.route}`, [
+      requestRouteInfo.qp ? `sent ${requestRouteInfo.qp}` : 'no cursor',
+      `received ${countResponseRecords(response)} records`,
+      // An updateOnly sync with nothing new answers null: the page keeps the records it read.
+      content ? `cached ${countResponseRecords(content)} (${makeStats(content).join(", ")})` : 'no changes, cache kept',
+      `${networkResponse.requestMs} ms`,
+      `${measureResponseSizeKB(args.contentLength)} kB`,
+    ].join(' · '))
     return { content }
   } catch (error) {
     console.log("Fetch Error::", error)
+    pushAppLog('error', `Sync failed ${args.route}`, error)
     return { error }
   } finally {
     // Route verification is debug-only because it adds extra IndexedDB work after every response.

@@ -3,6 +3,7 @@
   const ui = useUI();
     import { untrack } from 'svelte';
     import { Agent } from '../agent/registry';
+    import { pushAppLog } from '../logs/app-logs.js';
 
   const {
 		options, saveOn = $bindable(), save, keyId, keyName, css, type,
@@ -62,6 +63,8 @@
       }
     }
 
+    // No label prop: the save key is what names the field in the app log.
+    pushAppLog('input', save ? String(save) : 'Options', optionsSelected)
     onChange?.(optionsSelected)
   }
 

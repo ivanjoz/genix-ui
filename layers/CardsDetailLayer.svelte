@@ -3,6 +3,7 @@
   import { fade, fly } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
   import { Agent } from '../agent/registry'
+  import { pushAppLog } from '../logs/app-logs.js'
   import { useUI } from '../runtime/index.js'
 
   // A scrolling list of cards. Clicking a card opens its detail in a side layer that slides in from
@@ -37,6 +38,17 @@
   const toggleCard = (key: number | string) => {
     selectedKey = selectedKey === key ? null : key
   }
+
+  // The detail has no title of its own: the app log names it by its card's key. Opening another
+  // card while one is open logs both the close and the open.
+  let loggedOpenKey: number | string | null = null
+  $effect(() => {
+    const openKey = selectedItem ? selectedKey : null
+    if (openKey === loggedOpenKey) { return }
+    if (loggedOpenKey !== null) { pushAppLog('layer', 'Layer closed', `card ${loggedOpenKey}`) }
+    if (openKey !== null) { pushAppLog('layer', 'Layer opened', `card ${openKey}`) }
+    loggedOpenKey = openKey
+  })
 
   $effect(() => {
     return Agent.register({

@@ -13,6 +13,7 @@
   import MobileCardsVirtualList from '../vTable/MobileCardsVirtualList.svelte';
   import T from '../misc/T.svelte';
   import { Agent } from '../agent/registry';
+  import { pushAppLog } from '../logs/app-logs.js';
   import {
     setVTableAgentContext,
     buildCellID,
@@ -332,7 +333,9 @@
     if (debug) {
       console.debug('[TableGrid] row click', { rowIndex, rowRecord });
     }
-    onRowClick?.(rowRecord, rowIndex, () => rerenderRow(rowIndex));
+    if (!onRowClick) { return; }
+    pushAppLog('click', 'Row selected', `row ${rowIndex + 1}`);
+    onRowClick(rowRecord, rowIndex, () => rerenderRow(rowIndex));
   };
 
   // Custom virtualizer that drives the OUTER shell's scroll (vs. SvelteVirtualList's

@@ -1,6 +1,7 @@
 <script lang="ts" generics="T">
 import T from '../misc/T.svelte';
 import { Agent } from '../agent/registry';
+import { pushAppLog } from '../logs/app-logs.js';
 import { useUI } from '../runtime/index.js';
 import { ifcss } from '../utilities/css.js';
 
@@ -67,6 +68,13 @@ import { ifcss } from '../utilities/css.js';
     return e as unknown as string | number
   }
 
+  // The user's (or agent's) tab pick: logged by name, then handed to the caller.
+  const selectOption = (opt: T) => {
+    const optionName = Array.isArray(opt) ? opt[1] : keyName ? opt[keyName] : getOptionId(opt)
+    pushAppLog('tab', 'Tab', ui.translate(String(optionName ?? '')))
+    onSelect(opt)
+  }
+
   const componentID = ui.nextComponentId()
 
   $effect(() => {
@@ -84,7 +92,7 @@ import { ifcss } from '../utilities/css.js';
         const colon = raw.lastIndexOf(":")
         const targetId = colon >= 0 ? raw.slice(colon + 1) : raw
         const matched = options.find((opt) => String(getOptionId(opt)) === targetId)
-        if (matched) { onSelect(matched) }
+        if (matched) { selectOption(matched) }
       },
     })
   })
@@ -106,7 +114,7 @@ import { ifcss } from '../utilities/css.js';
       data-selected={isSelected ? "true" : undefined}
       class="flex items-center ff-bold _2 {getClass(opt)}" onclick={ev => {
       ev.stopPropagation()
-      onSelect(opt)
+      selectOption(opt)
     }}>
       {#if keyIcon && opt?.[keyIcon]}
         <i class="{opt[keyIcon]} shrink-0 mr-4 text-[1.1em]"></i>

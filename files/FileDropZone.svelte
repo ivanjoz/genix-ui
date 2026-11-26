@@ -3,6 +3,7 @@
   import { useUI } from '../runtime/index.js';
   import { notifyFailure } from '../notify/notify.svelte.js';
   import { ifcss } from '../utilities/css.js';
+  import { pushAppLog } from '../logs/app-logs.js';
   const ui = useUI();
 
 interface IFileDropZoneProps {
@@ -88,12 +89,16 @@ const acceptFiles = (fileList: FileList | null | undefined): void => {
   const files = Array.from(fileList || []);
   if (multiple) {
     const allowedFiles = files.filter(isExtensionAllowed);
-    if (allowedFiles.length > 0) onFiles?.(allowedFiles);
+    if (allowedFiles.length > 0) {
+      pushAppLog('input', label || 'File selected', allowedFiles.map((allowedFile) => allowedFile.name).join(', '));
+      onFiles?.(allowedFiles);
+    }
     return;
   }
   const file = files[0];
   if (!file || !isExtensionAllowed(file)) return;
   selectedFile = file;
+  pushAppLog('input', label || 'File selected', file.name);
   onChange?.(file, false);
 };
 
@@ -136,6 +141,7 @@ const handleDrop = (event: DragEvent) => {
 const clearSelectedFile = (event: MouseEvent) => {
   // The remove button sits inside the zone, which is itself the picker trigger.
   event.stopPropagation();
+  pushAppLog('input', 'File removed', selectedFile?.name);
   selectedFile = undefined;
 
   if (hiddenFileInputElement) {

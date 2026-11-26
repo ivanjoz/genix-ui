@@ -1,6 +1,7 @@
 <script lang="ts" generics="T extends Record<string, any>">
   import { tick } from 'svelte';
   import Button from '../buttons/Button.svelte';
+  import { pushAppLog } from '../logs/app-logs.js';
   import T from '../misc/T.svelte';
   import { useUI } from '../runtime/index.js';
   import Checkbox from './Checkbox.svelte';
@@ -77,6 +78,7 @@
           {:else}
             <input class="_text grow min-w-0 h-38 {isChecked ? 'line-through text-fg-muted' : ''}" type="text"
               bind:value={item[textKey]} placeholder={placeholder ? ui.translate(placeholder) : undefined}
+              onchange={() => pushAppLog('input', `${title || placeholder || ''} [${String(textKey)}]`.trim(), `row ${itemIndex + 1}: ${item[textKey]}`)}
               aria-label={ui.translate(placeholder || title || '')} />
             <Button icon="icon-[fa--times]" label="Remove|Quitar" onClick={() => removeItem(itemIndex)}
               css="shrink-0 w-30 h-30 rounded text-fg-muted hover:text-red-solid hover:bg-red-bg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100" />

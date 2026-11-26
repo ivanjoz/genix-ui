@@ -4,6 +4,8 @@
   import { Agent, type AgentOption } from '../agent/registry';
   import { useUI } from '../runtime/index.js';
   import ButtonLayer from '../buttons/ButtonLayer.svelte';
+  import { pushAppLog } from '../logs/app-logs.js';
+  import { optionLogValue } from '../logs/app-log-text.js';
   const ui = useUI()
 
   // A select drawn as a plain button: the selected name (15px, up to 2 lines) and a chevron.
@@ -75,7 +77,9 @@
 
   function selectOption(option: E) {
     isOpen = false;
-    if (String(option[keyId]) !== String(selected ?? "")) { onChange?.(option); }
+    if (String(option[keyId]) === String(selected ?? "")) { return; }
+    pushAppLog("input", label || placeholder, optionLogValue(option[keyId], option[keyName]));
+    onChange?.(option);
   }
 
   // The filter box's keydown bubbles here, so the arrows drive the list from the box.

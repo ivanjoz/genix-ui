@@ -5,6 +5,7 @@
   import { untrack } from "svelte";
   import SearchSelect from "../form/SearchSelect.svelte";
   import { Agent } from "../agent/registry";
+  import { pushAppLog } from "../logs/app-logs.js";
 
   type SearchOptionID = string | number;
   type SearchDualCardSource = "left" | "right";
@@ -170,6 +171,8 @@
       rightSelectedIDs: $state.snapshot(rightSelectedIDs)
     });
 
+    pushAppLog("input", [sharedLabel, `[${String(saveLeft)}${saveRight ? `, ${String(saveRight)}` : ""}]`].filter(Boolean).join(" "),
+      { left: leftSelectedIDs, right: rightSelectedIDs });
     onChange?.({
       leftSelectedIDs: [...leftSelectedIDs],
       rightSelectedIDs: [...rightSelectedIDs]

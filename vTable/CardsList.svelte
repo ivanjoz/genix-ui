@@ -2,6 +2,7 @@
   import { useUI } from '../runtime/index.js';
   const ui = useUI();
   import { wordInclude } from '../utilities/ui.js';
+  import { pushAppLog } from '../logs/app-logs.js';
   import MobileCardsVirtualList from '../vTable/MobileCardsVirtualList.svelte';
   import type {
     CardRendererSnippet,
@@ -105,7 +106,9 @@
 
   function handleRowClick(record: T, index: number, rerender: () => void) {
     if (onRowClick) {
-      onRowClick(record, getRecordIndex(record, index), rerender);
+      const recordIndex = getRecordIndex(record, index);
+      pushAppLog('click', 'Row selected', `row ${recordIndex + 1}`);
+      onRowClick(record, recordIndex, rerender);
     }
   }
   function getRecordIndex(record: T, fallbackIndex: number): number {

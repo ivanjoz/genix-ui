@@ -2,6 +2,7 @@
 import type { ElementAST } from '../misc/Renderer.svelte';
 import Renderer from '../misc/Renderer.svelte';
 import { getVTableAgentContext } from '../vTable/agentContext';
+import { pushAppLog } from '../logs/app-logs.js';
 
 	export interface ICellInputProps<T> {
 		saveOn?: T;
@@ -61,6 +62,11 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 		if (isEditing && inputRef) { 	inputRef.focus();	}
 	});
 
+	// cellID is (rowIndex+1)*100 + column: the app log names the row by its 1-based position.
+	const logCellValue = (cellValue: string | number) => {
+		pushAppLog('input', String(save || 'Cell'), `${cellID ? `row ${Math.floor(cellID / 100)}: ` : ''}${cellValue}`);
+	}
+
 	const extractValue = (newValue?: string | number): string | number  => {
 		if (type === 'number') {
 			return parseFloat((newValue as string) || '0');
@@ -85,6 +91,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 				isEditing = false;
 				return;
 			}
+			logCellValue(newValue);
 			if (onChange) { onChange(newValue); }
 			currentValue = newValue
 		}
@@ -96,6 +103,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
 		const next = extractValue(value);
 		if (currentValue === next) { return; }
 		if (onBeforeCellChange && onBeforeCellChange(next) === false) { return; }
+		logCellValue(next);
 		if (onChange) { onChange(next); }
 		currentValue = next;
 	}

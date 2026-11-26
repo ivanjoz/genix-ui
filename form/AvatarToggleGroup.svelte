@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from '../buttons/Button.svelte';
+  import { pushAppLog } from '../logs/app-logs.js';
   import { useUI } from '../runtime/index.js';
   import { avatarColorCss, avatarInitials } from '../misc/avatar.js';
   const ui = useUI();
@@ -26,6 +27,7 @@
 
   const toggleOption = (optionID: number) => {
     selected = selected.includes(optionID) ? selected.filter((selectedID) => selectedID !== optionID) : [...selected, optionID];
+    pushAppLog('input', label, selected);
   };
 </script>
 

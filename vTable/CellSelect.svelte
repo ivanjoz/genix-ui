@@ -7,6 +7,8 @@ import { throttle } from '../utilities/ui.js';
 import Popover from '../misc/Popover.svelte';
 import { type AgentOption } from '../agent/registry';
 import { getVTableAgentContext } from '../vTable/agentContext';
+import { pushAppLog } from '../logs/app-logs.js';
+import { optionLogValue } from '../logs/app-log-text.js';
 
 	export interface ICellSelect<T,E> {
     id?: number | string;
@@ -60,8 +62,17 @@ import { getVTableAgentContext } from '../vTable/agentContext';
     }
   })
 
+  // cellID is (rowIndex+1)*100 + column: the app log names the row by its 1-based position.
+  const logSelectedOption = (option: E | null) => {
+    pushAppLog('input', String(save || 'Cell'),
+      `${cellID ? `row ${Math.floor(cellID / 100)}: ` : ''}${optionLogValue(option?.[keyId], option?.[keyName])}`)
+  }
+
+  // Runs on blur: the typed text either names an option or clears the cell. Blurring without
+  // changing anything must not reach the app log.
   const clearValueIfNotFound = (target: HTMLInputElement) => {
     const valueToRecord = ui.searchReferences.get(options)?.valueToRecord || new Map()
+    const previousSelected = selected
     selected = valueToRecord.get(String(target.value||"").toLowerCase())
     if(selected){
       target.value = selected[keyName] as string
@@ -69,14 +80,17 @@ import { getVTableAgentContext } from '../vTable/agentContext';
       target.value = ""
     }
     if(!selected){
+      if (previousSelected) { logSelectedOption(null) }
       clearSelected()
       return
     }
+    if (selected !== previousSelected) { logSelectedOption(selected) }
     if(saveOn && save){ saveOn[save] = selected[keyId] as unknown as NonNullable<T>[keyof T] }
     onChange?.((selected[keyId] as string | number) || '')
   }
 
   const onSelect = (e: E) => {
+    if (e !== selected) { logSelectedOption(e) }
     selected = e
     if(inputRef){ inputRef.value = e[keyName] as string }
     if(saveOn && save){
@@ -107,7 +121,7 @@ import { getVTableAgentContext } from '../vTable/agentContext';
         keyName: keyName as string,
         keyID: keyId as string,
         onSelect: (e) => { onSelect(e) },
-        onClear: required ? undefined : clearSelected,
+        onClear: required ? undefined : () => { logSelectedOption(null); clearSelected() },
       }
       return
     }

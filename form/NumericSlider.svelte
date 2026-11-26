@@ -40,6 +40,7 @@
   // it thirty times per drag.
   import T from '../misc/T.svelte'
   import { Agent } from '../agent/registry'
+  import { pushAppLog } from '../logs/app-logs.js'
   import { useUI } from '../runtime/index.js'
   import {
     computeNumericSliderScale, sliderPxToValue, sliderValueToPx, snapSliderValue,
@@ -74,6 +75,7 @@
 
   const commitValue = (previousValue: number, committedValue: number) => {
     if (previousValue === committedValue) { return }
+    pushAppLog('input', [label, save && `[${String(save)}]`].filter(Boolean).join(' '), committedValue)
     onChange?.(committedValue)
   }
 

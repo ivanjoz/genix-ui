@@ -41,6 +41,7 @@
 	import OptionsStrip from "../navigation/OptionsStrip.svelte";
 	import FileUploadSelector from "../files/FileUploadSelector.svelte";
 	import { Agent } from "../agent/registry";
+	import { pushAppLog } from "../logs/app-logs.js";
 	import Button from "../buttons/Button.svelte";
 	import "../buttons/buttons.css";
 
@@ -136,6 +137,7 @@
 		if (isOpen === isThisModalOpen) {
 			return;
 		}
+		pushAppLog("layer", isThisModalOpen ? "Modal opened" : "Modal closed", untrack(() => ui.translate(titleLabel)));
 
 		if (isThisModalOpen) {
 			focusBeforeOpen = document.activeElement instanceof HTMLElement ? document.activeElement : null;

@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import ColorPicker from 'svelte-awesome-color-picker';
   import { getVTableAgentContext } from '../vTable/agentContext';
+  import { pushAppLog } from '../logs/app-logs.js';
 
   // In-cell homologue of ColorPicker: no FieldShell chrome, the swatch fills the table cell.
   let {
@@ -61,7 +62,10 @@
     window.addEventListener('scroll', closeOnScroll, true)
     return () => {
       window.removeEventListener('scroll', closeOnScroll, true)
-      if (onChange && currentColor !== colorWhenOpened) { onChange(currentColor) }
+      if (currentColor !== colorWhenOpened) {
+        pushAppLog('input', String(save), currentColor)
+        onChange?.(currentColor)
+      }
     }
   })
 
@@ -74,6 +78,7 @@
         const hexColor = String(value || '')
         if (!hexColor || hexColor === currentColor) { return }
         writeColor(hexColor)
+        pushAppLog('input', String(save), hexColor)
         if (onChange) { onChange(hexColor) }
       },
     })

@@ -20,6 +20,19 @@ import { notifyFailure, notifySuccess } from '../notify/notify.svelte.js';
 import { registerPageCachedService } from './page-services-registry.js';
 import { readLocalCache, writeLocalCache } from './local-cache.js';
 import { readStaticCache, writeStaticCache } from './static-cache.js';
+import { pushAppLog } from '../logs/app-logs.js';
+import { countResponseRecords, logValueText } from '../logs/app-log-text.js';
+
+// logRequest writes one API call to the app log: "<status> · <ms> · <records or the API's error>".
+// Status 0 is a request that got no answer (network down, CORS, aborted).
+const logRequest = (requestName: string, requestStartedAt: number, statusCode: number, outcome: string) => {
+  pushAppLog('request', requestName, [statusCode || 'no response', `${Date.now() - requestStartedAt} ms`, outcome].filter(Boolean).join(' · '));
+};
+
+const recordsOutcome = (response: unknown) => {
+  const recordsCount = countResponseRecords(response);
+  return recordsCount > 0 ? `${recordsCount} records` : '';
+};
 
 export * from './get-handler.svelte.js';
 export * from './page-services-registry.js';
@@ -253,6 +266,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     const status = props.status || { code: 200, message: '' };
     const requestId = runtime.startRequest?.(props.route) || 0;
     const pendingWriteID = await openRoutesWrite(props.refreshRoutes);
+    const requestStartedAt = Date.now();
 
     try {
       console.log(`[http] ${method}:`, props.route);
@@ -267,10 +281,13 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
       const result = transformResponse(await parsePreResponse(response, status, props.route));
 
       if (!hasSuccessfulResponse(result, props, status)) {
+        logRequest(`${method} ${props.route}`, requestStartedAt, status.code, extractError(result || ''));
         return Promise.reject(result);
       }
+      logRequest(`${method} ${props.route}`, requestStartedAt, status.code, recordsOutcome(result));
       return result;
     } catch (error) {
+      logRequest(`${method} ${props.route}`, requestStartedAt, 0, logValueText(error));
       console.error(`[http] ${method} failed:`, props.route, error);
       if (!props.silentError) {
         notifyFailure(props.errorMessage || String(error));
@@ -292,6 +309,7 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
 
     props.status = { code: 200, message: '' };
     const pendingWriteID = await openRoutesWrite(props.refreshRoutes);
+    const requestStartedAt = Date.now();
 
     try {
       console.log('[http] Upload POST:', props.route);
@@ -303,13 +321,16 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
 
       if (response.status !== 200) {
         const message = result?.message || result?.error || result?.errorMessage || String(result);
+        logRequest(`Upload POST ${props.route}`, requestStartedAt, response.status, String(message));
         notifyFailure(String(message));
         return Promise.reject(result);
       }
+      logRequest(`Upload POST ${props.route}`, requestStartedAt, response.status, '');
       return result;
     } catch (rawError) {
       const error = (rawError as any)?.response?.data || rawError;
       const message = error?.message || error?.error || error?.errorMessage || String(error);
+      logRequest(`Upload POST ${props.route}`, requestStartedAt, (rawError as any)?.response?.status || 0, String(message));
       console.error('[http] Upload POST failed:', props.route, error);
       notifyFailure(String(message));
       throw error;
@@ -359,22 +380,28 @@ export const createHttpClient = (runtime: HttpClientRuntime): HttpClient => {
     }
 
     const requestId = runtime.startRequest?.(props.route) || 0;
+    const requestStartedAt = Date.now();
     try {
       console.log('[http] GET:', props.route);
       const response = await fetch(routeParsed, { headers: buildHeaders(undefined, props.route) });
       if (props.responseType === 'bytes' && response.status === 200) {
         status.code = response.status;
-        return new Uint8Array(await response.arrayBuffer());
+        const responseBytes = new Uint8Array(await response.arrayBuffer());
+        logRequest(`GET ${props.route}`, requestStartedAt, status.code, `${(responseBytes.length / 1000).toFixed(1)} kB`);
+        return responseBytes;
       }
       const result = transformResponse(await parsePreResponse(response, status, props.route));
 
       if (!hasSuccessfulResponse(result, props, status)) {
+        logRequest(`GET ${props.route}`, requestStartedAt, status.code, extractError(result || ''));
         return Promise.reject(result);
       }
+      logRequest(`GET ${props.route}`, requestStartedAt, status.code, recordsOutcome(result));
       if (props.useCacheLocal) { writeLocalCache(props.route, props.useCacheLocal.ver, result); }
       if (props.useCacheStatic) { await writeStaticCache(props.route, props.useCacheStatic.ver, result); }
       return result;
     } catch (error) {
+      logRequest(`GET ${props.route}`, requestStartedAt, 0, logValueText(error));
       console.warn('[http] GET failed:', props.route, error);
       if (props.errorMessage) {
         notifyFailure(props.errorMessage);

@@ -5,6 +5,7 @@ import OptionsStrip from '../navigation/OptionsStrip.svelte';
 import ButtonList from '../buttons/ButtonList.svelte';
 import Button from '../buttons/Button.svelte';
 import { Agent } from '../agent/registry';
+import { pushAppLog } from '../logs/app-logs.js';
 import { useUI } from '../runtime/index.js';
 import { ifcss } from '../utilities/css.js';
 
@@ -154,6 +155,16 @@ import { ifcss } from '../utilities/css.js';
     return () => {
       untrack(() => { ui.state.leftPanelWidth = 0 })
     }
+  })
+
+  // Side and bottom layers are popups: the app log gets their open/close transitions. A content
+  // layer is the page itself, always shown.
+  let wasLayerOpen = false
+  $effect(() => {
+    const isLayerOpen = type !== 'content' && ui.state.sideLayerId === id
+    if (isLayerOpen === wasLayerOpen) { return }
+    wasLayerOpen = isLayerOpen
+    pushAppLog('layer', isLayerOpen ? 'Layer opened' : 'Layer closed', untrack(() => ui.translate(title)))
   })
 
   // Helper function to close layer with view transition on mobile

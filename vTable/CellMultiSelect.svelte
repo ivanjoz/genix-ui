@@ -1,6 +1,7 @@
 <script lang="ts" generics="T,E">
   import { useUI } from '../runtime/index.js';
   import { getVTableAgentContext } from '../vTable/agentContext';
+  import { pushAppLog } from '../logs/app-logs.js';
   import MultiSelectLayer from '../form/MultiSelectLayer.svelte';
   import { buildMultiSelectItems, findOptionsByIDs, toMultiSelectAgentOptions, type MultiSelectOptionID } from '../form/multi-select';
 
@@ -38,6 +39,8 @@
   const saveSelectedIDs = (nextSelectedIDs: MultiSelectOptionID[]) => {
     selectedIDs = nextSelectedIDs;
     saveOn[save] = nextSelectedIDs as T[keyof T];
+    // cellID is (rowIndex+1)*100 + column: the app log names the row by its 1-based position.
+    pushAppLog('input', String(save), `${cellID ? `row ${Math.floor(cellID / 100)}: ` : ''}${JSON.stringify(nextSelectedIDs)}`);
     onChange?.(nextSelectedIDs);
   };
 

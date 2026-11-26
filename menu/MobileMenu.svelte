@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { MobileMenuItem } from './types.js';
+  import { pushAppLog } from '../logs/app-logs.js';
 
   let {
     items,
@@ -76,6 +77,8 @@
           class="_7"
           onclick={(event) => {
             event.stopPropagation();
+            // A mobile item carries no route: its id stands in for it.
+            pushAppLog('click', 'Menu', `${item.name} [${item.id}]`);
             onSelect(item);
           }}
         >

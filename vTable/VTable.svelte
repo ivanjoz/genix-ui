@@ -17,6 +17,7 @@
   import MobileCardsVirtualList from '../vTable/MobileCardsVirtualList.svelte';
   import T from '../misc/T.svelte';
   import { Agent } from '../agent/registry';
+  import { pushAppLog } from '../logs/app-logs.js';
   import {
     setVTableAgentContext,
     buildCellID,
@@ -113,6 +114,7 @@
     if (!selectedIDs || !getRowID) { return; }
     const rowID = getRowID(row);
     if (selectedIDs.has(rowID)) { selectedIDs.delete(rowID); } else { selectedIDs.add(rowID); }
+    pushAppLog('click', selectedIDs.has(rowID) ? 'Row checked' : 'Row unchecked', rowID);
   };
   const isCardSelectable = $derived(selectCardOnMobile && !!selectedIDs && !!getRowID);
 
@@ -456,6 +458,7 @@
   // Handle row click
   function handleRowClick(record: T, index: number, rerender: () => void) {
     if (onRowClick) {
+      pushAppLog('click', 'Row selected', getRowID?.(record) ?? `row ${index + 1}`);
       onRowClick(record, index, rerender);
     }
   }

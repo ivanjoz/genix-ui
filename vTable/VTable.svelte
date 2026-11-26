@@ -547,6 +547,7 @@
 
 <div bind:this={containerRef}
   data-id={shouldRegisterTable ? `Table:${componentID}` : undefined}
+  data-rows-count={shouldRegisterTable ? filteredData.length : undefined}
   class="vtable-container {css}" class:_14={isMobileView}
   class:_selectable={!!isSelected}
   style="max-height: {isMobileView ? effectiveMobileHeight : maxHeight}; overflow: {isMobileView ? 'hidden' : 'auto'};"

@@ -241,7 +241,22 @@ export const registerServiceHandler = async (id: number, handler: (e: any) => vo
   void handler
 }
 
+// Data reads (action 3) under way, cache-only ones included: the loading bar skips those, but the
+// agent must not read a page between its cache read and the network update that follows it.
+let dataReadsInFlight = 0
+export const getDataReadsInFlight = () => dataReadsInFlight
+
 export const sendServiceMessage = async (accion: number, content: any): Promise<any> => {
+  if (accion !== 3) { return sendServiceMessageCounted(accion, content) }
+  dataReadsInFlight++
+  try {
+    return await sendServiceMessageCounted(accion, content)
+  } finally {
+    dataReadsInFlight--
+  }
+}
+
+const sendServiceMessageCounted = async (accion: number, content: any): Promise<any> => {
   // Ensure SW is initialized before sending
   if (!swIsInitialized) {
     await doInitServiceWorker();

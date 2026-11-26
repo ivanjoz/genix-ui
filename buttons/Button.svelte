@@ -64,7 +64,11 @@
       id: componentID,
       type: 'Button',
       label: label || name || '',
-      click: () => triggerClick(),
+      // A disabled button refuses the agent too: the DOM would never fire its onclick.
+      click: () => {
+        if (disabled) { throw new Error('el botón está deshabilitado'); }
+        return triggerClick();
+      },
     });
   });
 </script>

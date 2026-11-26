@@ -44,6 +44,11 @@ export const parseSVG = (svgContent: string) =>
 export const cn = (...classNames: (string | boolean | undefined)[]) =>
   classNames.filter(Boolean).join(' ');
 
+// searchKey folds text for option search: lowercase, no accents, no punctuation, so "credito" finds
+// "Crédito" and "sac" finds "S.A.C.".
+export const searchKey = (text: string) =>
+  String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}\s]/gu, '');
+
 export const wordInclude = (text: string, search: string | string[]) => {
   const words = typeof search === 'string'
     ? search.split(' ').filter(Boolean)

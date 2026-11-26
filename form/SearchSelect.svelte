@@ -1,5 +1,5 @@
 <script lang="ts" generics="T,E">
-import { highlString, throttle, wordInclude } from '../utilities/ui.js';
+import { highlString, searchKey, throttle, wordInclude } from '../utilities/ui.js';
 import T from '../misc/T.svelte';
 import type { Snippet } from 'svelte';
   import FieldShell from "./FieldShell.svelte";
@@ -128,7 +128,7 @@ import type { Snippet } from 'svelte';
 
   // Normalize input once and reuse it in filter + highlight logic.
   function splitSearchWords(text: string): string[] {
-    return String(text).toLowerCase().split(" ").filter((word) => word.length > 1);
+    return searchKey(text).split(" ").filter((word) => word.length > 1);
   }
 
   type PreparedOption = {
@@ -359,7 +359,7 @@ import type { Snippet } from 'svelte';
       nextPreparedOptions.push({
         id: optionId,
         label: optionLabel,
-        normalizedLabel: searchText.toLowerCase(),
+        normalizedLabel: searchKey(searchText),
         option,
       });
     }

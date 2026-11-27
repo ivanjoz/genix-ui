@@ -132,7 +132,7 @@ Pure-display, infrastructural, or trivially composed components don't register:
 
 | Component | `type` | data-id additions | Methods |
 |---|---|---|---|
-| `Input` | `Input` | root has `data-value="<current value>"` | `setValue` |
+| `Input` | `Input` | root has `data-value="<current value>"`. With `leftOptions` (document type), the selector button is its own `Select:<id>` handle inside the Input, with `data-value="[id] text"` and `data-options-count` | `setValue` (the selector: `select`, `getOptions`, `getValue`) |
 | `SearchSelect` (Svelte file) | `Select` | root has `data-value="[id] text"` (id of the selected option followed by its display text; empty string when nothing is selected) and `data-options-count="<n>"` (total option count). When the full list is short (≤12) the backend renderer additionally injects `options="[id] label\|[id] label\|…"` on the `<Select>` tag from a frontend `getOptions(13)` probe — agents read the inline list directly and skip the round-trip. | `search`, `select`, `getOptions` (options not in DOM until opened) |
 | `SelectMultiple` | `MultiSelect` | root has `data-value="[id] text, [id] text, …"` (the selected options) and `data-options-count="<n>"` | `search`, `select(...ids)` (adds), `remove(id)` (plain option id), `getOptions` |
 | `SearchCard` | `SearchCard` | wraps a child `Select`; renders selected chips as `Option:<id>` | `select(...ids)`, `remove(id)` |
@@ -156,7 +156,7 @@ Pure-display, infrastructural, or trivially composed components don't register:
 | `TopLayerSelector` | `TopLayerSelector` | each option as `Option:<id>` | `search`, `select`, `close` |
 | `TopLayerDatePicker` | `TopLayerDatePicker` | root has `data-value="YYYY-MM-DD"` | `setValue`, `close` |
 | `vTable/VTable` | `Table` | body as `TableBody:<tableID>` with `selectRow`; each selectable row as `Row:<tableID>:<rowID>` and `data-selected="true"`. Rows expose no method. | `selectRow` is shown on `TableBody`; cell methods remain on cells |
-| `vTable/TableGrid` | `Table` | same as `VTable` | (same) |
+| `vTable/TableGrid` | `Table` | same as `VTable`; a div grid: rows and cells by `role`. Grouped headers (`subcols`) state their level and extent with `aria-rowindex="2"` (second level), `aria-colspan`, `aria-rowspan` | (same) |
 | `vTable/TableTree` | `Table` | same | (same) |
 | `vTable/TableStream` | `Table` | same | (same) |
 | `vTable/MobileCardsVirtualList` | `CardList` | same row/cell shape as `VTable`, with the parent type `CardList` instead of `Table`. Container root has `data-id="CardList:<componentID>"`. | (none on the CardList tag — methods live on the rows/cells) |

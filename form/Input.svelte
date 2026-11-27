@@ -532,7 +532,8 @@
 
     // The left selector is its own agent handle rather than another verb on the Input: an
     // agent setting a document number and an agent setting the document type are two
-    // actions, and a single handle could not express the second without guessing.
+    // actions, and a single handle could not express the second without guessing. The selector's
+    // button carries the handle's data-id, so the page snapshot shows it next to the Input.
     $effect(() => {
         if (!hasLeftSelector) return;
         return Agent.register({
@@ -687,6 +688,9 @@
         {disabled}
         aria-haspopup="listbox"
         aria-expanded={isLeftOpen}
+        data-id="Select:{leftSelectorComponentID}"
+        data-value={selectedLeftOption ? `[${selectedLeftOption.id}] ${ui.translate(selectedLeftOption.name)}` : ""}
+        data-options-count={leftOptions?.length ?? 0}
         onclick={() => { isLeftOpen = !isLeftOpen; }}
         onblur={() => { isLeftOpen = false; }}
     >

@@ -449,7 +449,9 @@
 </script>
 
 <!-- One header for both branches: the plain scroll and the virtualized one render the same row,
-     and a second level appears only when some column declares `subcols`. -->
+     and a second level appears only when some column declares `subcols`. Both levels sit in one
+     role="row", so aria-rowindex / aria-colspan / aria-rowspan state the grouping the CSS grid
+     draws: the agent reads each leaf column as "Lunes › Compra". -->
 {#snippet tableHeaderRow()}
   <div class="table-grid-header table-grid-header-sticky {headerCss}" role="row">
     {#each processedColumns.headerGroups as headerGroup, groupIndex (headerGroup.column.id || groupIndex)}
@@ -458,6 +460,8 @@
         class:_no-header-padding={disableHeaderPadding}
         style="grid-column: {headerGroup.startTrack} / span {headerGroup.trackSpan}; grid-row: {processedColumns.hasSubcols && !headerGroup.hasOwnSubcols ? '1 / span 2' : '1'};"
         role="columnheader"
+        aria-colspan={headerGroup.trackSpan > 1 ? headerGroup.trackSpan : undefined}
+        aria-rowspan={processedColumns.hasSubcols && !headerGroup.hasOwnSubcols ? 2 : undefined}
       >
         {#if headerRenderer}
           {@render headerRenderer(headerGroup.column, groupIndex)}
@@ -472,6 +476,7 @@
         class:_no-header-padding={disableHeaderPadding}
         style="grid-column: {subHeader.startTrack}; grid-row: 2;"
         role="columnheader"
+        aria-rowindex={2}
       >
         {#if headerRenderer}
           {@render headerRenderer(subHeader.column, subHeaderIndex)}
